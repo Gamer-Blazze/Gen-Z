@@ -37,7 +37,7 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex items-center gap-2 mb-8 cursor-pointer" onClick={() => navigate("/")}>
         <img src="https://harmless-tapir-303.convex.cloud/api/storage/883e5059-db9d-4027-bc9c-ddf871efb973" alt="Gen-z Nepal" className="w-8 h-8 rounded-md object-cover" />
-        <span className="font-bold text-lg text-primary">Nepal Social</span>
+        <span className="font-bold text-lg text-primary">Gen-Z Nepal</span>
       </div>
 
       {/* User Profile */}
