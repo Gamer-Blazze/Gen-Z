@@ -15,6 +15,14 @@ export default function Settings() {
   const { isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
+  const [nameInput, setNameInput] = useState(user?.name ?? "");
+  const [saving, setSaving] = useState(false);
+  const updateUserName = useMutation(api.users.updateUserName);
+
+  useEffect(() => {
+    setNameInput(user?.name ?? "");
+  }, [user?.name]);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate("/auth");
@@ -30,15 +38,6 @@ export default function Settings() {
   }
 
   if (!isAuthenticated || !user) return null;
-
-  // Add local state and mutation for display name editing
-  const [nameInput, setNameInput] = useState(user?.name ?? "");
-  const [saving, setSaving] = useState(false);
-  const updateUserName = useMutation(api.users.updateUserName);
-
-  useEffect(() => {
-    setNameInput(user?.name ?? "");
-  }, [user?.name]);
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
