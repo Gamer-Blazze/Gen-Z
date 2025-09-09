@@ -68,9 +68,8 @@ export default function Landing() {
               whileHover={{ scale: 1.05 }}
               onClick={() => navigate("/")}
             >
-              <img src="https://harmless-tapir-303.convex.cloud/api/storage/2a0ac1ff-9bc0-4f03-a777-df1bd65aee2f" alt="Gen-Z Nepal" className="w-8 h-8" />
               <span className="font-bold text-xl bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
-                Gen-Z Nepal
+                Gen-Z
               </span>
             </motion.div>
             
@@ -320,8 +319,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
-              <img src="https://harmless-tapir-303.convex.cloud/api/storage/2a0ac1ff-9bc0-4f03-a777-df1bd65aee2f" alt="Gen-Z Nepal" className="w-6 h-6" />
-              <span className="font-semibold text-lg">Gen-Z Nepal</span>
+              <span className="font-semibold text-lg">Gen-Z</span>
             </div>
             <div className="text-sm text-muted-foreground">
               © 2025 Gen-Z Social Media. Made By Diva
