@@ -135,12 +135,16 @@ export function CreatePost() {
                             src={URL.createObjectURL(f)}
                             alt={f.name}
                             className="w-full h-24 object-cover"
+                            loading="lazy"
+                            decoding="async"
                           />
                         ) : (
                           <video
                             src={URL.createObjectURL(f)}
                             className="w-full h-24 object-cover"
                             controls
+                            preload="metadata"
+                            playsInline
                           />
                         )}
                       </div>

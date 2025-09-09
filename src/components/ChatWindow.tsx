@@ -214,6 +214,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                         src={msg.imageUrl}
                         alt={msg.fileName || "image"}
                         className="max-w-xs rounded-2xl border"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </div>
                   ) : msg.messageType === "file" && msg.fileUrl ? (
@@ -223,6 +225,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                         src={msg.fileUrl}
                         className="max-w-xs rounded-2xl border"
                         controls
+                        preload="metadata"
+                        playsInline
                       />
                       {msg.fileName && (
                         <div className="text-xs text-muted-foreground mt-1 truncate max-w-xs">

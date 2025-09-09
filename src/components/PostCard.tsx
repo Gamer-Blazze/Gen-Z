@@ -98,6 +98,8 @@ export function PostCard({ post }: PostCardProps) {
                 src={image}
                 alt="Post image"
                 className="w-full h-auto rounded-md"
+                loading="lazy"
+                decoding="async"
               />
             ))}
           </div>
@@ -111,6 +113,8 @@ export function PostCard({ post }: PostCardProps) {
                 src={video}
                 controls
                 className="w-full h-auto rounded-md"
+                preload="metadata"
+                playsInline
               />
             ))}
           </div>
