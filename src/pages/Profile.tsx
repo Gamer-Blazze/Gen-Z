@@ -35,11 +35,16 @@ export default function Profile() {
   const isOwnProfile: boolean =
     !viewUserIdParam || (user ? viewUserIdParam === user._id : false);
 
-  const generateUploadUrl = useAction(api.files.generateUploadUrl);
-  const getFileUrl = useAction(api.files.getFileUrl);
   const updateUserImage = useMutation(api.users.updateUserImage);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Add: send friend request mutation
+  const sendFriend = useMutation(api.friends.sendFriendRequest);
+
+  // Add: file upload actions for profile picture
+  const generateUploadUrl = useAction(api.files.generateUploadUrl);
+  const getFileUrl = useAction(api.files.getFileUrl);
 
   const onPickProfileImage = async (fl: FileList | null) => {
     if (!fl || fl.length === 0) return;
@@ -137,7 +142,7 @@ export default function Profile() {
                 <div className="font-semibold text-lg">{targetUser.name || "User"}</div>
                 <div className="text-muted-foreground">{targetUser.email}</div>
               </div>
-              {isOwnProfile && (
+              {isOwnProfile ? (
                 <Button
                   variant="outline"
                   size="sm"
@@ -150,6 +155,30 @@ export default function Profile() {
                     "Change Picture"
                   )}
                 </Button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                    onClick={async () => {
+                      try {
+                        await sendFriend({ userId: targetUser._id });
+                        toast.success("Friend request sent");
+                      } catch (e: any) {
+                        toast.error(e?.message || "Failed to send request");
+                      }
+                    }}
+                  >
+                    Add Friend
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/messages")}
+                  >
+                    Message
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
