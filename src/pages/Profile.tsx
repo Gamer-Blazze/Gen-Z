@@ -6,7 +6,6 @@ import { Sidebar } from "@/components/Sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PostCard } from "@/components/PostCard";
@@ -15,14 +14,6 @@ import { toast } from "sonner";
 export default function Profile() {
   const { isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
-
-  const [nameInput, setNameInput] = useState(user?.name ?? "");
-  const [saving, setSaving] = useState(false);
-  const updateUserName = useMutation(api.users.updateUserName);
-
-  useEffect(() => {
-    setNameInput(user?.name ?? "");
-  }, [user?.name]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -58,52 +49,6 @@ export default function Profile() {
                 <div className="font-semibold text-lg">{user.name || "User"}</div>
                 <div className="text-muted-foreground">{user.email}</div>
               </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <h2 className="font-semibold text-lg">Edit Display Name</h2>
-              <div className="flex gap-2">
-                <Input
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  placeholder="Enter your name"
-                  maxLength={50}
-                />
-                <Button
-                  onClick={async () => {
-                    const trimmed = nameInput.trim();
-                    if (!trimmed) {
-                      toast.error("Name cannot be empty");
-                      return;
-                    }
-                    if (trimmed === (user.name ?? "")) {
-                      toast.message("No changes to save");
-                      return;
-                    }
-                    setSaving(true);
-                    try {
-                      await updateUserName({ name: trimmed });
-                      toast.success("Name updated");
-                    } catch (err) {
-                      toast.error("Failed to update name");
-                    } finally {
-                      setSaving(false);
-                    }
-                  }}
-                  disabled={saving || !nameInput.trim()}
-                  className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
-                >
-                  {saving ? (
-                    <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  ) : (
-                    "Save"
-                  )}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Your display name will appear on your posts, messages, and profile.
-              </p>
             </CardContent>
           </Card>
 
