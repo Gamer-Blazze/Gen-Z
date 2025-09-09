@@ -6,10 +6,11 @@ import { Sidebar } from "@/components/Sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PostCard } from "@/components/PostCard";
 import { toast } from "sonner";
+import { useRef } from "react";
 
 export default function Profile() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -31,6 +32,49 @@ export default function Profile() {
 
   if (!isAuthenticated || !user) return null;
 
+  // Add: file upload + user image update hooks/state
+  const generateUploadUrl = useAction(api.files.generateUploadUrl);
+  const getFileUrl = useAction(api.files.getFileUrl);
+  const updateUserImage = useMutation(api.users.updateUserImage);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Add: handler to change profile picture
+  const onPickProfileImage = async (fl: FileList | null) => {
+    if (!fl || fl.length === 0) return;
+    const file = fl[0];
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const uploadUrl = await generateUploadUrl({});
+      const buf = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+      const res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: buf,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const { storageId } = await res.json();
+      const signedUrl = await getFileUrl({ fileId: storageId });
+      await updateUserImage({ image: signedUrl });
+      toast.success("Profile picture updated");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update profile picture");
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
       <div className="flex">
@@ -39,16 +83,35 @@ export default function Profile() {
           <h1 className="text-2xl font-bold">Profile</h1>
           <Card>
             <CardContent className="p-6 flex items-center gap-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => onPickProfileImage(e.target.files)}
+              />
               <Avatar className="w-16 h-16">
                 <AvatarImage src={user.image} />
                 <AvatarFallback className="bg-primary text-primary-foreground text-xl">
                   {user.name?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
-              <div>
+              <div className="flex-1">
                 <div className="font-semibold text-lg">{user.name || "User"}</div>
                 <div className="text-muted-foreground">{user.email}</div>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImage}
+              >
+                {uploadingImage ? (
+                  <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                ) : (
+                  "Change Picture"
+                )}
+              </Button>
             </CardContent>
           </Card>
 

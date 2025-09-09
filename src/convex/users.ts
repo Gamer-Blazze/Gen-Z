@@ -49,3 +49,15 @@ export const updateUserName = mutation({
     return true;
   },
 });
+
+export const updateUserImage = mutation({
+  args: { image: v.string() },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+    await ctx.db.patch(user._id, { image: args.image });
+    return true;
+  },
+});
