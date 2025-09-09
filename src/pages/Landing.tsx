@@ -177,15 +177,6 @@ export default function Landing() {
               transition={{ delay: 0.6 }}
               className="relative"
             >
-              {/* Added: Featured image from user */}
-              <div className="max-w-3xl mx-auto mb-8">
-                <img
-                  src="https://harmless-tapir-303.convex.cloud/api/storage/d9582a69-d7a2-4344-b33d-a0ce024b8514"
-                  alt="Gen-Z Nepal"
-                  loading="lazy"
-                  className="w-full rounded-2xl shadow-lg border border-red-200/50 dark:border-red-800/50"
-                />
-              </div>
               <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-3xl p-8 backdrop-blur-sm border border-red-200/50 dark:border-red-800/50">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <Card className="border-red-200/50 dark:border-red-800/50">
