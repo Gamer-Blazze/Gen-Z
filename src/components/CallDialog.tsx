@@ -43,9 +43,11 @@ export default function CallDialog({
   const safeIceServers = useMemo<RTCConfiguration>(
     () => ({
       iceServers: [
-        // Strictly allow only valid Google STUN servers
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun3.l.google.com:19302" },
+        { urls: "stun:stun4.l.google.com:19302" },
       ],
     }),
     []
@@ -57,11 +59,18 @@ export default function CallDialog({
 
     let pc: RTCPeerConnection | null = null;
     try {
+      // First try with our strictly-allowed Google STUN list
       pc = new RTCPeerConnection(safeIceServers);
     } catch (err: any) {
-      toast.error("Failed to initialize call. Please refresh and try again.");
-      onOpenChange(false);
-      return;
+      // If any invalid URL slipped in or the environment rejects it, retry with empty config
+      try {
+        pc = new RTCPeerConnection({});
+        toast.message("Using fallback WebRTC configuration (no STUN). Connectivity may be limited.");
+      } catch {
+        toast.error("Failed to initialize call. Please refresh and try again.");
+        onOpenChange(false);
+        return;
+      }
     }
 
     pcRef.current = pc;
@@ -74,7 +83,8 @@ export default function CallDialog({
 
     pc.onicecandidate = async (ev) => {
       if (ev.candidate && activeCall && user) {
-        const toUserId = user._id === activeCall.callerId ? activeCall.calleeId : activeCall.callerId;
+        const toUserId =
+          user._id === activeCall.callerId ? activeCall.calleeId : activeCall.callerId;
         try {
           await sendSignal({
             callId,
@@ -88,7 +98,6 @@ export default function CallDialog({
       }
     };
 
-    // Get local media
     (async () => {
       try {
         const constraints: MediaStreamConstraints =
@@ -103,12 +112,11 @@ export default function CallDialog({
           localVideoRef.current.srcObject = local;
         }
 
-        local.getTracks().forEach((t) => pc.addTrack(t, local));
+        local.getTracks().forEach((t) => pc!.addTrack(t, local));
 
-        // Caller creates and sends offer
         if (role === "caller" && activeCall && user) {
-          const offer = await pc.createOffer();
-          await pc.setLocalDescription(offer);
+          const offer = await pc!.createOffer();
+          await pc!.setLocalDescription(offer);
           const toUserId = activeCall.calleeId;
           await sendSignal({
             callId,
@@ -124,13 +132,12 @@ export default function CallDialog({
     })();
 
     return () => {
-      pc.getSenders().forEach((s) => s.track?.stop());
-      pc.close();
+      pc!.getSenders().forEach((s) => s.track?.stop());
+      pc!.close();
       pcRef.current = null;
       localStreamRef.current?.getTracks().forEach((t) => t.stop());
       localStreamRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, safeIceServers, activeCall, user, sendSignal, callId, type, role, onOpenChange]);
 
   // Process incoming signals
