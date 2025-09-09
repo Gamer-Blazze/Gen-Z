@@ -34,11 +34,11 @@ export function LogoDropdown() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-10 w-10">
           <img
-            src="/logo.svg"
-            alt="Logo"
+            src="https://harmless-tapir-303.convex.cloud/api/storage/883e5059-db9d-4027-bc9c-ddf871efb973"
+            alt="Gen-z Nepal"
             width={32}
             height={32}
-            className="rounded-lg"
+            className="rounded-lg object-cover"
           />
         </Button>
       </DropdownMenuTrigger>
