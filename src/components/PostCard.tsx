@@ -19,6 +19,7 @@ interface PostCardProps {
     userId: Id<"users">;
     content: string;
     images?: string[];
+    videos?: string[];
     likes: Id<"users">[];
     likesCount: number;
     commentsCount: number;
@@ -90,13 +91,26 @@ export function PostCard({ post }: PostCardProps) {
         <p className="text-sm leading-relaxed mb-4 whitespace-pre-wrap">{post.content}</p>
 
         {post.images && post.images.length > 0 && (
-          <div className="mb-4 rounded-lg overflow-hidden">
+          <div className="mb-4 rounded-lg overflow-hidden grid grid-cols-1 gap-2">
             {post.images.map((image, index) => (
               <img
                 key={index}
                 src={image}
                 alt="Post image"
-                className="w-full h-auto"
+                className="w-full h-auto rounded-md"
+              />
+            ))}
+          </div>
+        )}
+
+        {post.videos && post.videos.length > 0 && (
+          <div className="mb-4 rounded-lg overflow-hidden grid grid-cols-1 gap-2">
+            {post.videos.map((video, index) => (
+              <video
+                key={index}
+                src={video}
+                controls
+                className="w-full h-auto rounded-md"
               />
             ))}
           </div>

@@ -6,7 +6,8 @@ import { getCurrentUser } from "./users";
 export const createPost = mutation({
   args: {
     content: v.string(),
-    images: v.optional(v.array(v.string())),
+    images: v.optional(v.array(v.id("_storage"))),
+    videos: v.optional(v.array(v.id("_storage"))),
     isPublic: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -19,6 +20,7 @@ export const createPost = mutation({
       userId: user._id,
       content: args.content,
       images: args.images || [],
+      videos: args.videos || [],
       likes: [],
       likesCount: 0,
       commentsCount: 0,
@@ -51,8 +53,25 @@ export const getFeedPosts = query({
     const postsWithUsers = await Promise.all(
       posts.map(async (post) => {
         const postUser = await ctx.db.get(post.userId);
+
+        // Map storage ids -> signed URLs for images/videos
+        const imageUrls = post.images
+          ? (await Promise.all(
+              post.images.map(async (fid) => (await ctx.storage.getUrl(fid)) || "")
+            )).filter(Boolean)
+          : [];
+
+        const videoUrls = post.videos
+          ? (await Promise.all(
+              post.videos.map(async (fid) => (await ctx.storage.getUrl(fid)) || "")
+            )).filter(Boolean)
+          : [];
+
         return {
           ...post,
+          // override to URLs for frontend consumption
+          images: imageUrls,
+          videos: videoUrls,
           user: postUser,
         };
       })
@@ -77,10 +96,30 @@ export const getUserPosts = query({
 
     const user = await ctx.db.get(args.userId);
 
-    return posts.map(post => ({
-      ...post,
-      user,
-    }));
+    const mapped = await Promise.all(
+      posts.map(async (post) => {
+        const imageUrls = post.images
+          ? (await Promise.all(
+              post.images.map(async (fid) => (await ctx.storage.getUrl(fid)) || "")
+            )).filter(Boolean)
+          : [];
+
+        const videoUrls = post.videos
+          ? (await Promise.all(
+              post.videos.map(async (fid) => (await ctx.storage.getUrl(fid)) || "")
+            )).filter(Boolean)
+          : [];
+
+        return {
+          ...post,
+          images: imageUrls,
+          videos: videoUrls,
+          user,
+        };
+      })
+    );
+
+    return mapped;
   },
 });
 

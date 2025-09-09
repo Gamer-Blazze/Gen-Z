@@ -44,12 +44,15 @@ const schema = defineSchema(
     posts: defineTable({
       userId: v.id("users"),
       content: v.string(),
-      images: v.optional(v.array(v.string())),
+      // CHANGED: store Convex storage file ids for images/videos
+      images: v.optional(v.array(v.id("_storage"))),
       likes: v.array(v.id("users")),
       likesCount: v.number(),
       commentsCount: v.number(),
       sharesCount: v.number(),
       isPublic: v.boolean(),
+      // ADD: videos support
+      videos: v.optional(v.array(v.id("_storage"))),
     }).index("by_user", ["userId"]),
 
     // Comments table
