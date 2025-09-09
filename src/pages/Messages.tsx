@@ -46,6 +46,13 @@ export default function Messages() {
 
         {/* Main responsive container */}
         <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
+          {/* Quick action: Go Home */}
+          <div className="p-2 lg:p-0 flex justify-end">
+            <Button variant="secondary" size="sm" onClick={() => navigate("/")}>
+              Home
+            </Button>
+          </div>
+
           {/* Mobile view: one panel at a time */}
           <div className="md:hidden h-full flex flex-col">
             {/* Top bar when in chat view */}
