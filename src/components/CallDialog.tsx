@@ -40,9 +40,10 @@ export default function CallDialog({
   const localStreamRef = useRef<MediaStream | null>(null);
   const [isAccepted, setIsAccepted] = useState(role === "caller"); // caller proceeds immediately
 
-  const config = useMemo<RTCConfiguration>(
+  const safeIceServers = useMemo<RTCConfiguration>(
     () => ({
       iceServers: [
+        // Strictly allow only valid Google STUN servers
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
       ],
@@ -54,7 +55,15 @@ export default function CallDialog({
   useEffect(() => {
     if (!open) return;
 
-    const pc = new RTCPeerConnection(config);
+    let pc: RTCPeerConnection | null = null;
+    try {
+      pc = new RTCPeerConnection(safeIceServers);
+    } catch (err: any) {
+      toast.error("Failed to initialize call. Please refresh and try again.");
+      onOpenChange(false);
+      return;
+    }
+
     pcRef.current = pc;
 
     pc.ontrack = (e) => {
@@ -122,7 +131,7 @@ export default function CallDialog({
       localStreamRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, safeIceServers, activeCall, user, sendSignal, callId, type, role, onOpenChange]);
 
   // Process incoming signals
   useEffect(() => {
