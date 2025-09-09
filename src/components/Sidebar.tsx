@@ -87,16 +87,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-      {/* Sign Out */}
-      <Button
-        variant="ghost"
-        className="w-full justify-start gap-3 text-destructive hover:text-destructive"
-        onClick={() => signOut()}
-      >
-        <LogOut className="w-5 h-5" />
-        Sign Out
-      </Button>
     </motion.div>
   );
 }

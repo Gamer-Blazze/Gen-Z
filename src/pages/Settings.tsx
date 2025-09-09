@@ -12,7 +12,7 @@ import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 
 export default function Settings() {
-  const { isLoading, isAuthenticated, user } = useAuth();
+  const { isLoading, isAuthenticated, user, signOut } = useAuth();
   const navigate = useNavigate();
 
   const [nameInput, setNameInput] = useState(user?.name ?? "");
@@ -89,6 +89,29 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">
                 Your display name will appear on your posts, messages, and profile.
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <h2 className="font-semibold text-lg">Account</h2>
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Sign out of your account on this device.
+                </div>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    try {
+                      signOut();
+                    } catch {
+                      toast.error("Failed to sign out");
+                    }
+                  }}
+                >
+                  Log Out
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </main>
