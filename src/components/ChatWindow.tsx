@@ -290,7 +290,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             variant="ghost"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="h-10 w-10 p-0"
+            className="h-10 w-10 p-0 rounded-full"
             title="Attach photo/video"
           >
             {isUploading ? (
@@ -300,15 +300,17 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             )}
           </Button>
           <Input
-            placeholder="Type a message..."
+            placeholder="Message..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            className="flex-1"
+            className="flex-1 rounded-full bg-muted border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
           />
           <Button
             type="submit"
             disabled={!message.trim() || isSubmitting}
-            className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+            className="h-10 w-10 p-0 rounded-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+            aria-label="Send"
+            title="Send"
           >
             {isSubmitting ? (
               <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

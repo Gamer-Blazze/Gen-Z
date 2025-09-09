@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router";
+import { useAuth } from "@/hooks/use-auth";
 
 interface ConversationsListProps {
   selectedConversationId: Id<"conversations"> | null;
@@ -22,6 +23,7 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
   const conversations = useQuery(api.messages.getUserConversations, {});
   const [openNewDialog, setOpenNewDialog] = useState(false);
   const [search, setSearch] = useState("");
+  const { user } = useAuth();
 
   const searchResults = useQuery(
     api.friends.searchUsers,
@@ -37,7 +39,7 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Messages</h2>
+          <h2 className="text-xl font-bold">Direct</h2>
           <Dialog open={openNewDialog} onOpenChange={setOpenNewDialog}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
@@ -105,7 +107,7 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
         </div>
         <div className="relative">
           <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Search conversations..." className="pl-9" />
+          <Input placeholder="Search" className="pl-9 rounded-full" />
         </div>
       </div>
 
@@ -123,6 +125,17 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
                 ? conversation.groupImage 
                 : otherUser?.image;
 
+              const last = conversation.lastMessage;
+              const currentUserId = user?._id;
+              const hasUserReadLast =
+                !!last &&
+                Array.isArray(last.readBy) &&
+                last.readBy.some((rb: { userId: any }) => rb.userId === currentUserId);
+              const sentByMe = last?.senderId === currentUserId;
+              const isUnread = !!last && !sentByMe && !hasUserReadLast;
+
+              const lastPreviewPrefix = sentByMe ? "You: " : "";
+
               return (
                 <motion.div
                   key={conversation._id}
@@ -130,8 +143,10 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
                   whileTap={{ scale: 0.98 }}
                 >
                   <Button
-                    variant={isSelected ? "secondary" : "ghost"}
-                    className="w-full h-auto p-3 justify-start"
+                    variant="ghost"
+                    className={`w-full h-auto p-3 justify-start rounded-xl transition-colors ${
+                      isSelected ? "bg-muted" : "hover:bg-muted/60"
+                    }`}
                     onClick={() => onSelectConversation(conversation._id)}
                   >
                     <div className="flex items-center gap-3 w-full">
@@ -169,18 +184,23 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
                         >
                           {displayName}
                         </p>
-                        {conversation.lastMessage && (
+                        {last && (
                           <div className="flex items-center gap-1">
-                            <p className="text-sm text-muted-foreground truncate">
-                              {conversation.lastMessage.sender?.name === conversation.lastMessage.sender?.name ? "You: " : ""}
-                              {conversation.lastMessage.content}
+                            <p
+                              className={`text-sm truncate ${
+                                isUnread ? "font-semibold text-foreground" : "text-muted-foreground"
+                              }`}
+                            >
+                              {lastPreviewPrefix}
+                              {last.content}
                             </p>
                             <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              · {formatDistanceToNow(new Date(conversation.lastMessage._creationTime), { addSuffix: true })}
+                              · {formatDistanceToNow(new Date(last._creationTime), { addSuffix: true })}
                             </span>
                           </div>
                         )}
                       </div>
+                      {isUnread && <span className="w-2 h-2 rounded-full bg-blue-600" />}
                     </div>
                   </Button>
                 </motion.div>
