@@ -6,6 +6,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { ConversationsList } from "@/components/ConversationsList";
 import { ChatWindow } from "@/components/ChatWindow";
 import { Id } from "@/convex/_generated/dataModel";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function Messages() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -36,31 +38,69 @@ export default function Messages() {
       animate={{ opacity: 1 }}
       className="min-h-screen bg-background"
     >
-      <div className="flex h-screen">
+      <div className="flex">
         {/* Left Sidebar */}
         <Sidebar />
-        
-        {/* Conversations List */}
-        <div className="w-80 border-r border-border">
-          <ConversationsList 
-            selectedConversationId={selectedConversationId}
-            onSelectConversation={setSelectedConversationId}
-          />
-        </div>
 
-        {/* Chat Window */}
-        <div className="flex-1">
-          {selectedConversationId ? (
-            <ChatWindow conversationId={selectedConversationId} />
-          ) : (
-            <div className="h-full flex items-center justify-center text-muted-foreground">
-              <div className="text-center">
-                <h3 className="text-lg font-semibold mb-2">Select a conversation</h3>
-                <p>Choose a conversation from the sidebar to start messaging</p>
+        {/* Main responsive container */}
+        <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
+          {/* Mobile view: one panel at a time */}
+          <div className="lg:hidden h-full flex flex-col">
+            {/* Top bar when in chat view */}
+            {selectedConversationId && (
+              <div className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
+                <div className="h-14 flex items-center px-2">
+                  <Button variant="ghost" size="icon" onClick={() => setSelectedConversationId(null)}>
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                  <div className="ml-2 font-semibold">Chat</div>
+                </div>
               </div>
+            )}
+
+            <div className="flex-1 overflow-hidden">
+              {!selectedConversationId ? (
+                <div className="h-full">
+                  <ConversationsList
+                    selectedConversationId={selectedConversationId}
+                    onSelectConversation={(id) => setSelectedConversationId(id)}
+                  />
+                </div>
+              ) : (
+                <div className="h-[calc(100vh-56px)]">
+                  <ChatWindow conversationId={selectedConversationId} />
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
+
+          {/* Desktop view: three panels */}
+          <div className="hidden lg:flex h-[calc(100vh)] gap-0 lg:gap-4">
+            {/* Conversations list pane */}
+            <aside className="w-[360px] border-r">
+              <ConversationsList
+                selectedConversationId={selectedConversationId}
+                onSelectConversation={(id) => setSelectedConversationId(id)}
+              />
+            </aside>
+
+            {/* Chat pane */}
+            <section className="flex-1 min-w-0">
+              {selectedConversationId ? (
+                <div className="h-full">
+                  <ChatWindow conversationId={selectedConversationId} />
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground px-4">
+                  <div className="text-center">
+                    <h3 className="font-semibold mb-2">Select a conversation</h3>
+                    <p className="text-sm">Choose a chat from the left to start messaging</p>
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+        </main>
       </div>
     </motion.div>
   );
