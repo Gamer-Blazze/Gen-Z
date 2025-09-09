@@ -75,6 +75,7 @@ export default function Landing() {
                 height={32}
                 className="rounded-md object-cover"
               />
+              <span className="font-semibold text-lg text-foreground">Gen-Z</span>
             </motion.div>
             
             <div className="flex items-center gap-4">
