@@ -90,7 +90,7 @@ export default function Landing() {
                       onClick={() => navigate("/auth")}
                       className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
                     >
-                      Join Gen-Z Nepal
+                      Connect with Gen-Z
                       <ArrowRight className="ml-2 w-4 h-4" />
                     </Button>
                   )}
@@ -113,7 +113,7 @@ export default function Landing() {
             >
               <div className="inline-flex items-center gap-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-4 py-2 rounded-full text-sm font-medium mb-6">
                 <Star className="w-4 h-4" />
-                Connect with Nepal
+                Connect with Gen-Z
               </div>
               
               <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
@@ -154,7 +154,7 @@ export default function Landing() {
                         onClick={() => navigate("/auth")}
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-lg px-8 py-6"
                       >
-                        Join Gen-Z Nepal
+                        Connect with Gen-Z
                         <ArrowRight className="ml-2 w-5 h-5" />
                       </Button>
                       <Button 
@@ -324,7 +324,7 @@ export default function Landing() {
               <span className="font-semibold text-lg">Nepal Social</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              © 2024 Nepal Social. Made with ❤️ for Nepal.
+              © 2025 Gen-Z Social Media. Made By Diva
             </div>
           </div>
         </div>
