@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,6 +10,7 @@ import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
+import { Paperclip } from "lucide-react";
 
 interface ChatWindowProps {
   conversationId: Id<"conversations">;
@@ -19,7 +20,9 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const messages = useQuery(api.messages.getConversationMessages, { conversationId });
   const sendMessage = useMutation(api.messages.sendMessage);
@@ -38,6 +41,65 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     // Mark messages as read when conversation is opened
     markAsRead({ conversationId });
   }, [conversationId, markAsRead]);
+
+  const generateUploadUrl = useAction(api.files.generateUploadUrl);
+  const getFileUrl = useAction(api.files.getFileUrl);
+
+  const onPickFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    setIsUploading(true);
+    try {
+      const files = Array.from(fileList);
+
+      for (const file of files) {
+        // 1) Get signed upload URL
+        const uploadUrl = await generateUploadUrl({});
+
+        // 2) Upload bytes
+        const buf = await new Promise<ArrayBuffer>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as ArrayBuffer);
+          reader.onerror = reject;
+          reader.readAsArrayBuffer(file);
+        });
+
+        const res = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": file.type || "application/octet-stream" },
+          body: buf,
+        });
+        if (!res.ok) throw new Error("Upload failed");
+        const { storageId } = await res.json();
+
+        // 3) Resolve a signed URL for the uploaded file
+        const signedUrl = await getFileUrl({ fileId: storageId });
+
+        // 4) Send message depending on type
+        if (file.type.startsWith("image/")) {
+          await sendMessage({
+            conversationId,
+            content: "", // no text when sending just media
+            messageType: "image",
+            imageUrl: signedUrl,
+          });
+        } else {
+          await sendMessage({
+            conversationId,
+            content: "",
+            messageType: "file",
+            fileUrl: signedUrl,
+            fileName: file.name,
+          });
+        }
+      }
+    } catch (err) {
+      toast.error("Failed to upload and send files");
+      console.error(err);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,6 +137,16 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
 
   return (
     <div className="h-full flex flex-col">
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        multiple
+        className="hidden"
+        onChange={(e) => onPickFiles(e.target.files)}
+      />
+
       {/* Chat Header */}
       <div className="p-4 border-b border-border bg-card">
         <div className="flex items-center justify-between">
@@ -136,15 +208,37 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                   )}
                 </div>
                 <div className={`flex flex-col max-w-xs ${isOwn ? "items-end" : ""}`}>
-                  <div
-                    className={`px-3 py-2 rounded-2xl ${
-                      isOwn
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    }`}
-                  >
-                    <p className="text-sm">{msg.content}</p>
-                  </div>
+                  {msg.messageType === "image" && msg.imageUrl ? (
+                    <div className={`${isOwn ? "" : ""}`}>
+                      <img
+                        src={msg.imageUrl}
+                        alt={msg.fileName || "image"}
+                        className="max-w-xs rounded-2xl border"
+                      />
+                    </div>
+                  ) : msg.messageType === "file" && msg.fileUrl ? (
+                    <div className="w-full">
+                      {/* Try to show video if browser can play it */}
+                      <video
+                        src={msg.fileUrl}
+                        className="max-w-xs rounded-2xl border"
+                        controls
+                      />
+                      {msg.fileName && (
+                        <div className="text-xs text-muted-foreground mt-1 truncate max-w-xs">
+                          {msg.fileName}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      className={`px-3 py-2 rounded-2xl ${
+                        isOwn ? "bg-primary text-primary-foreground" : "bg-muted"
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                    </div>
+                  )}
                   <span className="text-xs text-muted-foreground mt-1">
                     {formatDistanceToNow(new Date(msg._creationTime), { addSuffix: true })}
                   </span>
@@ -165,13 +259,26 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
 
       {/* Message Input */}
       <div className="p-4 border-t border-border bg-card">
-        <form onSubmit={handleSendMessage} className="flex gap-2">
+        <form onSubmit={handleSendMessage} className="flex gap-2 items-end">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="h-10 w-10 p-0"
+            title="Attach photo/video"
+          >
+            {isUploading ? (
+              <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            ) : (
+              <Paperclip className="w-4 h-4" />
+            )}
+          </Button>
           <Input
             placeholder="Type a message..."
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             className="flex-1"
-            maxLength={500}
           />
           <Button
             type="submit"
