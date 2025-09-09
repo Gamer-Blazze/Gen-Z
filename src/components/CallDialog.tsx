@@ -211,8 +211,19 @@ export default function CallDialog({
             }
           } else if (s.signalType === "answer" && role === "caller") {
             const answer = JSON.parse(s.payload);
-            if (!pc.currentRemoteDescription) {
-              await pc.setRemoteDescription(new RTCSessionDescription(answer));
+            const canApplyAnswer =
+              pc.signalingState === "have-local-offer" &&
+              !!pc.localDescription &&
+              !pc.currentRemoteDescription;
+
+            if (canApplyAnswer) {
+              try {
+                await pc.setRemoteDescription(new RTCSessionDescription(answer));
+              } catch {
+                // Ignore transient/wrong-state errors; duplicates or late answers can safely be skipped
+              }
+            } else {
+              // Skip duplicate/late answers (already stable or remote already set)
             }
           } else if (s.signalType === "candidate") {
             const candidate = JSON.parse(s.payload);
