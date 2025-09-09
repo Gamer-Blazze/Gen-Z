@@ -142,6 +142,38 @@ const schema = defineSchema(
       content: v.string(),
     }).index("by_user", ["userId"])
       .index("by_read_status", ["userId", "isRead"]),
+
+    // Calls for voice/video between 1:1 participants
+    calls: defineTable({
+      conversationId: v.id("conversations"),
+      callerId: v.id("users"),
+      calleeId: v.id("users"),
+      type: v.union(v.literal("voice"), v.literal("video")),
+      status: v.union(v.literal("ringing"), v.literal("accepted"), v.literal("ended")),
+      startedAt: v.number(),
+      acceptedAt: v.optional(v.number()),
+      endedAt: v.optional(v.number()),
+    })
+      .index("by_conversation", ["conversationId"])
+      .index("by_callee", ["calleeId"])
+      .index("by_caller", ["callerId"]),
+
+    // Signaling messages for WebRTC
+    call_signals: defineTable({
+      callId: v.id("calls"),
+      toUserId: v.id("users"),
+      fromUserId: v.id("users"),
+      signalType: v.union(
+        v.literal("offer"),
+        v.literal("answer"),
+        v.literal("candidate"),
+        v.literal("accept"),
+        v.literal("end"),
+      ),
+      payload: v.string(), // stringified JSON
+      createdAt: v.number(),
+    })
+      .index("by_call_and_to", ["callId", "toUserId"]),
   },
   {
     schemaValidation: false,

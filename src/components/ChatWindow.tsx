@@ -12,18 +12,52 @@ import { Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
 import { Paperclip } from "lucide-react";
 import { useNavigate } from "react-router";
+import CallDialog from "./CallDialog";
 
 interface ChatWindowProps {
   conversationId: Id<"conversations">;
 }
 
 export function ChatWindow({ conversationId }: ChatWindowProps) {
+  const startCall = useMutation(api.calls.startCall);
+  const activeCall = useQuery(api.calls.getActiveCallForUser, { conversationId });
   const { user } = useAuth();
+
+  const [callOpen, setCallOpen] = useState(false);
+  const [callId, setCallId] = useState<Id<"calls"> | null>(null);
+  const [callType, setCallType] = useState<"voice" | "video">("voice");
+  const [callRole, setCallRole] = useState<"caller" | "callee">("caller");
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  // When there's an incoming ringing call for me, prompt to accept
+  useEffect(() => {
+    if (!activeCall || !user) return;
+    const isIncoming = activeCall.status === "ringing" && activeCall.calleeId === user._id;
+    const isAcceptedOngoing = activeCall.status === "accepted";
+    if ((isIncoming || isAcceptedOngoing) && !callOpen) {
+      setCallId(activeCall._id as Id<"calls">);
+      setCallType(activeCall.type);
+      setCallRole(isIncoming ? "callee" : activeCall.callerId === user._id ? "caller" : "callee");
+      setCallOpen(true);
+    }
+  }, [activeCall, user, callOpen]);
+
+  const placeCall = async (type: "voice" | "video") => {
+    if (!conversation) return;
+    try {
+      const id = await startCall({ conversationId, type });
+      setCallId(id);
+      setCallType(type);
+      setCallRole("caller");
+      setCallOpen(true);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to start call");
+    }
+  };
 
   const messages = useQuery(api.messages.getConversationMessages, { conversationId });
   const sendMessage = useMutation(api.messages.sendMessage);
@@ -191,10 +225,10 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={() => placeCall("voice")}>
               <Phone className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onClick={() => placeCall("video")}>
               <Video className="w-4 h-4" />
             </Button>
             <Button variant="ghost" size="sm">
@@ -320,6 +354,17 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
           </Button>
         </form>
       </div>
+
+      {callOpen && callId && (
+        <CallDialog
+          callId={callId}
+          conversationId={conversationId}
+          type={callType}
+          role={callRole}
+          open={callOpen}
+          onOpenChange={(v) => setCallOpen(v)}
+        />
+      )}
     </div>
   );
 }
