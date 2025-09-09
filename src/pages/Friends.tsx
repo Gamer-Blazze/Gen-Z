@@ -1,13 +1,18 @@
 import { useAuth } from "@/hooks/use-auth";
 import { motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Sidebar } from "@/components/Sidebar";
-import { FriendsSidebar } from "@/components/FriendsSidebar";
+import { ConversationsList } from "@/components/ConversationsList";
+import { ChatWindow } from "@/components/ChatWindow";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { Id } from "@/convex/_generated/dataModel";
 
 export default function Friends() {
   const { isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  const [selectedConversationId, setSelectedConversationId] = useState<Id<"conversations"> | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -29,11 +34,65 @@ export default function Friends() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
       <div className="flex">
         <Sidebar />
-        <main className="flex-1 max-w-2xl mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold mb-4">Friends</h1>
-          <p className="text-muted-foreground">Find and manage your friends.</p>
+        {/* Messenger-style container */}
+        <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
+          {/* Mobile view: show either list or chat with a top bar */}
+          <div className="lg:hidden h-full flex flex-col">
+            {/* Top bar when in chat view */}
+            {selectedConversationId && (
+              <div className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
+                <div className="h-14 flex items-center px-2">
+                  <Button variant="ghost" size="icon" onClick={() => setSelectedConversationId(null)}>
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                  <div className="ml-2 font-semibold">Chat</div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-hidden">
+              {!selectedConversationId ? (
+                <div className="h-full">
+                  <ConversationsList
+                    selectedConversationId={selectedConversationId}
+                    onSelectConversation={(id) => setSelectedConversationId(id)}
+                  />
+                </div>
+              ) : (
+                <div className="h-[calc(100vh-56px)]">
+                  <ChatWindow conversationId={selectedConversationId} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Desktop view: split layout */}
+          <div className="hidden lg:flex h-[calc(100vh)] gap-0 lg:gap-4">
+            {/* Conversations list pane */}
+            <aside className="w-[360px] border-r">
+              <ConversationsList
+                selectedConversationId={selectedConversationId}
+                onSelectConversation={(id) => setSelectedConversationId(id)}
+              />
+            </aside>
+
+            {/* Chat pane */}
+            <section className="flex-1 min-w-0">
+              {selectedConversationId ? (
+                <div className="h-full">
+                  <ChatWindow conversationId={selectedConversationId} />
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground px-4">
+                  <div className="text-center">
+                    <h3 className="font-semibold mb-2">Select a conversation</h3>
+                    <p className="text-sm">Choose a chat from the left to start messaging</p>
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
         </main>
-        <FriendsSidebar />
       </div>
     </motion.div>
   );
