@@ -62,6 +62,14 @@ export const updateUserImage = mutation({
   },
 });
 
+export const getUserById = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    return user ?? null;
+  },
+});
+
 export const getUserCounts = query({
   args: {},
   handler: async (ctx) => {
