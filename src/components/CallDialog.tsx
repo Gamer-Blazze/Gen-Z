@@ -43,6 +43,8 @@ export default function CallDialog({
   // Add: track processed signals and prevent duplicate accept/answer
   const processedSignalIdsRef = useRef<Set<string>>(new Set());
   const acceptSentRef = useRef<boolean>(false);
+  // NEW: ensure we only ever create/send one answer
+  const answeredOnceRef = useRef<boolean>(false);
 
   const safeIceServers = useMemo<RTCConfiguration>(
     () => ({
@@ -170,13 +172,13 @@ export default function CallDialog({
 
             // Create answer only when we have the remote offer and haven't answered yet
             if (
-              pc.signalingState === "have-remote-offer" &&
-              !acceptSentRef.current
+              !answeredOnceRef.current &&
+              (pc.signalingState === "have-remote-offer" || pc.remoteDescription?.type === "offer")
             ) {
+              answeredOnceRef.current = true; // guard immediately to prevent reentrancy
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
               if (!acceptSentRef.current) {
-                // prevent multiple acceptCall() sends
                 acceptSentRef.current = true;
                 await acceptCall({ callId });
                 setIsAccepted(true);
@@ -197,7 +199,6 @@ export default function CallDialog({
           } else if (s.signalType === "candidate") {
             // Add ICE candidate only when a description exists
             const candidate = JSON.parse(s.payload);
-            // ensure we have at least one description set before adding candidate
             if (pc.localDescription || pc.remoteDescription) {
               try {
                 await pc.addIceCandidate(new RTCIceCandidate(candidate));

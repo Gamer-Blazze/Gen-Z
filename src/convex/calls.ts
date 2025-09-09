@@ -60,7 +60,18 @@ export const acceptCall = mutation({
     const call = await ctx.db.get(args.callId);
     if (!call) throw new Error("Call not found");
     if (call.calleeId !== user._id) throw new Error("Not authorized to accept this call");
-    if (call.status !== "ringing") throw new Error("Call is not in ringing state");
+
+    // Make idempotent and safe: if already accepted, just return
+    if (call.status === "accepted") {
+      return true;
+    }
+    if (call.status === "ended") {
+      throw new Error("Call already ended");
+    }
+    if (call.status !== "ringing") {
+      // Unknown state but do not hard fail; treat as idempotent success
+      return true;
+    }
 
     await ctx.db.patch(args.callId, { status: "accepted", acceptedAt: Date.now() });
     // Also record a signal for caller that call is accepted (optional)
