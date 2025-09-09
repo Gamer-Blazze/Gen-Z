@@ -44,7 +44,7 @@ export default function CallDialog({
     () => ({
       iceServers: [
         { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:global.stun.twilio.com:3478?transport=udp" },
+        { urls: "stun:stun1.l.google.com:19302" },
       ],
     }),
     []
