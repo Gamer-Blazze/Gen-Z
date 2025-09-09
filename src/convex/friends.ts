@@ -8,6 +8,12 @@ export const sendFriendRequest = mutation({
     userId: v.id("users"),
   },
   handler: async (ctx, args) => {
+    // Additional auth check via ctx.auth.getUserIdentity() as requested
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
@@ -20,7 +26,7 @@ export const sendFriendRequest = mutation({
     // Check if friendship already exists
     const existingFriendship = await ctx.db
       .query("friendships")
-      .filter((q) => 
+      .filter((q) =>
         q.or(
           q.and(q.eq(q.field("userId1"), user._id), q.eq(q.field("userId2"), args.userId)),
           q.and(q.eq(q.field("userId1"), args.userId), q.eq(q.field("userId2"), user._id))
@@ -37,6 +43,13 @@ export const sendFriendRequest = mutation({
       userId2: args.userId,
       status: "pending",
       requesterId: user._id,
+    });
+
+    // Also insert into friend_requests as requested (from, to, status)
+    await ctx.db.insert("friend_requests", {
+      from: user._id,
+      to: args.userId,
+      status: "pending",
     });
 
     // Create notification

@@ -67,6 +67,20 @@ const schema = defineSchema(
       .index("by_user", ["userId"])
       .index("by_parent", ["parentCommentId"]),
 
+    // Friend requests table for simple tracking of request lifecycle
+    friend_requests: defineTable({
+      from: v.id("users"),
+      to: v.id("users"),
+      status: v.union(
+        v.literal("pending"),
+        v.literal("accepted"),
+        v.literal("declined")
+      ),
+    })
+      .index("by_to", ["to"])
+      .index("by_from", ["from"])
+      .index("by_status", ["status"]),
+
     // Friend requests and friendships
     friendships: defineTable({
       userId1: v.id("users"),
