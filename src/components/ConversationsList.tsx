@@ -1,4 +1,5 @@
 import { useQuery } from "convex/react";
+import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,6 @@ import { Id } from "@/convex/_generated/dataModel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
-import { useState } from "react";
 
 interface ConversationsListProps {
   selectedConversationId: Id<"conversations"> | null;
