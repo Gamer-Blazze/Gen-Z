@@ -137,14 +137,19 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     <Button
                       type="submit"
                       variant="default"
-                      size="icon"
                       disabled={isLoading}
                       className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
                     >
                       {isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Joining...
+                        </>
                       ) : (
-                        <ArrowRight className="h-4 w-4" />
+                        <>
+                          Join With Gen-Z
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </>
                       )}
                     </Button>
                   </div>
