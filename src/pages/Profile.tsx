@@ -16,6 +16,13 @@ export default function Profile() {
   const { isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
+  // Add: move hooks above all conditional returns to preserve hook order
+  const generateUploadUrl = useAction(api.files.generateUploadUrl);
+  const getFileUrl = useAction(api.files.getFileUrl);
+  const updateUserImage = useMutation(api.users.updateUserImage);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate("/auth");
@@ -31,13 +38,6 @@ export default function Profile() {
   }
 
   if (!isAuthenticated || !user) return null;
-
-  // Add: file upload + user image update hooks/state
-  const generateUploadUrl = useAction(api.files.generateUploadUrl);
-  const getFileUrl = useAction(api.files.getFileUrl);
-  const updateUserImage = useMutation(api.users.updateUserImage);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Add: handler to change profile picture
   const onPickProfileImage = async (fl: FileList | null) => {
