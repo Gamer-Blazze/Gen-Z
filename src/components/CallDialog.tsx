@@ -158,33 +158,46 @@ export default function CallDialog({
       // Process oldest-first to preserve ordering
       const ordered = [...signals].reverse();
       for (const s of ordered) {
-        // De-dup each signal id to avoid reprocessing
         const sid = String(s._id);
         if (processedSignalIdsRef.current.has(sid)) continue;
 
         try {
           if (s.signalType === "offer" && role === "callee") {
-            // Only set remote offer once
             const offer = JSON.parse(s.payload);
+
+            // 1) Ensure remote description is set first
             if (!pc.currentRemoteDescription) {
               try {
                 await pc.setRemoteDescription(new RTCSessionDescription(offer));
               } catch {
-                // ignore transient setRemoteDescription errors; a later signal may succeed
+                // Defer retry on next signal tick
+                continue;
               }
             }
 
-            // Create answer only when we are exactly in 'have-remote-offer'
+            // 2) Ensure server state is accepted before creating the answer (debounced once)
+            if (!acceptSentRef.current) {
+              acceptSentRef.current = true;
+              try {
+                const res = await acceptCall({ callId });
+                if (!res || !("success" in res) || !res.success) {
+                  // Server did not accept; don't continue to createAnswer
+                  acceptSentRef.current = true; // keep debounced, but stop flow
+                  continue;
+                }
+                setIsAccepted(true);
+              } catch {
+                // If server accept fails, do not proceed to create an answer
+                continue;
+              }
+            }
+
+            // 3) Create one answer only when we're exactly in have-remote-offer
             if (!answeredOnceRef.current && pc.signalingState === "have-remote-offer") {
               try {
-                answeredOnceRef.current = true; // guard immediately
+                answeredOnceRef.current = true;
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
-                if (!acceptSentRef.current) {
-                  acceptSentRef.current = true;
-                  await acceptCall({ callId });
-                  setIsAccepted(true);
-                }
                 await sendSignal({
                   callId,
                   toUserId: activeCall.callerId,
@@ -192,18 +205,16 @@ export default function CallDialog({
                   payload: JSON.stringify(answer),
                 });
               } catch {
-                // If we failed due to a racing invalid state, allow a retry on next signal tick
+                // Allow retry on next processing tick only if we failed before setting the guard
                 answeredOnceRef.current = false;
               }
             }
           } else if (s.signalType === "answer" && role === "caller") {
-            // Set caller's remote answer once
             const answer = JSON.parse(s.payload);
             if (!pc.currentRemoteDescription) {
               await pc.setRemoteDescription(new RTCSessionDescription(answer));
             }
           } else if (s.signalType === "candidate") {
-            // Add ICE candidate only when a description exists
             const candidate = JSON.parse(s.payload);
             if (pc.localDescription || pc.remoteDescription) {
               try {
@@ -217,7 +228,6 @@ export default function CallDialog({
             toast.message("Call ended");
           }
         } finally {
-          // Mark this signal as processed regardless of branch outcome
           processedSignalIdsRef.current.add(sid);
         }
       }

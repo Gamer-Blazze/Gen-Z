@@ -54,39 +54,62 @@ export const startCall = mutation({
 export const acceptCall = mutation({
   args: { callId: v.id("calls") },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) throw new Error("Not authenticated");
+    try {
+      // Validate auth
+      const user = await getCurrentUser(ctx);
+      if (!user) {
+        return { success: false, error: "Not authenticated" };
+      }
 
-    const call = await ctx.db.get(args.callId);
-    if (!call) throw new Error("Call not found");
-    // Make tolerant: if not callee, treat as no-op (idempotent) instead of throwing
-    if (call.calleeId !== user._id) {
-      return true;
-    }
+      // Validate arg presence (extra defensive even though v.id enforces it)
+      if (!args.callId) {
+        return { success: false, error: "Missing callId" };
+      }
 
-    // Make idempotent and safe: if already accepted, just return
-    if (call.status === "accepted") {
-      return true;
-    }
-    if (call.status === "ended") {
-      throw new Error("Call already ended");
-    }
-    if (call.status !== "ringing") {
-      // Unknown state but do not hard fail; treat as idempotent success
-      return true;
-    }
+      // Ensure call exists
+      const call = await ctx.db.get(args.callId);
+      if (!call) {
+        return { success: false, error: "Call not found" };
+      }
 
-    await ctx.db.patch(args.callId, { status: "accepted", acceptedAt: Date.now() });
-    // Also record a signal for caller that call is accepted (optional)
-    await ctx.db.insert("call_signals", {
-      callId: args.callId,
-      toUserId: call.callerId,
-      fromUserId: user._id,
-      signalType: "accept",
-      payload: "",
-      createdAt: Date.now(),
-    });
-    return true;
+      // Only callee should accept; callers / others are no-ops
+      if (call.calleeId !== user._id) {
+        return { success: true, callId: args.callId };
+      }
+
+      // State checks
+      if (call.status === "ended") {
+        return { success: false, error: "Call already ended" };
+      }
+      if (call.status === "accepted") {
+        return { success: true, callId: args.callId };
+      }
+      if (call.status !== "ringing") {
+        return { success: false, error: "Call cannot be accepted in current state" };
+      }
+
+      // Accept the call
+      await ctx.db.patch(args.callId, { status: "accepted", acceptedAt: Date.now() });
+
+      // Notify caller (best-effort)
+      try {
+        await ctx.db.insert("call_signals", {
+          callId: args.callId,
+          toUserId: call.callerId,
+          fromUserId: user._id,
+          signalType: "accept",
+          payload: "",
+          createdAt: Date.now(),
+        });
+      } catch {
+        // non-fatal
+      }
+
+      return { success: true, callId: args.callId };
+    } catch (err: any) {
+      console.error("acceptCall error:", err?.message || err);
+      return { success: false, error: err?.message || "Unknown error" };
+    }
   },
 });
 
