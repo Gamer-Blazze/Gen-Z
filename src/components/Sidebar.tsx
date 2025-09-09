@@ -45,7 +45,8 @@ export function Sidebar() {
         <Dialog>
           <DialogTrigger asChild>
             <button aria-label="View profile picture" className="shrink-0">
-              <Avatar>
+              {/* Increase avatar size for better visual quality */}
+              <Avatar className="w-12 h-12">
                 <AvatarImage src={user?.image} />
                 <AvatarFallback className="bg-primary text-primary-foreground">
                   {user?.name?.charAt(0) || "U"}
