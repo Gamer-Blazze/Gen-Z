@@ -6,6 +6,9 @@ import { Sidebar } from "@/components/Sidebar";
 import { Feed } from "@/components/Feed";
 import { CreatePost } from "@/components/CreatePost";
 import { FriendsSidebar } from "@/components/FriendsSidebar";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
 
 export default function Dashboard() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -35,18 +38,41 @@ export default function Dashboard() {
       animate={{ opacity: 1 }}
       className="min-h-screen bg-background"
     >
-      <div className="flex">
-        {/* Left Sidebar */}
-        <Sidebar />
-        
+      {/* Mobile Top Bar with Hamburger (hidden on lg and above) */}
+      <div className="lg:hidden sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto flex h-14 items-center justify-between px-4">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Open menu">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-[280px]">
+              {/* Reuse existing Sidebar inside the sheet for mobile */}
+              <Sidebar />
+            </SheetContent>
+          </Sheet>
+          <div className="font-semibold">Gen-Z Nepal</div>
+          <div className="w-9" />
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:flex-row">
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:block">
+          <Sidebar />
+        </div>
+
         {/* Main Content */}
-        <main className="flex-1 max-w-2xl mx-auto px-4 py-6">
+        <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6">
           <CreatePost />
           <Feed />
         </main>
 
-        {/* Right Sidebar */}
-        <FriendsSidebar />
+        {/* Right Sidebar (only on xl and up) */}
+        <div className="hidden xl:block">
+          <FriendsSidebar />
+        </div>
       </div>
     </motion.div>
   );
