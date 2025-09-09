@@ -11,6 +11,7 @@ import { api } from "@/convex/_generated/api";
 import { PostCard } from "@/components/PostCard";
 import { toast } from "sonner";
 import { useRef } from "react";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 export default function Profile() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -88,12 +89,27 @@ export default function Profile() {
                 className="hidden"
                 onChange={(e) => onPickProfileImage(e.target.files)}
               />
-              <Avatar className="w-16 h-16">
-                <AvatarImage src={user.image} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                  {user.name?.charAt(0) || "U"}
-                </AvatarFallback>
-              </Avatar>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button aria-label="View profile picture" className="shrink-0">
+                    <Avatar className="w-16 h-16">
+                      <AvatarImage src={user.image} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                        {user.name?.charAt(0) || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <img
+                    src={user.image}
+                    alt={user.name || "Profile picture"}
+                    className="w-full h-auto rounded-lg"
+                    loading="eager"
+                    decoding="async"
+                  />
+                </DialogContent>
+              </Dialog>
               <div className="flex-1">
                 <div className="font-semibold text-lg">{user.name || "User"}</div>
                 <div className="text-muted-foreground">{user.email}</div>

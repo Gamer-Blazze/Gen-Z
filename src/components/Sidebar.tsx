@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import { motion } from "framer-motion";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 export function Sidebar() {
   const { user, signOut } = useAuth();
@@ -41,12 +42,27 @@ export function Sidebar() {
 
       {/* User Profile */}
       <div className="flex items-center gap-3 mb-6 p-3 rounded-lg bg-muted/50">
-        <Avatar>
-          <AvatarImage src={user?.image} />
-          <AvatarFallback className="bg-primary text-primary-foreground">
-            {user?.name?.charAt(0) || "U"}
-          </AvatarFallback>
-        </Avatar>
+        <Dialog>
+          <DialogTrigger asChild>
+            <button aria-label="View profile picture" className="shrink-0">
+              <Avatar>
+                <AvatarImage src={user?.image} />
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  {user?.name?.charAt(0) || "U"}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          </DialogTrigger>
+          <DialogContent className="max-w-3xl">
+            <img
+              src={user?.image}
+              alt={user?.name || "Profile picture"}
+              className="w-full h-auto rounded-lg"
+              loading="eager"
+              decoding="async"
+            />
+          </DialogContent>
+        </Dialog>
         <div className="flex-1 min-w-0">
           <p className="font-medium truncate">{user?.name || "User"}</p>
           <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
