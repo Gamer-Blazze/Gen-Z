@@ -39,13 +39,15 @@ export default function Messages() {
       className="min-h-screen bg-background"
     >
       <div className="flex">
-        {/* Left Sidebar */}
-        <Sidebar />
+        {/* Left Sidebar: only visible on desktop */}
+        <div className="hidden lg:block">
+          <Sidebar />
+        </div>
 
         {/* Main responsive container */}
         <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
           {/* Mobile view: one panel at a time */}
-          <div className="lg:hidden h-full flex flex-col">
+          <div className="md:hidden h-full flex flex-col">
             {/* Top bar when in chat view */}
             {selectedConversationId && (
               <div className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
@@ -72,6 +74,33 @@ export default function Messages() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Tablet view: two panels (no Sidebar) */}
+          <div className="hidden md:flex lg:hidden h-[calc(100vh)]">
+            {/* Conversations list pane */}
+            <aside className="w-1/2 border-r">
+              <ConversationsList
+                selectedConversationId={selectedConversationId}
+                onSelectConversation={(id) => setSelectedConversationId(id)}
+              />
+            </aside>
+
+            {/* Chat pane */}
+            <section className="flex-1 min-w-0">
+              {selectedConversationId ? (
+                <div className="h-full">
+                  <ChatWindow conversationId={selectedConversationId} />
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground px-4">
+                  <div className="text-center">
+                    <h3 className="font-semibold mb-2">Select a conversation</h3>
+                    <p className="text-sm">Choose a chat from the left to start messaging</p>
+                  </div>
+                </div>
+              )}
+            </section>
           </div>
 
           {/* Desktop view: three panels */}
