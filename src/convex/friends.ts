@@ -239,3 +239,117 @@ export const searchUsers = query({
     return users;
   },
 });
+
+// Get received friend requests (from friend_requests) for the current user
+export const getReceivedRequests = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return [];
+
+    const requests = await ctx.db
+      .query("friend_requests")
+      .withIndex("by_to", (q) => q.eq("to", user._id))
+      .filter((q) => q.eq(q.field("status"), "pending"))
+      .collect();
+
+    const withRequester = await Promise.all(
+      requests.map(async (req) => {
+        const requester = await ctx.db.get(req.from);
+        return { ...req, requester };
+      })
+    );
+
+    return withRequester;
+  },
+});
+
+// Accept a friend request (friend_requests) and ensure friendship is created/updated
+export const acceptRequest = mutation({
+  args: {
+    requestId: v.id("friend_requests"),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const req = await ctx.db.get(args.requestId);
+    if (!req) throw new Error("Request not found");
+    if (req.to !== user._id) throw new Error("Not authorized");
+    if (req.status !== "pending") throw new Error("Request is not pending");
+
+    // Update request status
+    await ctx.db.patch(args.requestId, { status: "accepted" });
+
+    // Ensure friendship record is accepted (update pending one if exists, else create)
+    const maybePending = await ctx.db
+      .query("friendships")
+      .withIndex("by_user1", (q) => q.eq("userId1", req.from))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId2"), req.to),
+          q.eq(q.field("status"), "pending")
+        )
+      )
+      .first();
+
+    if (maybePending) {
+      await ctx.db.patch(maybePending._id, { status: "accepted" });
+    } else {
+      await ctx.db.insert("friendships", {
+        userId1: req.from,
+        userId2: req.to,
+        status: "accepted",
+        requesterId: req.from,
+      });
+    }
+
+    // Notify requester
+    await ctx.db.insert("notifications", {
+      userId: req.from,
+      type: "friend_accepted",
+      fromUserId: user._id,
+      isRead: false,
+      content: `${user.name || "Someone"} accepted your friend request`,
+    });
+
+    return true;
+  },
+});
+
+// Reject a friend request (friend_requests) and clean up pending friendship entry if present
+export const rejectRequest = mutation({
+  args: {
+    requestId: v.id("friend_requests"),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const req = await ctx.db.get(args.requestId);
+    if (!req) throw new Error("Request not found");
+    if (req.to !== user._id) throw new Error("Not authorized");
+    if (req.status !== "pending") throw new Error("Request is not pending");
+
+    // Update request status
+    await ctx.db.patch(args.requestId, { status: "rejected" });
+
+    // If there is a pending friendship row created earlier, delete it
+    const maybePending = await ctx.db
+      .query("friendships")
+      .withIndex("by_user1", (q) => q.eq("userId1", req.from))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId2"), req.to),
+          q.eq(q.field("status"), "pending")
+        )
+      )
+      .first();
+
+    if (maybePending) {
+      await ctx.db.delete(maybePending._id);
+    }
+
+    return true;
+  },
+});

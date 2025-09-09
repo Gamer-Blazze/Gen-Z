@@ -74,7 +74,9 @@ const schema = defineSchema(
       status: v.union(
         v.literal("pending"),
         v.literal("accepted"),
-        v.literal("declined")
+        v.literal("declined"),
+        // Add: support "rejected" status as requested (keep "declined" for compatibility)
+        v.literal("rejected")
       ),
     })
       .index("by_to", ["to"])
