@@ -268,7 +268,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               rel="noopener noreferrer"
               className="underline hover:text-primary transition-colors"
             >
-              https://gen-z.vly.site/
+              gen-z.vly.site
             </a>
           </div>
         </Card>
