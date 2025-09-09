@@ -40,9 +40,9 @@ export default function CallDialog({
   const localStreamRef = useRef<MediaStream | null>(null);
   const [isAccepted, setIsAccepted] = useState(role === "caller"); // caller proceeds immediately
 
-  const processedSignalIdsRef = useRef<Set<string>>(new Set()); // prevent reprocessing same signal
-  const acceptedOnceRef = useRef(false); // ensure acceptCall only called once
-  const answeredOnceRef = useRef(false); // ensure createAnswer only once
+  // Add: track processed signals and prevent duplicate accept/answer
+  const processedSignalIdsRef = useRef<Set<string>>(new Set());
+  const acceptSentRef = useRef<boolean>(false);
 
   const safeIceServers = useMemo<RTCConfiguration>(
     () => ({
@@ -153,68 +153,65 @@ export default function CallDialog({
       const pc = pcRef.current;
       if (!pc || !signals || !activeCall || !user) return;
 
-      // Process oldest-first to preserve order
+      // Process oldest-first to preserve ordering
       const ordered = [...signals].reverse();
       for (const s of ordered) {
-        // Skip if already processed
-        if (processedSignalIdsRef.current.has((s as any)._id)) continue;
-        processedSignalIdsRef.current.add((s as any)._id);
+        // De-dup each signal id to avoid reprocessing
+        const sid = String(s._id);
+        if (processedSignalIdsRef.current.has(sid)) continue;
 
-        if (s.signalType === "offer" && role === "callee") {
-          try {
-            // Only handle the first usable offer
-            if (answeredOnceRef.current) continue;
-
+        try {
+          if (s.signalType === "offer" && role === "callee") {
+            // Only set remote offer once and answer once
             const offer = JSON.parse(s.payload);
-
-            // Set remote description only if we don't already have one and in correct state
-            if (!pc.currentRemoteDescription && pc.signalingState === "stable") {
+            if (pc.signalingState === "stable" && !pc.currentRemoteDescription) {
               await pc.setRemoteDescription(new RTCSessionDescription(offer));
             }
 
-            // Create answer only when in have-remote-offer
-            if (pc.signalingState === "have-remote-offer") {
+            // Create answer only when we have the remote offer and haven't answered yet
+            if (
+              pc.signalingState === "have-remote-offer" &&
+              !acceptSentRef.current
+            ) {
               const answer = await pc.createAnswer();
               await pc.setLocalDescription(answer);
-
-              if (!acceptedOnceRef.current) {
+              if (!acceptSentRef.current) {
+                // prevent multiple acceptCall() sends
+                acceptSentRef.current = true;
                 await acceptCall({ callId });
-                acceptedOnceRef.current = true;
                 setIsAccepted(true);
               }
-
               await sendSignal({
                 callId,
                 toUserId: activeCall.callerId,
                 signalType: "answer",
                 payload: JSON.stringify(answer),
               });
-
-              answeredOnceRef.current = true;
             }
-          } catch (err) {
-            // If anything goes wrong here, ignore duplicate attempts next iterations
-            // and rely on subsequent valid state updates.
-          }
-        } else if (s.signalType === "answer" && role === "caller") {
-          try {
+          } else if (s.signalType === "answer" && role === "caller") {
+            // Set caller's remote answer once
             const answer = JSON.parse(s.payload);
             if (!pc.currentRemoteDescription) {
               await pc.setRemoteDescription(new RTCSessionDescription(answer));
             }
-          } catch {
-            // ignore malformed or redundant
-          }
-        } else if (s.signalType === "candidate") {
-          try {
+          } else if (s.signalType === "candidate") {
+            // Add ICE candidate only when a description exists
             const candidate = JSON.parse(s.payload);
-            await pc.addIceCandidate(new RTCIceCandidate(candidate));
-          } catch {
-            // ignore bad candidates
+            // ensure we have at least one description set before adding candidate
+            if (pc.localDescription || pc.remoteDescription) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
+              } catch {
+                // ignore bad candidates
+              }
+            }
+          } else if (s.signalType === "end") {
+            onOpenChange(false);
+            toast.message("Call ended");
           }
-        } else if (s.signalType === "end") {
-          onOpenChange(false);
-          toast.message("Call ended");
+        } finally {
+          // Mark this signal as processed regardless of branch outcome
+          processedSignalIdsRef.current.add(sid);
         }
       }
     })();
