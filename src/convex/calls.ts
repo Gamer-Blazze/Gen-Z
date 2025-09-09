@@ -59,7 +59,10 @@ export const acceptCall = mutation({
 
     const call = await ctx.db.get(args.callId);
     if (!call) throw new Error("Call not found");
-    if (call.calleeId !== user._id) throw new Error("Not authorized to accept this call");
+    // Make tolerant: if not callee, treat as no-op (idempotent) instead of throwing
+    if (call.calleeId !== user._id) {
+      return true;
+    }
 
     // Make idempotent and safe: if already accepted, just return
     if (call.status === "accepted") {

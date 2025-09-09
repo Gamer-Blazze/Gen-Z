@@ -164,31 +164,37 @@ export default function CallDialog({
 
         try {
           if (s.signalType === "offer" && role === "callee") {
-            // Only set remote offer once and answer once
+            // Only set remote offer once
             const offer = JSON.parse(s.payload);
-            if (pc.signalingState === "stable" && !pc.currentRemoteDescription) {
-              await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            if (!pc.currentRemoteDescription) {
+              try {
+                await pc.setRemoteDescription(new RTCSessionDescription(offer));
+              } catch {
+                // ignore transient setRemoteDescription errors; a later signal may succeed
+              }
             }
 
-            // Create answer only when we have the remote offer and haven't answered yet
-            if (
-              !answeredOnceRef.current &&
-              (pc.signalingState === "have-remote-offer" || pc.remoteDescription?.type === "offer")
-            ) {
-              answeredOnceRef.current = true; // guard immediately to prevent reentrancy
-              const answer = await pc.createAnswer();
-              await pc.setLocalDescription(answer);
-              if (!acceptSentRef.current) {
-                acceptSentRef.current = true;
-                await acceptCall({ callId });
-                setIsAccepted(true);
+            // Create answer only when we are exactly in 'have-remote-offer'
+            if (!answeredOnceRef.current && pc.signalingState === "have-remote-offer") {
+              try {
+                answeredOnceRef.current = true; // guard immediately
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                if (!acceptSentRef.current) {
+                  acceptSentRef.current = true;
+                  await acceptCall({ callId });
+                  setIsAccepted(true);
+                }
+                await sendSignal({
+                  callId,
+                  toUserId: activeCall.callerId,
+                  signalType: "answer",
+                  payload: JSON.stringify(answer),
+                });
+              } catch {
+                // If we failed due to a racing invalid state, allow a retry on next signal tick
+                answeredOnceRef.current = false;
               }
-              await sendSignal({
-                callId,
-                toUserId: activeCall.callerId,
-                signalType: "answer",
-                payload: JSON.stringify(answer),
-              });
             }
           } else if (s.signalType === "answer" && role === "caller") {
             // Set caller's remote answer once
