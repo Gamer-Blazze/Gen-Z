@@ -43,6 +43,9 @@ export default function CallDialog({
   const safeIceServers = useMemo<RTCConfiguration>(
     () => ({
       iceServers: [
+        // Twilio STUN (valid format, no query params)
+        { urls: "stun:global.stun.twilio.com:3478" },
+        // Google STUN backups
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
         { urls: "stun:stun2.l.google.com:19302" },
