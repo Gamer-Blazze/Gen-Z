@@ -90,7 +90,7 @@ export default function Landing() {
                       onClick={() => navigate("/auth")}
                       className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
                     >
-                      Get Started
+                      Join Gen-Z Nepal
                       <ArrowRight className="ml-2 w-4 h-4" />
                     </Button>
                   )}
@@ -154,7 +154,7 @@ export default function Landing() {
                         onClick={() => navigate("/auth")}
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-lg px-8 py-6"
                       >
-                        Join Nepal Social
+                        Join Gen-Z Nepal
                         <ArrowRight className="ml-2 w-5 h-5" />
                       </Button>
                       <Button 
