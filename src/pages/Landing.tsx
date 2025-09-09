@@ -68,9 +68,13 @@ export default function Landing() {
               whileHover={{ scale: 1.05 }}
               onClick={() => navigate("/")}
             >
-              <span className="font-bold text-xl bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
-                Gen-Z
-              </span>
+              <img
+                src="https://harmless-tapir-303.convex.cloud/api/storage/68b867b6-1844-43a0-952a-dbf14bb43e3c"
+                alt="Gen-Z"
+                width={32}
+                height={32}
+                className="rounded-md object-cover"
+              />
             </motion.div>
             
             <div className="flex items-center gap-4">
