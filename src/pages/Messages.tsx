@@ -48,8 +48,8 @@ export default function Messages() {
         <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
           {/* Quick action: Go Home */}
           <div className="p-2 lg:p-0 flex justify-end">
-            <Button variant="secondary" size="sm" onClick={() => navigate("/")}>
-              Home
+            <Button variant="secondary" size="sm" onClick={() => navigate("/dashboard")}>
+              Dashboard
             </Button>
           </div>
 
