@@ -97,9 +97,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-
-      
+    <div className="min-h-screen flex flex-col bg-[#f0f2f5] dark:bg-background">
       {/* Auth Content */}
       <div className="flex-1 flex items-center justify-center">
         <div className="flex items-center justify-center h-full flex-col">
@@ -124,7 +122,6 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               </CardHeader>
               <form onSubmit={handleEmailSubmit}>
                 <CardContent>
-                  
                   <div className="relative flex items-center gap-2">
                     <div className="relative flex-1">
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -139,9 +136,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     </div>
                     <Button
                       type="submit"
-                      variant="outline"
+                      variant="default"
                       size="icon"
                       disabled={isLoading}
+                      className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
                     >
                       {isLoading ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -153,7 +151,6 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   {error && (
                     <p className="mt-2 text-sm text-red-500">{error}</p>
                   )}
-                  
                   <div className="mt-4">
                     <div className="relative">
                       <div className="absolute inset-0 flex items-center">
@@ -165,11 +162,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                         </span>
                       </div>
                     </div>
-                    
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full mt-4"
+                      className="w-full mt-4 border-[#1877F2] text-[#1877F2] hover:bg-[#e7f0ff]"
                       onClick={handleGuestLogin}
                       disabled={isLoading}
                     >
@@ -235,7 +231,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                 <CardFooter className="flex-col gap-2">
                   <Button
                     type="submit"
-                    className="w-full"
+                    className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white"
                     disabled={isLoading || otp.length !== 6}
                   >
                     {isLoading ? (
