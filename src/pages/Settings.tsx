@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function Settings() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
@@ -18,6 +19,45 @@ export default function Settings() {
   const [nameInput, setNameInput] = useState(user?.name ?? "");
   const [saving, setSaving] = useState(false);
   const updateUserName = useMutation(api.users.updateUserName);
+
+  // Theme state (light | dark | system)
+  const [theme, setTheme] = useState<"light" | "dark" | "system">(
+    () => (localStorage.getItem("theme") as "light" | "dark" | "system") || "system"
+  );
+
+  // Helper to compute system theme
+  const getSystemTheme = () =>
+    window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+
+  // Apply theme when changed
+  useEffect(() => {
+    const root = document.documentElement;
+    const effective = theme === "system" ? getSystemTheme() : theme;
+    if (effective === "dark") {
+      root.classList.add("dark");
+    } else {
+      root.classList.remove("dark");
+    }
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  // Listen to system changes only when theme === "system"
+  useEffect(() => {
+    if (theme !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => {
+      const root = document.documentElement;
+      if (mq.matches) root.classList.add("dark");
+      else root.classList.remove("dark");
+    };
+    mq.addEventListener?.("change", handler);
+    // Fallback for older browsers
+    mq.addListener?.(handler);
+    return () => {
+      mq.removeEventListener?.("change", handler);
+      mq.removeListener?.(handler);
+    };
+  }, [theme]);
 
   useEffect(() => {
     setNameInput(user?.name ?? "");
@@ -89,6 +129,34 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">
                 Your display name will appear on your posts, messages, and profile.
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <h2 className="font-semibold text-lg">Appearance</h2>
+              <div className="grid gap-2">
+                <label className="text-sm text-muted-foreground">Theme</label>
+                <Select
+                  value={theme}
+                  onValueChange={(val: "light" | "dark" | "system") => {
+                    setTheme(val);
+                    toast.message(`Theme set to ${val}`);
+                  }}
+                >
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue placeholder="Select theme" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="light">Light</SelectItem>
+                    <SelectItem value="dark">Dark</SelectItem>
+                    <SelectItem value="system">System</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Choose Light or Dark, or follow your device's appearance.
+                </p>
+              </div>
             </CardContent>
           </Card>
 
