@@ -61,3 +61,24 @@ export const updateUserImage = mutation({
     return true;
   },
 });
+
+export const getUserCounts = query({
+  args: {},
+  handler: async (ctx) => {
+    // Count total users
+    let totalUsers = 0;
+    for await (const _ of ctx.db.query("users")) {
+      totalUsers++;
+    }
+
+    // Count users marked online using the index
+    let onlineUsers = 0;
+    for await (const _ of ctx.db
+      .query("users")
+      .withIndex("by_isOnline", (q) => q.eq("isOnline", true))) {
+      onlineUsers++;
+    }
+
+    return { totalUsers, onlineUsers };
+  },
+});

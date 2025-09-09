@@ -38,7 +38,7 @@ const schema = defineSchema(
       coverImage: v.optional(v.string()),
       isOnline: v.optional(v.boolean()),
       lastSeen: v.optional(v.number()),
-    }).index("email", ["email"]), // index for the email. do not remove or modify
+    }).index("email", ["email"]).index("by_isOnline", ["isOnline"]), // index for the email. do not remove or modify; add index for online users
 
     // Posts table
     posts: defineTable({

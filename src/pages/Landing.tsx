@@ -14,10 +14,13 @@ import {
   Shield,
   Zap
 } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 export default function Landing() {
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const counts = useQuery(api.users.getUserCounts, {});
 
   const features = [
     {
@@ -275,12 +278,16 @@ export default function Landing() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div>
-                <div className="text-4xl font-bold mb-2">10K+</div>
-                <div className="text-red-100">Active Users</div>
+                <div className="text-4xl font-bold mb-2">
+                  {counts ? counts.totalUsers : 0}
+                </div>
+                <div className="text-red-100">Registered Users</div>
               </div>
               <div>
-                <div className="text-4xl font-bold mb-2">50K+</div>
-                <div className="text-red-100">Messages Sent</div>
+                <div className="text-4xl font-bold mb-2">
+                  {counts ? counts.onlineUsers : 0}
+                </div>
+                <div className="text-red-100">Online Now</div>
               </div>
               <div>
                 <div className="text-4xl font-bold mb-2">100+</div>
