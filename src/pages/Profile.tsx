@@ -16,30 +16,12 @@ export default function Profile() {
   const { isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
-  // Add: move hooks above all conditional returns to preserve hook order
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
   const getFileUrl = useAction(api.files.getFileUrl);
   const updateUserImage = useMutation(api.users.updateUserImage);
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      navigate("/auth");
-    }
-  }, [isLoading, isAuthenticated, navigate]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated || !user) return null;
-
-  // Add: handler to change profile picture
   const onPickProfileImage = async (fl: FileList | null) => {
     if (!fl || fl.length === 0) return;
     const file = fl[0];
@@ -74,6 +56,22 @@ export default function Profile() {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      navigate("/auth");
+    }
+  }, [isLoading, isAuthenticated, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user) return null;
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
