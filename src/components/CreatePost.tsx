@@ -124,7 +124,6 @@ export function CreatePost() {
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   className="min-h-[100px] resize-none border-0 p-0 text-base placeholder:text-muted-foreground focus-visible:ring-0"
-                  maxLength={500}
                 />
 
                 {(files.length > 0) && (
@@ -166,9 +165,6 @@ export function CreatePost() {
                     </Button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      {content.length}/500
-                    </span>
                     <Button
                       type="submit"
                       disabled={(!content.trim() && imageIds.length === 0 && videoIds.length === 0) || isSubmitting}
