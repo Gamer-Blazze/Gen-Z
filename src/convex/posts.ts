@@ -264,3 +264,36 @@ export const getPostComments = query({
     return commentsWithUsers;
   },
 });
+
+// Add: delete a post (owner only) and its comments
+export const deletePost = mutation({
+  args: { postId: v.id("posts") },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const post = await ctx.db.get(args.postId);
+    if (!post) {
+      throw new Error("Post not found");
+    }
+    if (post.userId !== user._id) {
+      throw new Error("Not authorized to delete this post");
+    }
+
+    // Delete related comments
+    const comments = await ctx.db
+      .query("comments")
+      .withIndex("by_post", (q) => q.eq("postId", args.postId))
+      .collect();
+
+    for (const c of comments) {
+      await ctx.db.delete(c._id);
+    }
+
+    // Delete the post
+    await ctx.db.delete(args.postId);
+    return true;
+  },
+});

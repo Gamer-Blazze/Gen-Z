@@ -7,9 +7,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
- 
-import { useMutation } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { PostCard } from "@/components/PostCard";
 import { toast } from "sonner";
 
 export default function Profile() {
@@ -106,9 +106,61 @@ export default function Profile() {
               </p>
             </CardContent>
           </Card>
+
+          {/* Manage Posts */}
+          <ManageOwnPosts />
           <p className="text-muted-foreground">More profile details and settings coming soon.</p>
         </main>
       </div>
     </motion.div>
+  );
+}
+
+function ManageOwnPosts() {
+  const { user } = useAuth();
+  const posts = useQuery(api.posts.getUserPosts, user ? { userId: user._id } : "skip");
+  const deletePost = useMutation(api.posts.deletePost);
+
+  if (!user) return null;
+
+  return (
+    <Card>
+      <CardContent className="p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-lg">Your Posts</h2>
+          <span className="text-sm text-muted-foreground">
+            {Array.isArray(posts) ? posts.length : 0} total
+          </span>
+        </div>
+
+        {posts && posts.length > 0 ? (
+          <div className="space-y-4">
+            {posts.map((post) => (
+              <div key={post._id} className="relative">
+                <div className="absolute right-2 top-2 z-10">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        await deletePost({ postId: post._id });
+                        toast.success("Post deleted");
+                      } catch (e) {
+                        toast.error("Failed to delete post");
+                      }
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+                <PostCard post={post as any} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">You haven't posted anything yet.</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
