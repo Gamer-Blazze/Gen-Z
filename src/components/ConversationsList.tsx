@@ -11,6 +11,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router";
 
 interface ConversationsListProps {
   selectedConversationId: Id<"conversations"> | null;
@@ -28,6 +29,8 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
   );
 
   const sendFriend = useMutation(api.friends.sendFriendRequest);
+
+  const navigate = useNavigate();
 
   return (
     <div className="h-full flex flex-col">
@@ -133,18 +136,39 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
                   >
                     <div className="flex items-center gap-3 w-full">
                       <div className="relative">
-                        <Avatar>
-                          <AvatarImage src={displayImage} />
-                          <AvatarFallback className="bg-primary text-primary-foreground">
-                            {displayName?.charAt(0) || "U"}
-                          </AvatarFallback>
-                        </Avatar>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!conversation.isGroup && otherUser?._id) {
+                              navigate(`/profile?id=${otherUser._id}`);
+                            }
+                          }}
+                          className="shrink-0"
+                          aria-label="View profile"
+                        >
+                          <Avatar>
+                            <AvatarImage src={displayImage} />
+                            <AvatarFallback className="bg-primary text-primary-foreground">
+                              {displayName?.charAt(0) || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                        </button>
                         {!conversation.isGroup && (
                           <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></div>
                         )}
                       </div>
                       <div className="flex-1 min-w-0 text-left">
-                        <p className="font-medium truncate">{displayName}</p>
+                        <p
+                          className="font-medium truncate cursor-pointer hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!conversation.isGroup && otherUser?._id) {
+                              navigate(`/profile?id=${otherUser._id}`);
+                            }
+                          }}
+                        >
+                          {displayName}
+                        </p>
                         {conversation.lastMessage && (
                           <div className="flex items-center gap-1">
                             <p className="text-sm text-muted-foreground truncate">

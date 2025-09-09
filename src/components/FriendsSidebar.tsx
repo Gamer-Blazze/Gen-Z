@@ -9,6 +9,7 @@ import { useMutation } from "convex/react";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { useNavigate } from "react-router";
 
 export function FriendsSidebar() {
   const friends = useQuery(api.friends.getUserFriends, {});
@@ -22,6 +23,8 @@ export function FriendsSidebar() {
     api.friends.searchUsers,
     search.trim().length >= 2 ? { query: search.trim() } : "skip"
   );
+
+  const navigate = useNavigate();
 
   return (
     <motion.div
@@ -41,14 +44,23 @@ export function FriendsSidebar() {
           <CardContent className="space-y-3">
             {friendRequests.slice(0, 3).map((request) => (
               <div key={request._id} className="flex items-center gap-3">
-                <Avatar className="w-10 h-10">
-                  <AvatarImage src={request.requester?.image} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                    {request.requester?.name?.charAt(0) || "U"}
-                  </AvatarFallback>
-                </Avatar>
+                <button
+                  onClick={() => request.requester?._id && navigate(`/profile?id=${request.requester._id}`)}
+                  className="shrink-0"
+                  aria-label="View profile"
+                >
+                  <Avatar className="w-10 h-10">
+                    <AvatarImage src={request.requester?.image} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                      {request.requester?.name?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">
+                  <p
+                    className="font-medium text-sm truncate cursor-pointer hover:underline"
+                    onClick={() => request.requester?._id && navigate(`/profile?id=${request.requester._id}`)}
+                  >
                     {request.requester?.name || "Anonymous"}
                   </p>
                   <div className="flex gap-1 mt-1">
@@ -94,7 +106,11 @@ export function FriendsSidebar() {
             friends.slice(0, 8).map((friend) => {
               if (!friend) return null;
               return (
-                <div key={friend._id} className="flex items-center gap-3 group cursor-pointer hover:bg-muted/50 p-2 rounded-lg -m-2">
+                <div
+                  key={friend._id}
+                  className="flex items-center gap-3 group cursor-pointer hover:bg-muted/50 p-2 rounded-lg -m-2"
+                  onClick={() => navigate(`/profile?id=${friend._id}`)}
+                >
                   <div className="relative">
                     <Avatar className="w-8 h-8">
                       <AvatarImage src={friend.image} />
@@ -111,6 +127,7 @@ export function FriendsSidebar() {
                     variant="ghost"
                     size="sm"
                     className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0"
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <MessageCircle className="w-3 h-3" />
                   </Button>
@@ -140,14 +157,23 @@ export function FriendsSidebar() {
                 <div className="space-y-3">
                   {searchResults.map((u) => (
                     <div key={u._id} className="flex items-center gap-3">
-                      <Avatar className="w-10 h-10">
-                        <AvatarImage src={u.image} />
-                        <AvatarFallback className="bg-muted text-xs">
-                          {u.name?.charAt(0) || "U"}
-                        </AvatarFallback>
-                      </Avatar>
+                      <button
+                        onClick={() => navigate(`/profile?id=${u._id}`)}
+                        className="shrink-0"
+                        aria-label="View profile"
+                      >
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={u.image} />
+                          <AvatarFallback className="bg-muted text-xs">
+                            {u.name?.charAt(0) || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                      </button>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">
+                        <p
+                          className="font-medium text-sm truncate cursor-pointer hover:underline"
+                          onClick={() => navigate(`/profile?id=${u._id}`)}
+                        >
                           {u.name || "Anonymous"}
                         </p>
                         <p className="text-xs text-muted-foreground truncate">

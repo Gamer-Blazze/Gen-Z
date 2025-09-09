@@ -79,13 +79,24 @@ export default function Friends() {
                           {searchResults && searchResults.length > 0 ? (
                             searchResults.map((u) => (
                               <div key={u._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-                                <img
-                                  src={u.image}
-                                  alt={u.name || "User"}
-                                  className="w-10 h-10 rounded-full object-cover border"
-                                />
+                                <button
+                                  onClick={() => navigate(`/profile?id=${u._id}`)}
+                                  className="shrink-0"
+                                  aria-label="View profile"
+                                >
+                                  <img
+                                    src={u.image}
+                                    alt={u.name || "User"}
+                                    className="w-10 h-10 rounded-full object-cover border"
+                                  />
+                                </button>
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm truncate">{u.name || "Anonymous"}</p>
+                                  <p
+                                    className="font-medium text-sm truncate cursor-pointer hover:underline"
+                                    onClick={() => navigate(`/profile?id=${u._id}`)}
+                                  >
+                                    {u.name || "Anonymous"}
+                                  </p>
                                   <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                                 </div>
                                 <Button

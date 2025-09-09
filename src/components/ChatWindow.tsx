@@ -11,6 +11,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
 import { Paperclip } from "lucide-react";
+import { useNavigate } from "react-router";
 
 interface ChatWindowProps {
   conversationId: Id<"conversations">;
@@ -44,6 +45,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
 
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
   const getFileUrl = useAction(api.files.getFileUrl);
+  const navigate = useNavigate();
 
   const onPickFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
@@ -152,18 +154,37 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Avatar>
-                <AvatarImage src={displayImage} />
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {displayName?.charAt(0) || "U"}
-                </AvatarFallback>
-              </Avatar>
+              <button
+                onClick={() => {
+                  if (!conversation.isGroup && otherUser?._id) {
+                    navigate(`/profile?id=${otherUser._id}`);
+                  }
+                }}
+                className="shrink-0"
+                aria-label="View profile"
+              >
+                <Avatar>
+                  <AvatarImage src={displayImage} />
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    {displayName?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
               {!conversation.isGroup && (
                 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></div>
               )}
             </div>
             <div>
-              <h3 className="font-semibold">{displayName}</h3>
+              <h3
+                className={`font-semibold ${!conversation.isGroup && otherUser?._id ? "cursor-pointer hover:underline" : ""}`}
+                onClick={() => {
+                  if (!conversation.isGroup && otherUser?._id) {
+                    navigate(`/profile?id=${otherUser._id}`);
+                  }
+                }}
+              >
+                {displayName}
+              </h3>
               {!conversation.isGroup && (
                 <p className="text-sm text-muted-foreground">Active now</p>
               )}
