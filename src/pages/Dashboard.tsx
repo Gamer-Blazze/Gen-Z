@@ -65,6 +65,17 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6">
+          {/* Add: Visit Profile button */}
+          <div className="flex justify-end mb-4">
+            <Button
+              onClick={() => navigate("/profile")}
+              variant="outline"
+              className="border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20"
+            >
+              Visit Profile
+            </Button>
+          </div>
+
           <CreatePost />
           <Feed />
         </main>
