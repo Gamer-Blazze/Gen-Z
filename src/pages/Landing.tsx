@@ -68,9 +68,9 @@ export default function Landing() {
               whileHover={{ scale: 1.05 }}
               onClick={() => navigate("/")}
             >
-              <img src="https://harmless-tapir-303.convex.cloud/api/storage/2a0ac1ff-9bc0-4f03-a777-df1bd65aee2f" alt="Gen-z Nepal" className="w-8 h-8" />
+              <img src="https://harmless-tapir-303.convex.cloud/api/storage/2a0ac1ff-9bc0-4f03-a777-df1bd65aee2f" alt="Gen-Z Nepal" className="w-8 h-8" />
               <span className="font-bold text-xl bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
-                Nepal Social
+                Gen-Z Nepal
               </span>
             </motion.div>
             
@@ -90,7 +90,7 @@ export default function Landing() {
                       onClick={() => navigate("/auth")}
                       className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
                     >
-                      Gen-z Nepal
+                      Gen-Z Nepal
                       <ArrowRight className="ml-2 w-4 h-4" />
                     </Button>
                   )}
@@ -113,7 +113,7 @@ export default function Landing() {
             >
               <div className="inline-flex items-center gap-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-4 py-2 rounded-full text-sm font-medium mb-6">
                 <Star className="w-4 h-4" />
-                Gen-z Nepal
+                Gen-Z Nepal
               </div>
               
               <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-6">
@@ -154,7 +154,7 @@ export default function Landing() {
                         onClick={() => navigate("/auth")}
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-lg px-8 py-6"
                       >
-                        Gen-z Nepal
+                        Gen-Z Nepal
                         <ArrowRight className="ml-2 w-5 h-5" />
                       </Button>
                       <Button 
@@ -181,7 +181,7 @@ export default function Landing() {
               <div className="max-w-3xl mx-auto mb-8">
                 <img
                   src="https://harmless-tapir-303.convex.cloud/api/storage/d9582a69-d7a2-4344-b33d-a0ce024b8514"
-                  alt="Gen-z Nepal"
+                  alt="Gen-Z Nepal"
                   loading="lazy"
                   className="w-full rounded-2xl shadow-lg border border-red-200/50 dark:border-red-800/50"
                 />
@@ -308,7 +308,7 @@ export default function Landing() {
               Ready to Connect with Nepal?
             </h2>
             <p className="text-xl text-muted-foreground mb-8">
-              Join Nepal Social today and become part of the largest Nepali community online
+              Join Gen-Z Nepal today and become part of the largest Nepali community online
             </p>
             {!isLoading && !isAuthenticated && (
               <Button 
@@ -329,8 +329,8 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
-              <img src="https://harmless-tapir-303.convex.cloud/api/storage/2a0ac1ff-9bc0-4f03-a777-df1bd65aee2f" alt="Gen-z Nepal" className="w-6 h-6" />
-              <span className="font-semibold text-lg">Nepal Social</span>
+              <img src="https://harmless-tapir-303.convex.cloud/api/storage/2a0ac1ff-9bc0-4f03-a777-df1bd65aee2f" alt="Gen-Z Nepal" className="w-6 h-6" />
+              <span className="font-semibold text-lg">Gen-Z Nepal</span>
             </div>
             <div className="text-sm text-muted-foreground">
               © 2025 Gen-Z Social Media. Made By Diva
