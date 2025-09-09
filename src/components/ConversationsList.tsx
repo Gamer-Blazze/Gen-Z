@@ -30,7 +30,7 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
     search.trim().length >= 2 ? { query: search.trim() } : "skip"
   );
 
-  const sendFriend = useMutation(api.friends.sendFriendRequest);
+  const getOrCreateConversation = useMutation(api.messages.getOrCreateConversation);
 
   const navigate = useNavigate();
 
@@ -44,12 +44,12 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
                 <Plus className="w-4 h-4" />
-                New
+                New Message
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add Friend</DialogTitle>
+                <DialogTitle>New Message</DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
                 <div className="relative">
@@ -66,7 +66,24 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
                     <>
                       {searchResults && searchResults.length > 0 ? (
                         searchResults.map((u) => (
-                          <div key={u._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                          <button
+                            key={u._id}
+                            className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 text-left"
+                            onClick={async () => {
+                              try {
+                                const convId = await getOrCreateConversation({
+                                  participantIds: [u._id],
+                                  isGroup: false,
+                                });
+                                // Select the conversation and close the dialog
+                                onSelectConversation(convId);
+                                setOpenNewDialog(false);
+                                setSearch("");
+                              } catch (e: any) {
+                                toast.error(e?.message || "Failed to start conversation");
+                              }
+                            }}
+                          >
                             <Avatar className="w-10 h-10">
                               <AvatarImage src={u.image} />
                               <AvatarFallback className="bg-muted text-xs">
@@ -77,28 +94,16 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
                               <p className="font-medium text-sm truncate">{u.name || "Anonymous"}</p>
                               <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                             </div>
-                            <Button
-                              size="sm"
-                              className="h-7 px-3"
-                              onClick={async () => {
-                                try {
-                                  await sendFriend({ userId: u._id });
-                                  toast.success("Friend request sent");
-                                } catch (e: any) {
-                                  toast.error(e?.message || "Failed to send request");
-                                }
-                              }}
-                            >
-                              Add
-                            </Button>
-                          </div>
+                          </button>
                         ))
                       ) : (
                         <div className="text-sm text-muted-foreground px-1">No results</div>
                       )}
                     </>
                   ) : (
-                    <div className="text-sm text-muted-foreground px-1">Type at least 2 characters to search</div>
+                    <div className="text-sm text-muted-foreground px-1">
+                      Type at least 2 characters to search
+                    </div>
                   )}
                 </div>
               </div>
