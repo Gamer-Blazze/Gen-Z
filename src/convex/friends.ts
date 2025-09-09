@@ -89,6 +89,32 @@ export const acceptFriendRequest = mutation({
   },
 });
 
+// Decline friend request
+export const declineFriendRequest = mutation({
+  args: {
+    friendshipId: v.id("friendships"),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const friendship = await ctx.db.get(args.friendshipId);
+    if (!friendship) {
+      throw new Error("Friend request not found");
+    }
+
+    // Only the recipient can decline a pending request
+    if (friendship.userId2 !== user._id || friendship.status !== "pending") {
+      throw new Error("Not authorized");
+    }
+
+    await ctx.db.delete(args.friendshipId);
+    return true;
+  },
+});
+
 // Get user's friends
 export const getUserFriends = query({
   args: {
