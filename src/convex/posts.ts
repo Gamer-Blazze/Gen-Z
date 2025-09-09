@@ -1,0 +1,227 @@
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+import { getCurrentUser } from "./users";
+
+// Create a new post
+export const createPost = mutation({
+  args: {
+    content: v.string(),
+    images: v.optional(v.array(v.string())),
+    isPublic: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const postId = await ctx.db.insert("posts", {
+      userId: user._id,
+      content: args.content,
+      images: args.images || [],
+      likes: [],
+      likesCount: 0,
+      commentsCount: 0,
+      sharesCount: 0,
+      isPublic: args.isPublic ?? true,
+    });
+
+    return postId;
+  },
+});
+
+// Get posts for feed
+export const getFeedPosts = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      return [];
+    }
+
+    const posts = await ctx.db
+      .query("posts")
+      .filter((q) => q.eq(q.field("isPublic"), true))
+      .order("desc")
+      .take(args.limit || 20);
+
+    // Get user info for each post
+    const postsWithUsers = await Promise.all(
+      posts.map(async (post) => {
+        const postUser = await ctx.db.get(post.userId);
+        return {
+          ...post,
+          user: postUser,
+        };
+      })
+    );
+
+    return postsWithUsers;
+  },
+});
+
+// Get user's posts
+export const getUserPosts = query({
+  args: {
+    userId: v.id("users"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(args.limit || 20);
+
+    const user = await ctx.db.get(args.userId);
+
+    return posts.map(post => ({
+      ...post,
+      user,
+    }));
+  },
+});
+
+// Like/unlike a post
+export const toggleLike = mutation({
+  args: {
+    postId: v.id("posts"),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const post = await ctx.db.get(args.postId);
+    if (!post) {
+      throw new Error("Post not found");
+    }
+
+    const hasLiked = post.likes.includes(user._id);
+    
+    if (hasLiked) {
+      // Unlike
+      await ctx.db.patch(args.postId, {
+        likes: post.likes.filter(id => id !== user._id),
+        likesCount: post.likesCount - 1,
+      });
+    } else {
+      // Like
+      await ctx.db.patch(args.postId, {
+        likes: [...post.likes, user._id],
+        likesCount: post.likesCount + 1,
+      });
+
+      // Create notification if not own post
+      if (post.userId !== user._id) {
+        await ctx.db.insert("notifications", {
+          userId: post.userId,
+          type: "like",
+          fromUserId: user._id,
+          postId: args.postId,
+          isRead: false,
+          content: `${user.name || "Someone"} liked your post`,
+        });
+      }
+    }
+
+    return !hasLiked;
+  },
+});
+
+// Add comment to post
+export const addComment = mutation({
+  args: {
+    postId: v.id("posts"),
+    content: v.string(),
+    parentCommentId: v.optional(v.id("comments")),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const post = await ctx.db.get(args.postId);
+    if (!post) {
+      throw new Error("Post not found");
+    }
+
+    const commentId = await ctx.db.insert("comments", {
+      postId: args.postId,
+      userId: user._id,
+      content: args.content,
+      likes: [],
+      likesCount: 0,
+      parentCommentId: args.parentCommentId,
+    });
+
+    // Update post comment count
+    await ctx.db.patch(args.postId, {
+      commentsCount: post.commentsCount + 1,
+    });
+
+    // Create notification
+    if (post.userId !== user._id) {
+      await ctx.db.insert("notifications", {
+        userId: post.userId,
+        type: "comment",
+        fromUserId: user._id,
+        postId: args.postId,
+        commentId,
+        isRead: false,
+        content: `${user.name || "Someone"} commented on your post`,
+      });
+    }
+
+    return commentId;
+  },
+});
+
+// Get comments for a post
+export const getPostComments = query({
+  args: {
+    postId: v.id("posts"),
+  },
+  handler: async (ctx, args) => {
+    const comments = await ctx.db
+      .query("comments")
+      .withIndex("by_post", (q) => q.eq("postId", args.postId))
+      .filter((q) => q.eq(q.field("parentCommentId"), undefined))
+      .order("desc")
+      .collect();
+
+    const commentsWithUsers = await Promise.all(
+      comments.map(async (comment) => {
+        const user = await ctx.db.get(comment.userId);
+        
+        // Get replies
+        const replies = await ctx.db
+          .query("comments")
+          .withIndex("by_parent", (q) => q.eq("parentCommentId", comment._id))
+          .collect();
+
+        const repliesWithUsers = await Promise.all(
+          replies.map(async (reply) => {
+            const replyUser = await ctx.db.get(reply.userId);
+            return {
+              ...reply,
+              user: replyUser,
+            };
+          })
+        );
+
+        return {
+          ...comment,
+          user,
+          replies: repliesWithUsers,
+        };
+      })
+    );
+
+    return commentsWithUsers;
+  },
+});

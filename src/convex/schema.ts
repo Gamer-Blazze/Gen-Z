@@ -30,14 +30,98 @@ const schema = defineSchema(
       isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
 
       role: v.optional(roleValidator), // role of the user. do not remove
+      
+      // Additional fields for social media
+      bio: v.optional(v.string()),
+      location: v.optional(v.string()),
+      website: v.optional(v.string()),
+      coverImage: v.optional(v.string()),
+      isOnline: v.optional(v.boolean()),
+      lastSeen: v.optional(v.number()),
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
-    // add other tables here
+    // Posts table
+    posts: defineTable({
+      userId: v.id("users"),
+      content: v.string(),
+      images: v.optional(v.array(v.string())),
+      likes: v.array(v.id("users")),
+      likesCount: v.number(),
+      commentsCount: v.number(),
+      sharesCount: v.number(),
+      isPublic: v.boolean(),
+    }).index("by_user", ["userId"]),
 
-    // tableName: defineTable({
-    //   ...
-    //   // table fields
-    // }).index("by_field", ["field"])
+    // Comments table
+    comments: defineTable({
+      postId: v.id("posts"),
+      userId: v.id("users"),
+      content: v.string(),
+      likes: v.array(v.id("users")),
+      likesCount: v.number(),
+      parentCommentId: v.optional(v.id("comments")), // for nested comments
+    }).index("by_post", ["postId"])
+      .index("by_user", ["userId"])
+      .index("by_parent", ["parentCommentId"]),
+
+    // Friend requests and friendships
+    friendships: defineTable({
+      userId1: v.id("users"),
+      userId2: v.id("users"),
+      status: v.union(v.literal("pending"), v.literal("accepted"), v.literal("blocked")),
+      requesterId: v.id("users"), // who sent the request
+    }).index("by_user1", ["userId1"])
+      .index("by_user2", ["userId2"])
+      .index("by_status", ["status"]),
+
+    // Conversations for messaging
+    conversations: defineTable({
+      participants: v.array(v.id("users")),
+      lastMessageId: v.optional(v.id("messages")),
+      lastMessageTime: v.optional(v.number()),
+      isGroup: v.boolean(),
+      groupName: v.optional(v.string()),
+      groupImage: v.optional(v.string()),
+      createdBy: v.id("users"),
+    }).index("by_participant", ["participants"]),
+
+    // Messages table
+    messages: defineTable({
+      conversationId: v.id("conversations"),
+      senderId: v.id("users"),
+      content: v.string(),
+      messageType: v.union(v.literal("text"), v.literal("image"), v.literal("file")),
+      imageUrl: v.optional(v.string()),
+      fileUrl: v.optional(v.string()),
+      fileName: v.optional(v.string()),
+      readBy: v.array(v.object({
+        userId: v.id("users"),
+        readAt: v.number(),
+      })),
+      isEdited: v.boolean(),
+      editedAt: v.optional(v.number()),
+    }).index("by_conversation", ["conversationId"])
+      .index("by_sender", ["senderId"]),
+
+    // Notifications table
+    notifications: defineTable({
+      userId: v.id("users"),
+      type: v.union(
+        v.literal("like"),
+        v.literal("comment"),
+        v.literal("friend_request"),
+        v.literal("friend_accepted"),
+        v.literal("message"),
+        v.literal("mention")
+      ),
+      fromUserId: v.id("users"),
+      postId: v.optional(v.id("posts")),
+      commentId: v.optional(v.id("comments")),
+      conversationId: v.optional(v.id("conversations")),
+      isRead: v.boolean(),
+      content: v.string(),
+    }).index("by_user", ["userId"])
+      .index("by_read_status", ["userId", "isRead"]),
   },
   {
     schemaValidation: false,
