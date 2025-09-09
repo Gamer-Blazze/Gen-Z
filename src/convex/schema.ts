@@ -79,7 +79,8 @@ const schema = defineSchema(
     })
       .index("by_to", ["to"])
       .index("by_from", ["from"])
-      .index("by_status", ["status"]),
+      .index("by_status", ["status"])
+      .index("by_from_and_to", ["from", "to"]),
 
     // Friend requests and friendships
     friendships: defineTable({

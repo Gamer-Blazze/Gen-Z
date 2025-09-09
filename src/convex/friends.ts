@@ -5,10 +5,11 @@ import { getCurrentUser } from "./users";
 // Send friend request
 export const sendFriendRequest = mutation({
   args: {
-    userId: v.id("users"),
+    toUserId: v.optional(v.id("users")),
+    userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    // Additional auth check via ctx.auth.getUserIdentity() as requested
+    // Require authentication via ctx.auth.getUserIdentity()
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -19,49 +20,57 @@ export const sendFriendRequest = mutation({
       throw new Error("Not authenticated");
     }
 
-    if (user._id === args.userId) {
+    const toUserId = args.toUserId ?? args.userId;
+    if (!toUserId) {
+      throw new Error("Missing recipient user id");
+    }
+
+    if (user._id === toUserId) {
       throw new Error("Cannot send friend request to yourself");
     }
 
-    // Check if friendship already exists
-    const existingFriendship = await ctx.db
-      .query("friendships")
-      .filter((q) =>
-        q.or(
-          q.and(q.eq(q.field("userId1"), user._id), q.eq(q.field("userId2"), args.userId)),
-          q.and(q.eq(q.field("userId1"), args.userId), q.eq(q.field("userId2"), user._id))
-        )
-      )
+    // Prevent duplicate requests in either direction using composite index
+    const existing = await ctx.db
+      .query("friend_requests")
+      .withIndex("by_from_and_to", (q) => q.eq("from", user._id).eq("to", toUserId))
       .first();
-
-    if (existingFriendship) {
-      throw new Error("Friendship request already exists");
+    if (existing) {
+      throw new Error("Friend request already sent");
     }
 
+    const reverse = await ctx.db
+      .query("friend_requests")
+      .withIndex("by_from_and_to", (q) => q.eq("from", toUserId).eq("to", user._id))
+      .first();
+    if (reverse) {
+      throw new Error("A pending request from this user already exists");
+    }
+
+    // Insert into friend_requests as requested
+    const frId = await ctx.db.insert("friend_requests", {
+      from: user._id,
+      to: toUserId,
+      status: "pending",
+    });
+
+    // Keep existing behavior for the rest of the app: create a mirrored entry in friendships and a notification
+    // (Do not remove to avoid breaking current UIs listing pending requests)
     const friendshipId = await ctx.db.insert("friendships", {
       userId1: user._id,
-      userId2: args.userId,
+      userId2: toUserId,
       status: "pending",
       requesterId: user._id,
     });
 
-    // Also insert into friend_requests as requested (from, to, status)
-    await ctx.db.insert("friend_requests", {
-      from: user._id,
-      to: args.userId,
-      status: "pending",
-    });
-
-    // Create notification
     await ctx.db.insert("notifications", {
-      userId: args.userId,
+      userId: toUserId,
       type: "friend_request",
       fromUserId: user._id,
       isRead: false,
       content: `${user.name || "Someone"} sent you a friend request`,
     });
 
-    return friendshipId;
+    return { friendRequestId: frId, friendshipId };
   },
 });
 
