@@ -14,6 +14,7 @@ import "./index.css";
 import Landing from "./pages/Landing.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import "./types/global.d.ts";
+import Profile from "@/pages/Profile.tsx";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -63,7 +64,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/friends" element={<Friends />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/profile/:username" element={<Redirect to="/dashboard" />} />
-            <Route path="/profile" element={<Redirect to="/dashboard" />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
