@@ -46,43 +46,34 @@ export default function CallDialog({
   // NEW: ensure we only ever create/send one answer
   const answeredOnceRef = useRef<boolean>(false);
 
-  const safeIceServers = useMemo<RTCConfiguration>(
-    () => ({
-      iceServers: [
-        // Twilio STUN (valid format, no query params)
-        { urls: "stun:global.stun.twilio.com:3478" },
-        // Google STUN backups
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:stun2.l.google.com:19302" },
-        { urls: "stun:stun3.l.google.com:19302" },
-        { urls: "stun:stun4.l.google.com:19302" },
-      ],
-    }),
-    []
-  );
+  // Add: reconnection guard to prevent rapid loops
+  const reconnectingRef = useRef<boolean>(false);
 
-  // Setup peer connection
-  useEffect(() => {
-    if (!open) return;
+  // Add: helper to close and cleanup current RTCPeerConnection
+  const closePeerConnection = () => {
+    const pc = pcRef.current;
+    try {
+      pc?.getSenders().forEach((s) => s.track?.stop());
+      pc?.close();
+    } catch {}
+    pcRef.current = null;
+  };
 
+  // Add: createPeerConnection() with event listeners and safe ICE config
+  const createPeerConnection = () => {
     let pc: RTCPeerConnection | null = null;
     try {
-      // First try with our strictly-allowed Google STUN list
       pc = new RTCPeerConnection(safeIceServers);
-    } catch (err: any) {
-      // If any invalid URL slipped in or the environment rejects it, retry with empty config
+    } catch (err) {
       try {
         pc = new RTCPeerConnection({});
         toast.message("Using fallback WebRTC configuration (no STUN). Connectivity may be limited.");
       } catch {
         toast.error("Failed to initialize call. Please refresh and try again.");
         onOpenChange(false);
-        return;
+        return null;
       }
     }
-
-    pcRef.current = pc;
 
     pc.ontrack = (e) => {
       if (remoteVideoRef.current) {
@@ -107,6 +98,186 @@ export default function CallDialog({
       }
     };
 
+    // Add: onconnectionstatechange -> log and auto recover
+    pc.onconnectionstatechange = async () => {
+      const state = pc?.connectionState;
+      console.log("PeerConnection state:", state);
+      if (!state) return;
+
+      if ((state === "failed" || state === "closed" || state === "disconnected") && !reconnectingRef.current) {
+        reconnectingRef.current = true;
+        try {
+          // Dispose old
+          closePeerConnection();
+
+          // Create new
+          const newPc = createPeerConnection();
+          if (!newPc) return;
+          pcRef.current = newPc;
+
+          // Retry adding local tracks
+          if (localStreamRef.current) {
+            await addLocalTracks(localStreamRef.current);
+          }
+
+          // If we are the caller, re-offer to recover
+          if (role === "caller" && activeCall && user && newPc.signalingState !== "closed") {
+            try {
+              const offer = await newPc.createOffer();
+              await newPc.setLocalDescription(offer);
+              await sendSignal({
+                callId,
+                toUserId: activeCall.calleeId,
+                signalType: "offer",
+                payload: JSON.stringify(offer),
+              });
+            } catch {
+              // ignore
+            }
+          }
+        } finally {
+          // Slight delay to avoid flapping reconnections
+          setTimeout(() => {
+            reconnectingRef.current = false;
+          }, 1000);
+        }
+      }
+    };
+
+    return pc;
+  };
+
+  // Add: addLocalTracks(stream) that ensures PC is open and retries on closed
+  const addLocalTracks = async (stream: MediaStream) => {
+    let pc = pcRef.current;
+    if (!pc || pc.signalingState === "closed") {
+      // Auto recreate
+      pc = createPeerConnection();
+      if (!pc) throw new Error("Failed to create RTCPeerConnection");
+      pcRef.current = pc;
+    }
+    // Only add tracks if not closed
+    if (pc.signalingState !== "closed") {
+      stream.getTracks().forEach((t) => {
+        try {
+          pc!.addTrack(t, stream);
+        } catch {
+          // if addTrack throws (rare), try recreation once
+          if (pc!.signalingState === "closed") {
+            const fresh = createPeerConnection();
+            if (!fresh) return;
+            pcRef.current = fresh;
+            stream.getTracks().forEach((tt) => {
+              try {
+                fresh.addTrack(tt, stream);
+              } catch {}
+            });
+          }
+        }
+      });
+    }
+  };
+
+  // Add: handleOffer/handleAnswer/handleCandidate helpers
+  const handleOffer = async (offer: RTCSessionDescriptionInit) => {
+    const pc = pcRef.current || createPeerConnection();
+    if (!pc) return;
+    pcRef.current = pc;
+
+    if (!pc.currentRemoteDescription) {
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      } catch {
+        // will retry on next tick via signals effect
+        return;
+      }
+    }
+
+    if (!acceptSentRef.current) {
+      acceptSentRef.current = true;
+      try {
+        const res = await acceptCall({ callId });
+        if (!res || !("success" in res) || !res.success) return;
+        setIsAccepted(true);
+      } catch {
+        return;
+      }
+    }
+
+    if (!answeredOnceRef.current && pc.signalingState === "have-remote-offer") {
+      try {
+        answeredOnceRef.current = true;
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await sendSignal({
+          callId,
+          toUserId: activeCall!.callerId,
+          signalType: "answer",
+          payload: JSON.stringify(answer),
+        });
+      } catch {
+        answeredOnceRef.current = false;
+      }
+    }
+  };
+
+  const handleAnswer = async (answer: RTCSessionDescriptionInit) => {
+    const pc = pcRef.current;
+    if (!pc) return;
+
+    const canApplyAnswer =
+      pc.signalingState === "have-local-offer" &&
+      !!pc.localDescription &&
+      !pc.currentRemoteDescription;
+
+    if (canApplyAnswer) {
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      } catch {
+        // ignore transient errors
+      }
+    }
+  };
+
+  const handleCandidate = async (candidateInit: RTCIceCandidateInit) => {
+    const pc = pcRef.current || createPeerConnection();
+    if (!pc) return;
+    pcRef.current = pc;
+
+    if (pc.localDescription || pc.remoteDescription) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+      } catch {
+        // ignore bad candidates
+      }
+    }
+  };
+
+  const safeIceServers = useMemo<RTCConfiguration>(
+    () => ({
+      iceServers: [
+        // Twilio STUN (valid format, no query params)
+        { urls: "stun:global.stun.twilio.com:3478" },
+        // Google STUN backups
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun3.l.google.com:19302" },
+        { urls: "stun:stun4.l.google.com:19302" },
+      ],
+    }),
+    []
+  );
+
+  // Setup peer connection
+  useEffect(() => {
+    if (!open) return;
+
+    // Create PC via helper
+    const pc = createPeerConnection();
+    if (!pc) return;
+    pcRef.current = pc;
+
     (async () => {
       try {
         const constraints: MediaStreamConstraints =
@@ -121,18 +292,23 @@ export default function CallDialog({
           localVideoRef.current.srcObject = local;
         }
 
-        local.getTracks().forEach((t) => pc!.addTrack(t, local));
+        // Replace: ensure tracks only added when PC is live, with auto-recreate
+        await addLocalTracks(local);
 
+        // Update: guard pcRef.current before creating offer to satisfy TS and runtime
         if (role === "caller" && activeCall && user) {
-          const offer = await pc!.createOffer();
-          await pc!.setLocalDescription(offer);
-          const toUserId = activeCall.calleeId;
-          await sendSignal({
-            callId,
-            toUserId,
-            signalType: "offer",
-            payload: JSON.stringify(offer),
-          });
+          const pcNow = pcRef.current;
+          if (pcNow && pcNow.signalingState !== "closed") {
+            const offer = await pcNow.createOffer();
+            await pcNow.setLocalDescription(offer);
+            const toUserId = activeCall.calleeId;
+            await sendSignal({
+              callId,
+              toUserId,
+              signalType: "offer",
+              payload: JSON.stringify(offer),
+            });
+          }
         }
       } catch (err: any) {
         toast.error(err?.message || "Failed to access media devices");
@@ -141,21 +317,18 @@ export default function CallDialog({
     })();
 
     return () => {
-      pc!.getSenders().forEach((s) => s.track?.stop());
-      pc!.close();
-      pcRef.current = null;
+      closePeerConnection();
       localStreamRef.current?.getTracks().forEach((t) => t.stop());
       localStreamRef.current = null;
     };
   }, [open, safeIceServers, activeCall, user, sendSignal, callId, type, role, onOpenChange]);
 
-  // Process incoming signals
+  // Process incoming signals using helpers
   useEffect(() => {
     (async () => {
       const pc = pcRef.current;
       if (!pc || !signals || !activeCall || !user) return;
 
-      // Process oldest-first to preserve ordering
       const ordered = [...signals].reverse();
       for (const s of ordered) {
         const sid = String(s._id);
@@ -164,76 +337,13 @@ export default function CallDialog({
         try {
           if (s.signalType === "offer" && role === "callee") {
             const offer = JSON.parse(s.payload);
-
-            // 1) Ensure remote description is set first
-            if (!pc.currentRemoteDescription) {
-              try {
-                await pc.setRemoteDescription(new RTCSessionDescription(offer));
-              } catch {
-                // Defer retry on next signal tick
-                continue;
-              }
-            }
-
-            // 2) Ensure server state is accepted before creating the answer (debounced once)
-            if (!acceptSentRef.current) {
-              acceptSentRef.current = true;
-              try {
-                const res = await acceptCall({ callId });
-                if (!res || !("success" in res) || !res.success) {
-                  // Server did not accept; don't continue to createAnswer
-                  acceptSentRef.current = true; // keep debounced, but stop flow
-                  continue;
-                }
-                setIsAccepted(true);
-              } catch {
-                // If server accept fails, do not proceed to create an answer
-                continue;
-              }
-            }
-
-            // 3) Create one answer only when we're exactly in have-remote-offer
-            if (!answeredOnceRef.current && pc.signalingState === "have-remote-offer") {
-              try {
-                answeredOnceRef.current = true;
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                await sendSignal({
-                  callId,
-                  toUserId: activeCall.callerId,
-                  signalType: "answer",
-                  payload: JSON.stringify(answer),
-                });
-              } catch {
-                // Allow retry on next processing tick only if we failed before setting the guard
-                answeredOnceRef.current = false;
-              }
-            }
+            await handleOffer(offer);
           } else if (s.signalType === "answer" && role === "caller") {
             const answer = JSON.parse(s.payload);
-            const canApplyAnswer =
-              pc.signalingState === "have-local-offer" &&
-              !!pc.localDescription &&
-              !pc.currentRemoteDescription;
-
-            if (canApplyAnswer) {
-              try {
-                await pc.setRemoteDescription(new RTCSessionDescription(answer));
-              } catch {
-                // Ignore transient/wrong-state errors; duplicates or late answers can safely be skipped
-              }
-            } else {
-              // Skip duplicate/late answers (already stable or remote already set)
-            }
+            await handleAnswer(answer);
           } else if (s.signalType === "candidate") {
             const candidate = JSON.parse(s.payload);
-            if (pc.localDescription || pc.remoteDescription) {
-              try {
-                await pc.addIceCandidate(new RTCIceCandidate(candidate));
-              } catch {
-                // ignore bad candidates
-              }
-            }
+            await handleCandidate(candidate);
           } else if (s.signalType === "end") {
             onOpenChange(false);
             toast.message("Call ended");
@@ -243,14 +353,16 @@ export default function CallDialog({
         }
       }
     })();
-  }, [signals, role, callId, sendSignal, acceptCall, onOpenChange, activeCall, user]);
+  }, [signals, role, callId, acceptCall, onOpenChange, activeCall, user]);
 
+  // Replace handleEnd to ensure proper cleanup
   const handleEnd = async () => {
     try {
       await endCall({ callId });
     } catch {
       // ignore
     } finally {
+      closePeerConnection();
       onOpenChange(false);
     }
   };
