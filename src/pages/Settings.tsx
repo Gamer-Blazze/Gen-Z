@@ -200,6 +200,225 @@ export default function Settings() {
             />
           </div>
 
+          {/* NEW: One Settings (quick control center) */}
+          <Card>
+            <CardContent className="p-6 space-y-5">
+              <h2 className="text-lg font-semibold">One Settings</h2>
+
+              {/* Quick: Theme and Density */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <label className="text-sm text-muted-foreground">Theme</label>
+                  <Select
+                    value={theme}
+                    onValueChange={(val: "light" | "dark" | "system") => {
+                      setTheme(val);
+                      toast(`Theme set to ${val}`);
+                    }}
+                  >
+                    <SelectTrigger className="w-[240px]">
+                      <SelectValue placeholder="Select theme" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="light">Light</SelectItem>
+                      <SelectItem value="dark">Dark</SelectItem>
+                      <SelectItem value="system">System</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <label className="text-sm text-muted-foreground">Density</label>
+                  <Select
+                    value={settings.preferences.density}
+                    onValueChange={async (val: "comfortable" | "compact") => {
+                      const prev = settings;
+                      const next = { ...prev, preferences: { ...prev.preferences, density: val } };
+                      setSettings(next);
+                      try {
+                        await updateUserSettings({ preferences: { density: val } });
+                        toast(`Density set to ${val}`);
+                      } catch {
+                        toast.error("Failed to update");
+                        setSettings(prev);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[240px]">
+                      <SelectValue placeholder="Select density" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="comfortable">Comfortable</SelectItem>
+                      <SelectItem value="compact">Compact</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Quick: Privacy essentials */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-2">
+                  <label className="text-sm text-muted-foreground">Who can message you</label>
+                  <Select
+                    value={settings.privacy.canMessage}
+                    onValueChange={async (val: "everyone" | "friends") => {
+                      const prev = settings;
+                      const next = { ...prev, privacy: { ...prev.privacy, canMessage: val } };
+                      setSettings(next);
+                      try {
+                        await updateUserSettings({ privacy: { canMessage: val } as any });
+                        toast(`Messaging set to ${val}`);
+                      } catch {
+                        toast.error("Failed to update");
+                        setSettings(prev);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[240px]">
+                      <SelectValue placeholder="Select option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="everyone">Everyone</SelectItem>
+                      <SelectItem value="friends">Friends only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <label className="text-sm text-muted-foreground">Posts visibility</label>
+                  <Select
+                    value={settings.privacy.postsVisibility}
+                    onValueChange={async (val: "public" | "friends") => {
+                      const prev = settings;
+                      const next = { ...prev, privacy: { ...prev.privacy, postsVisibility: val } };
+                      setSettings(next);
+                      try {
+                        await updateUserSettings({ privacy: { postsVisibility: val } as any });
+                        toast(`Posts visibility set to ${val}`);
+                      } catch {
+                        toast.error("Failed to update");
+                        setSettings(prev);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[240px]">
+                      <SelectValue placeholder="Select visibility" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="public">Public</SelectItem>
+                      <SelectItem value="friends">Friends</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Quick: 2FA and Notifications master */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="two-fa-quick" className="text-sm">Two-factor authentication</Label>
+                  <Switch
+                    id="two-fa-quick"
+                    checked={!!settings.security?.twoFactorEnabled}
+                    onCheckedChange={async (val) => {
+                      const prev = settings;
+                      const next = { ...prev, security: { ...(prev.security || {}), twoFactorEnabled: val } };
+                      setSettings(next);
+                      try {
+                        await updateUserSettings({ security: { twoFactorEnabled: val } } as any);
+                        toast.success(val ? "2FA enabled" : "2FA disabled");
+                      } catch {
+                        toast.error("Failed to update");
+                        setSettings(prev);
+                      }
+                    }}
+                  />
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      const prev = settings;
+                      const next = {
+                        ...prev,
+                        notifications: {
+                          ...prev.notifications,
+                          likes: true,
+                          comments: true,
+                          friendRequests: true,
+                          messages: true,
+                          sound: true,
+                          vibration: true,
+                          previews: true,
+                        },
+                      };
+                      setSettings(next);
+                      try {
+                        await updateUserSettings({
+                          notifications: {
+                            likes: true,
+                            comments: true,
+                            friendRequests: true,
+                            messages: true,
+                            sound: true,
+                            vibration: true,
+                            previews: true,
+                          } as any,
+                        });
+                        toast.success("All notifications turned ON");
+                      } catch {
+                        toast.error("Failed to update");
+                        setSettings(prev);
+                      }
+                    }}
+                  >
+                    Enable All Notifications
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      const prev = settings;
+                      const next = {
+                        ...prev,
+                        notifications: {
+                          ...prev.notifications,
+                          likes: false,
+                          comments: false,
+                          friendRequests: false,
+                          messages: false,
+                          sound: false,
+                          vibration: false,
+                          previews: false,
+                        },
+                      };
+                      setSettings(next);
+                      try {
+                        await updateUserSettings({
+                          notifications: {
+                            likes: false,
+                            comments: false,
+                            friendRequests: false,
+                            messages: false,
+                            sound: false,
+                            vibration: false,
+                            previews: false,
+                          } as any,
+                        });
+                        toast.success("All notifications turned OFF");
+                      } catch {
+                        toast.error("Failed to update");
+                        setSettings(prev);
+                      }
+                    }}
+                  >
+                    Disable All Notifications
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Top bar with hamburger to open navigation on mobile */}
           <div className="p-2 flex items-center">
             <button
