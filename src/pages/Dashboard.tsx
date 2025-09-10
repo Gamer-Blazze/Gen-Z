@@ -9,6 +9,8 @@ import { FriendsSidebar } from "@/components/FriendsSidebar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
+import { MobileTopNav } from "@/components/MobileTopNav";
+
 /* removed MobileTopNav on dashboard */
 
 export default function Dashboard() {
@@ -40,6 +42,8 @@ export default function Dashboard() {
       className="min-h-screen bg-background"
     >
       {/* Global mobile nav bar removed on Dashboard */}
+      {/* Add top navigation bar */}
+      <MobileTopNav showOnDesktop />
 
       <div className="flex flex-col lg:flex-row">
         {/* Desktop Sidebar */}
