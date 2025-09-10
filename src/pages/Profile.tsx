@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useDevice } from "@/hooks/use-device";
 import { useMemo } from "react";
+import { MobileTopNav } from "@/components/MobileTopNav";
 
 export default function Profile() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
@@ -199,6 +200,8 @@ export default function Profile() {
         </aside>
 
         <div className="min-h-screen flex-1">
+          {/* Top navigation bar */}
+          <MobileTopNav showOnDesktop />
           {/* Cover photo area */}
           <div className="relative h-40 sm:h-56 md:h-64 lg:h-72 w-full bg-muted overflow-hidden">
             {targetUser.coverImage ? (
