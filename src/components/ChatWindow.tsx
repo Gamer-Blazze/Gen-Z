@@ -204,7 +204,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                   </AvatarFallback>
                 </Avatar>
               </button>
-              {!conversation.isGroup && (
+              {!conversation.isGroup && otherUser?.isOnline && (
                 <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></div>
               )}
             </div>
@@ -220,7 +220,13 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                 {displayName}
               </h3>
               {!conversation.isGroup && (
-                <p className="text-sm text-muted-foreground">Active now</p>
+                <p className="text-sm text-muted-foreground">
+                  {otherUser?.isOnline
+                    ? "Active now"
+                    : otherUser?.lastSeen
+                      ? `Last seen ${formatDistanceToNow(new Date(otherUser.lastSeen), { addSuffix: true })}`
+                      : ""}
+                </p>
               )}
             </div>
           </div>
