@@ -15,7 +15,7 @@ import { useLocation } from "react-router";
 import { Id } from "@/convex/_generated/dataModel";
 import { Sidebar } from "@/components/Sidebar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Menu } from "lucide-react";
+import { Menu, LogOut } from "lucide-react";
 import { useParams } from "react-router";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,7 +24,7 @@ import { useDevice } from "@/hooks/use-device";
 import { useMemo } from "react";
 
 export default function Profile() {
-  const { isLoading, isAuthenticated, user } = useAuth();
+  const { isLoading, isAuthenticated, user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { username } = useParams();
@@ -368,6 +368,20 @@ export default function Profile() {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          await signOut();
+                        } catch {
+                          toast.error("Failed to sign out");
+                        }
+                      }}
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Log out
+                    </Button>
                   </>
                 ) : (
                   <>
