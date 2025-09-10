@@ -60,6 +60,11 @@ export default function Friends() {
       </Sheet>
 
       <div className="flex">
+        {/* Left app navigation (desktop) */}
+        <aside className="hidden lg:block w-64 border-r bg-card/50">
+          <Sidebar />
+        </aside>
+
         <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
           {/* Top action bar with hamburger + Add Friend */}
           <div className="px-2 py-2 lg:px-0 lg:py-0">
