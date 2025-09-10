@@ -23,10 +23,10 @@ export default function Messages() {
 
   const pageBg =
     device === "mobile"
-      ? "bg-gradient-to-b from-background to-muted/40"
+      ? "bg-gradient-to-b from-white to-muted/20"
       : device === "tablet"
-      ? "bg-[radial-gradient(60rem_60rem_at_0%_0%,theme(colors.muted/40),transparent)]"
-      : "bg-[radial-gradient(80rem_80rem_at_100%_0%,theme(colors.muted/35),transparent)]";
+      ? "bg-[radial-gradient(60rem_60rem_at_0%_0%,theme(colors.muted/20),transparent)]"
+      : "bg-[radial-gradient(80rem_80rem_at_100%_0%,theme(colors.muted/15),transparent)]";
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -101,7 +101,7 @@ export default function Messages() {
 
           {device === "tablet" && (
             <div key="tablet" className="h-[calc(100vh)]">
-              <div className="flex h-full border rounded-xl overflow-hidden bg-card/30 backdrop-blur-sm">
+              <div className="flex h-full border rounded-xl overflow-hidden bg-white/80 backdrop-blur-sm">
                 {/* Conversations list pane */}
                 <aside className="w-1/2 border-r">
                   <ConversationsList
@@ -132,7 +132,7 @@ export default function Messages() {
           {device === "desktop" && (
             <div key="desktop" className="h-[calc(100vh)] gap-4 hidden lg:flex">
               {/* Conversations list pane */}
-              <aside className="w-[360px] border-r rounded-xl overflow-hidden bg-card/50 backdrop-blur-sm">
+              <aside className="w-[360px] border-r rounded-xl overflow-hidden bg-white/90 backdrop-blur-sm">
                 <ConversationsList
                   selectedConversationId={selectedConversationId}
                   onSelectConversation={(id) => setSelectedConversationId(id)}
@@ -140,7 +140,7 @@ export default function Messages() {
               </aside>
 
               {/* Chat pane */}
-              <section className="flex-1 min-w-0 rounded-xl border bg-card/40 backdrop-blur-sm">
+              <section className="flex-1 min-w-0 rounded-xl border bg-white/90 backdrop-blur-sm">
                 {selectedConversationId ? (
                   <div className="h-full">
                     <ChatWindow conversationId={selectedConversationId} />
@@ -156,7 +156,7 @@ export default function Messages() {
               </section>
 
               {/* Right info sidebar */}
-              <aside className="w-[340px] border rounded-xl overflow-hidden bg-card/50 backdrop-blur-sm hidden xl:block">
+              <aside className="w-[340px] border rounded-xl overflow-hidden bg-white/90 backdrop-blur-sm hidden xl:block">
                 <ChatInfoSidebar conversationId={selectedConversationId} />
               </aside>
             </div>
