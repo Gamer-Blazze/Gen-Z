@@ -5,7 +5,7 @@ import { useNavigate } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
@@ -78,30 +78,65 @@ export default function Settings() {
           comments: s.notifications?.comments ?? true,
           friendRequests: s.notifications?.friendRequests ?? true,
           messages: s.notifications?.messages ?? true,
+          sound: s.notifications?.sound ?? true,
+          vibration: s.notifications?.vibration ?? true,
+          previews: s.notifications?.previews ?? true,
         },
         privacy: {
           canMessage: s.privacy?.canMessage ?? "everyone",
           postsVisibility: s.privacy?.postsVisibility ?? "public",
           showActiveStatus: s.privacy?.showActiveStatus ?? true,
+          lastSeenVisibility: s.privacy?.lastSeenVisibility ?? "everyone",
+          profilePhotoVisibility: s.privacy?.profilePhotoVisibility ?? "everyone",
+          readReceipts: s.privacy?.readReceipts ?? true,
         },
         preferences: {
           language: s.preferences?.language ?? "en",
           density: s.preferences?.density ?? "comfortable",
         },
-      });
+        security: {
+          twoFactorEnabled: s.security?.twoFactorEnabled ?? false,
+        },
+      } as any);
     }
   }, [user]);
 
   // Local settings state with defaults
   const [settings, setSettings] = useState<{
-    notifications: { likes: boolean; comments: boolean; friendRequests: boolean; messages: boolean };
-    privacy: { canMessage: "everyone" | "friends"; postsVisibility: "public" | "friends"; showActiveStatus: boolean };
+    notifications: {
+      likes: boolean; comments: boolean; friendRequests: boolean; messages: boolean;
+      sound?: boolean; vibration?: boolean; previews?: boolean;
+    };
+    privacy: {
+      canMessage: "everyone" | "friends";
+      postsVisibility: "public" | "friends";
+      showActiveStatus: boolean;
+      lastSeenVisibility?: "everyone" | "friends" | "nobody";
+      profilePhotoVisibility?: "everyone" | "friends" | "nobody";
+      readReceipts?: boolean;
+    };
     preferences: { language: "en" | "es" | "hi"; density: "comfortable" | "compact" };
+    security?: { twoFactorEnabled: boolean };
   }>({
-    notifications: { likes: true, comments: true, friendRequests: true, messages: true },
-    privacy: { canMessage: "everyone", postsVisibility: "public", showActiveStatus: true },
+    notifications: { likes: true, comments: true, friendRequests: true, messages: true, sound: true, vibration: true, previews: true },
+    privacy: { canMessage: "everyone", postsVisibility: "public", showActiveStatus: true, lastSeenVisibility: "everyone", profilePhotoVisibility: "everyone", readReceipts: true },
     preferences: { language: "en", density: "comfortable" },
+    security: { twoFactorEnabled: false },
   });
+
+  // Accent color state
+  const [accent, setAccent] = useState<string>(() => localStorage.getItem("accent") || "#ef4444");
+
+  useEffect(() => {
+    document.documentElement.style.setProperty("--accent", accent);
+    localStorage.setItem("accent", accent);
+  }, [accent]);
+
+  // Filter helper for section headings
+  const matches = useMemo(() => (title: string) => title.toLowerCase().includes(search.toLowerCase()), [search]);
+
+  // Search state
+  const [search, setSearch] = useState("");
 
   // Apply compact mode class when density changes
   useEffect(() => {
@@ -154,6 +189,15 @@ export default function Settings() {
 
         {/* Content area */}
         <main className="flex-1 mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-6">
+          {/* Search bar */}
+          <div className="mb-2">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search settings..."
+            />
+          </div>
+
           {/* Top bar with hamburger to open navigation on mobile */}
           <div className="p-2 flex items-center">
             <button
@@ -285,77 +329,168 @@ export default function Settings() {
 
           <Card>
             <CardContent className="p-6 space-y-4">
-              {/* Rename: Appearance -> Theme */}
-              <h2 className="font-semibold text-lg">Theme</h2>
-              <div className="grid gap-2">
-                <label className="text-sm text-muted-foreground">Theme</label>
-                <Select
-                  value={theme}
-                  onValueChange={(val: "light" | "dark" | "system") => {
-                    setTheme(val);
-                    toast(`Theme set to ${val}`);
-                  }}
-                >
-                  <SelectTrigger className="w-[220px]">
-                    <SelectValue placeholder="Select theme" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
-                    <SelectItem value="system">System</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Choose Light or Dark, or follow your device's appearance.
-                </p>
-              </div>
+              {matches("Appearance") && <h2 className="font-semibold text-lg">Appearance</h2>}
+              {!matches("Appearance") ? null : (
+                <>
+                  <div className="grid gap-2">
+                    <label className="text-sm text-muted-foreground">Theme</label>
+                    <Select
+                      value={theme}
+                      onValueChange={(val: "light" | "dark" | "system") => {
+                        setTheme(val);
+                        toast(`Theme set to ${val}`);
+                      }}
+                    >
+                      <SelectTrigger className="w-[220px]">
+                        <SelectValue placeholder="Select theme" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="light">Light</SelectItem>
+                        <SelectItem value="dark">Dark</SelectItem>
+                        <SelectItem value="system">System</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Choose Light or Dark, or follow your device's appearance.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <label className="text-sm text-muted-foreground">Accent color</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        value={accent}
+                        onChange={(e) => setAccent(e.target.value)}
+                        className="h-9 w-12 rounded-md border p-1 bg-background"
+                        aria-label="Pick accent color"
+                      />
+                      <Button
+                        variant="outline"
+                        onClick={() => setAccent("#ef4444")}
+                      >
+                        Reset
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Changes apply instantly across buttons and highlights.
+                    </p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
-          {/* Split: Notifications & Privacy -> Notifications */}
+          {/* Notifications card: extend with sound, vibration, previews */}
           <Card>
             <CardContent className="p-6 space-y-4">
-              <h2 className="font-semibold text-lg">Notifications</h2>
+              {matches("Notifications") && <h2 className="font-semibold text-lg">Notifications</h2>}
+              {!matches("Notifications") ? null : (
+                <>
+                  <div className="space-y-3">
+                    <div className="text-sm text-muted-foreground">Notifications</div>
+                    <div className="grid gap-3">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="notif-likes" className="text-sm">Likes</Label>
+                        <Switch
+                          id="notif-likes"
+                          checked={settings.notifications.likes}
+                          onCheckedChange={async (val) => {
+                            const next = {
+                              ...settings,
+                              notifications: { ...settings.notifications, likes: val },
+                            };
+                            setSettings(next);
+                            try {
+                              await updateUserSettings({ notifications: { likes: val } as any });
+                              toast.success("Updated");
+                            } catch {
+                              toast.error("Failed to update");
+                              setSettings(settings); // revert
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="notif-comments" className="text-sm">Comments</Label>
+                        <Switch
+                          id="notif-comments"
+                          checked={settings.notifications.comments}
+                          onCheckedChange={async (val) => {
+                            const prev = settings;
+                            const next = {
+                              ...prev,
+                              notifications: { ...prev.notifications, comments: val },
+                            };
+                            setSettings(next);
+                            try {
+                              await updateUserSettings({ notifications: { comments: val } as any });
+                              toast.success("Updated");
+                            } catch {
+                              toast.error("Failed to update");
+                              setSettings(prev);
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="notif-requests" className="text-sm">Friend Requests</Label>
+                        <Switch
+                          id="notif-requests"
+                          checked={settings.notifications.friendRequests}
+                          onCheckedChange={async (val) => {
+                            const prev = settings;
+                            const next = {
+                              ...prev,
+                              notifications: { ...prev.notifications, friendRequests: val },
+                            };
+                            setSettings(next);
+                            try {
+                              await updateUserSettings({ notifications: { friendRequests: val } as any });
+                              toast.success("Updated");
+                            } catch {
+                              toast.error("Failed to update");
+                              setSettings(prev);
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="notif-messages" className="text-sm">Messages</Label>
+                        <Switch
+                          id="notif-messages"
+                          checked={settings.notifications.messages}
+                          onCheckedChange={async (val) => {
+                            const prev = settings;
+                            const next = {
+                              ...prev,
+                              notifications: { ...prev.notifications, messages: val },
+                            };
+                            setSettings(next);
+                            try {
+                              await updateUserSettings({ notifications: { messages: val } as any });
+                              toast.success("Updated");
+                            } catch {
+                              toast.error("Failed to update");
+                              setSettings(prev);
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-              {/* Notifications */}
-              <div className="space-y-3">
-                <div className="text-sm text-muted-foreground">Notifications</div>
-                <div className="grid gap-3">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="notif-likes" className="text-sm">Likes</Label>
+                    <Label htmlFor="notif-sound" className="text-sm">Sound</Label>
                     <Switch
-                      id="notif-likes"
-                      checked={settings.notifications.likes}
-                      onCheckedChange={async (val) => {
-                        const next = {
-                          ...settings,
-                          notifications: { ...settings.notifications, likes: val },
-                        };
-                        setSettings(next);
-                        try {
-                          await updateUserSettings({ notifications: { likes: val } });
-                          toast.success("Updated");
-                        } catch {
-                          toast.error("Failed to update");
-                          setSettings(settings); // revert
-                        }
-                      }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="notif-comments" className="text-sm">Comments</Label>
-                    <Switch
-                      id="notif-comments"
-                      checked={settings.notifications.comments}
+                      id="notif-sound"
+                      checked={!!settings.notifications.sound}
                       onCheckedChange={async (val) => {
                         const prev = settings;
-                        const next = {
-                          ...prev,
-                          notifications: { ...prev.notifications, comments: val },
-                        };
+                        const next = { ...prev, notifications: { ...prev.notifications, sound: val } };
                         setSettings(next);
                         try {
-                          await updateUserSettings({ notifications: { comments: val } });
+                          await updateUserSettings({ notifications: { sound: val } as any });
                           toast.success("Updated");
                         } catch {
                           toast.error("Failed to update");
@@ -365,19 +500,16 @@ export default function Settings() {
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="notif-requests" className="text-sm">Friend Requests</Label>
+                    <Label htmlFor="notif-vibration" className="text-sm">Vibration</Label>
                     <Switch
-                      id="notif-requests"
-                      checked={settings.notifications.friendRequests}
+                      id="notif-vibration"
+                      checked={!!settings.notifications.vibration}
                       onCheckedChange={async (val) => {
                         const prev = settings;
-                        const next = {
-                          ...prev,
-                          notifications: { ...prev.notifications, friendRequests: val },
-                        };
+                        const next = { ...prev, notifications: { ...prev.notifications, vibration: val } };
                         setSettings(next);
                         try {
-                          await updateUserSettings({ notifications: { friendRequests: val } });
+                          await updateUserSettings({ notifications: { vibration: val } as any });
                           toast.success("Updated");
                         } catch {
                           toast.error("Failed to update");
@@ -387,19 +519,16 @@ export default function Settings() {
                     />
                   </div>
                   <div className="flex items-center justify-between">
-                    <Label htmlFor="notif-messages" className="text-sm">Messages</Label>
+                    <Label htmlFor="notif-previews" className="text-sm">Show previews in-app</Label>
                     <Switch
-                      id="notif-messages"
-                      checked={settings.notifications.messages}
+                      id="notif-previews"
+                      checked={!!settings.notifications.previews}
                       onCheckedChange={async (val) => {
                         const prev = settings;
-                        const next = {
-                          ...prev,
-                          notifications: { ...prev.notifications, messages: val },
-                        };
+                        const next = { ...prev, notifications: { ...prev.notifications, previews: val } };
                         setSettings(next);
                         try {
-                          await updateUserSettings({ notifications: { messages: val } });
+                          await updateUserSettings({ notifications: { previews: val } as any });
                           toast.success("Updated");
                         } catch {
                           toast.error("Failed to update");
@@ -408,104 +537,224 @@ export default function Settings() {
                       }}
                     />
                   </div>
-                </div>
-              </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
-          {/* New: Separate Privacy card (moved from previous card) */}
+          {/* Privacy card: extend with last seen, profile photo visibility, read receipts */}
           <Card>
             <CardContent className="p-6 space-y-4">
-              <h2 className="font-semibold text-lg">Privacy</h2>
+              {matches("Privacy") && <h2 className="font-semibold text-lg">Privacy</h2>}
+              {!matches("Privacy") ? null : (
+                <>
+                  <div className="space-y-3">
+                    <div className="grid gap-2">
+                      <Label className="text-sm">Who can message you</Label>
+                      <Select
+                        value={settings.privacy.canMessage}
+                        onValueChange={async (val: "everyone" | "friends") => {
+                          const prev = settings;
+                          const next = { ...prev, privacy: { ...prev.privacy, canMessage: val } };
+                          setSettings(next);
+                          try {
+                            await updateUserSettings({ privacy: { canMessage: val } as any });
+                            toast(`Messaging set to ${val}`);
+                          } catch {
+                            toast.error("Failed to update");
+                            setSettings(prev);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-[240px]">
+                          <SelectValue placeholder="Select option" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="everyone">Everyone</SelectItem>
+                          <SelectItem value="friends">Friends only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
 
-              {/* Who can message you */}
-              <div className="space-y-3">
-                <div className="grid gap-2">
-                  <Label className="text-sm">Who can message you</Label>
-                  <Select
-                    value={settings.privacy.canMessage}
-                    onValueChange={async (val: "everyone" | "friends") => {
-                      const prev = settings;
-                      const next = { ...prev, privacy: { ...prev.privacy, canMessage: val } };
-                      setSettings(next);
-                      try {
-                        await updateUserSettings({ privacy: { canMessage: val } });
-                        toast(`Messaging set to ${val}`);
-                      } catch {
-                        toast.error("Failed to update");
-                        setSettings(prev);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-[240px]">
-                      <SelectValue placeholder="Select option" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="everyone">Everyone</SelectItem>
-                      <SelectItem value="friends">Friends only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                  <div className="space-y-3">
+                    <div className="grid gap-2">
+                      <Label className="text-sm">Posts visibility</Label>
+                      <Select
+                        value={settings.privacy.postsVisibility}
+                        onValueChange={async (val: "public" | "friends") => {
+                          const prev = settings;
+                          const next = { ...prev, privacy: { ...prev.privacy, postsVisibility: val } };
+                          setSettings(next);
+                          try {
+                            await updateUserSettings({ privacy: { postsVisibility: val } as any });
+                            toast(`Posts visibility set to ${val}`);
+                          } catch {
+                            toast.error("Failed to update");
+                            setSettings(prev);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-[240px]">
+                          <SelectValue placeholder="Select visibility" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="public">Public</SelectItem>
+                          <SelectItem value="friends">Friends</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Note: Existing posts keep their own visibility; this sets the default for new content.
+                      </p>
+                    </div>
+                  </div>
 
-              {/* Posts visibility */}
-              <div className="space-y-3">
-                <div className="grid gap-2">
-                  <Label className="text-sm">Posts visibility</Label>
-                  <Select
-                    value={settings.privacy.postsVisibility}
-                    onValueChange={async (val: "public" | "friends") => {
-                      const prev = settings;
-                      const next = { ...prev, privacy: { ...prev.privacy, postsVisibility: val } };
-                      setSettings(next);
-                      try {
-                        await updateUserSettings({ privacy: { postsVisibility: val } });
-                        toast(`Posts visibility set to ${val}`);
-                      } catch {
-                        toast.error("Failed to update");
-                        setSettings(prev);
-                      }
-                    }}
-                  >
-                    <SelectTrigger className="w-[240px]">
-                      <SelectValue placeholder="Select visibility" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="public">Public</SelectItem>
-                      <SelectItem value="friends">Friends</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Note: Existing posts keep their own visibility; this sets the default for new content.
-                  </p>
-                </div>
-              </div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="active-status" className="text-sm">Active Status</Label>
+                      <Switch
+                        id="active-status"
+                        checked={settings.privacy.showActiveStatus}
+                        onCheckedChange={async (val) => {
+                          const prev = settings;
+                          const next = { ...prev, privacy: { ...prev.privacy, showActiveStatus: val } };
+                          setSettings(next);
+                          try {
+                            await updateUserSettings({ privacy: { showActiveStatus: val } as any });
+                            toast.success(val ? "Active status on" : "Active status off");
+                          } catch {
+                            toast.error("Failed to update");
+                            setSettings(prev);
+                          }
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      When on, friends can see when you're active or recently active.
+                    </p>
+                  </div>
 
-              {/* Active Status (Facebook-like) */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="active-status" className="text-sm">Active Status</Label>
-                  <Switch
-                    id="active-status"
-                    checked={settings.privacy.showActiveStatus}
-                    onCheckedChange={async (val) => {
-                      const prev = settings;
-                      const next = { ...prev, privacy: { ...prev.privacy, showActiveStatus: val } };
-                      setSettings(next);
-                      try {
-                        await updateUserSettings({ privacy: { showActiveStatus: val } });
-                        toast.success(val ? "Active status on" : "Active status off");
-                      } catch {
-                        toast.error("Failed to update");
-                        setSettings(prev);
-                      }
-                    }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  When on, friends can see when you're active or recently active.
-                </p>
-              </div>
+                  <div className="space-y-3">
+                    <div className="grid gap-2">
+                      <Label className="text-sm">Last seen visibility</Label>
+                      <Select
+                        value={settings.privacy.lastSeenVisibility}
+                        onValueChange={async (val: "everyone" | "friends" | "nobody") => {
+                          const prev = settings;
+                          const next = { ...prev, privacy: { ...prev.privacy, lastSeenVisibility: val } };
+                          setSettings(next);
+                          try {
+                            await updateUserSettings({ privacy: { lastSeenVisibility: val } as any });
+                            toast(`Last seen set to ${val}`);
+                          } catch {
+                            toast.error("Failed to update");
+                            setSettings(prev);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-[240px]">
+                          <SelectValue placeholder="Select visibility" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="everyone">Everyone</SelectItem>
+                          <SelectItem value="friends">Friends</SelectItem>
+                          <SelectItem value="nobody">Nobody</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="grid gap-2">
+                      <Label className="text-sm">Profile photo visibility</Label>
+                      <Select
+                        value={settings.privacy.profilePhotoVisibility}
+                        onValueChange={async (val: "everyone" | "friends" | "nobody") => {
+                          const prev = settings;
+                          const next = { ...prev, privacy: { ...prev.privacy, profilePhotoVisibility: val } };
+                          setSettings(next);
+                          try {
+                            await updateUserSettings({ privacy: { profilePhotoVisibility: val } as any });
+                            toast(`Profile photo visibility set to ${val}`);
+                          } catch {
+                            toast.error("Failed to update");
+                            setSettings(prev);
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="w-[240px]">
+                          <SelectValue placeholder="Select visibility" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="everyone">Everyone</SelectItem>
+                          <SelectItem value="friends">Friends</SelectItem>
+                          <SelectItem value="nobody">Nobody</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="read-receipts" className="text-sm">Read receipts</Label>
+                      <Switch
+                        id="read-receipts"
+                        checked={!!settings.privacy.readReceipts}
+                        onCheckedChange={async (val) => {
+                          const prev = settings;
+                          const next = { ...prev, privacy: { ...prev.privacy, readReceipts: val } };
+                          setSettings(next);
+                          try {
+                            await updateUserSettings({ privacy: { readReceipts: val } as any });
+                            toast.success("Updated");
+                          } catch {
+                            toast.error("Failed to update");
+                            setSettings(prev);
+                          }
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      When off, you won't send or receive read receipts.
+                    </p>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Security card (Two-Factor toggle) */}
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              {matches("Security") && <h2 className="font-semibold text-lg">Security</h2>}
+              {!matches("Security") ? null : (
+                <>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="two-fa" className="text-sm">Two-factor authentication</Label>
+                      <Switch
+                        id="two-fa"
+                        checked={!!settings.security?.twoFactorEnabled}
+                        onCheckedChange={async (val) => {
+                          const prev = settings;
+                          const next = { ...prev, security: { ...(prev.security || {}), twoFactorEnabled: val } };
+                          setSettings(next);
+                          try {
+                            await updateUserSettings({ security: { twoFactorEnabled: val } as any });
+                            toast.success(val ? "2FA enabled" : "2FA disabled");
+                          } catch {
+                            toast.error("Failed to update");
+                            setSettings(prev);
+                          }
+                        }}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Adds an extra step at sign-in. This setting is stored in your profile.
+                    </p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 

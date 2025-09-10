@@ -48,17 +48,35 @@ const schema = defineSchema(
             comments: v.boolean(),
             friendRequests: v.boolean(),
             messages: v.boolean(),
+            // NEW: richer notifications
+            sound: v.optional(v.boolean()),
+            vibration: v.optional(v.boolean()),
+            previews: v.optional(v.boolean()),
           }),
           privacy: v.object({
             canMessage: v.union(v.literal("everyone"), v.literal("friends")),
             postsVisibility: v.union(v.literal("public"), v.literal("friends")),
             // Add: Active Status toggle to match FB-like settings
             showActiveStatus: v.boolean(),
+            // NEW: visibility & receipts
+            lastSeenVisibility: v.optional(
+              v.union(v.literal("everyone"), v.literal("friends"), v.literal("nobody"))
+            ),
+            profilePhotoVisibility: v.optional(
+              v.union(v.literal("everyone"), v.literal("friends"), v.literal("nobody"))
+            ),
+            readReceipts: v.optional(v.boolean()),
           }),
           preferences: v.optional(
             v.object({
               language: v.union(v.literal("en"), v.literal("es"), v.literal("hi")),
               density: v.union(v.literal("comfortable"), v.literal("compact")),
+            })
+          ),
+          // NEW: minimal security settings
+          security: v.optional(
+            v.object({
+              twoFactorEnabled: v.boolean(),
             })
           ),
         })
