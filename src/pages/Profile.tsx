@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useDevice } from "@/hooks/use-device";
+import { useMemo } from "react";
 
 export default function Profile() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -64,6 +65,10 @@ export default function Profile() {
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
   const sendFriend = useMutation(api.friends.sendFriendRequest);
+  const relationshipStatus = useQuery(
+    api.friends.getRelationshipStatus,
+    !isOwnProfile && targetUser ? { otherUserId: targetUser._id } : "skip"
+  );
 
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
   const getFileUrl = useAction(api.files.getFileUrl);
@@ -359,20 +364,43 @@ export default function Profile() {
                 </>
               ) : (
                 <>
-                  <Button
-                    size="sm"
-                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
-                    onClick={async () => {
-                      try {
-                        await sendFriend({ userId: targetUser._id });
-                        toast.success("Friend request sent");
-                      } catch (e: any) {
-                        toast.error(e?.message || "Failed to send request");
-                      }
-                    }}
-                  >
-                    Add Friend
-                  </Button>
+                  {/* Dynamic Friend Button based on relationship status */}
+                  {relationshipStatus === "friends" && (
+                    <Button size="sm" variant="secondary" disabled>
+                      Friend
+                    </Button>
+                  )}
+                  {relationshipStatus === "outgoing_request" && (
+                    <Button size="sm" variant="secondary" disabled>
+                      Request Sent
+                    </Button>
+                  )}
+                  {relationshipStatus === "incoming_request" && (
+                    <Button
+                      size="sm"
+                      className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                      onClick={() => navigate("/friends")}
+                    >
+                      Respond
+                    </Button>
+                  )}
+                  {(relationshipStatus === "none" || relationshipStatus === undefined) && (
+                    <Button
+                      size="sm"
+                      className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                      onClick={async () => {
+                        try {
+                          await sendFriend({ userId: targetUser._id });
+                          toast.success("Friend request sent");
+                        } catch (e: any) {
+                          toast.error(e?.message || "Failed to send request");
+                        }
+                      }}
+                    >
+                      Add Friend
+                    </Button>
+                  )}
+
                   <Button variant="outline" size="sm" onClick={() => navigate("/messages")}>
                     Message
                   </Button>

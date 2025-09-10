@@ -353,3 +353,65 @@ export const rejectRequest = mutation({
     return true;
   },
 });
+
+// Relationship status query for current user vs another user
+export const getRelationshipStatus = query({
+  args: { otherUserId: v.id("users") },
+  handler: async (ctx, args) => {
+    const me = await getCurrentUser(ctx);
+    if (!me) return "none" as const;
+
+    if (me._id === args.otherUserId) {
+      return "self" as const;
+    }
+
+    // Are we already friends?
+    const asUser1 = await ctx.db
+      .query("friendships")
+      .withIndex("by_user1", (q) => q.eq("userId1", me._id))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId2"), args.otherUserId),
+          q.eq(q.field("status"), "accepted")
+        )
+      )
+      .first();
+
+    if (asUser1) return "friends" as const;
+
+    const asUser2 = await ctx.db
+      .query("friendships")
+      .withIndex("by_user2", (q) => q.eq("userId2", me._id))
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("userId1"), args.otherUserId),
+          q.eq(q.field("status"), "accepted")
+        )
+      )
+      .first();
+
+    if (asUser2) return "friends" as const;
+
+    // Outgoing request (I sent to them)
+    const outgoing = await ctx.db
+      .query("friend_requests")
+      .withIndex("by_from_and_to", (q) => q.eq("from", me._id).eq("to", args.otherUserId))
+      .first();
+
+    if (outgoing && outgoing.status === "pending") {
+      return "outgoing_request" as const;
+    }
+
+    // Incoming request (they sent to me)
+    const incoming = await ctx.db
+      .query("friend_requests")
+      .withIndex("by_from_and_to", (q) => q.eq("from", args.otherUserId).eq("to", me._id))
+      .first();
+
+    if (incoming && incoming.status === "pending") {
+      return "incoming_request" as const;
+    }
+
+    return "none" as const;
+  },
+});
