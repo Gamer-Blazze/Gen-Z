@@ -83,9 +83,14 @@ export function Sidebar() {
           return (
             <Button
               key={item.path}
-              variant={isActive ? "default" : "ghost"}
-              className="w-full justify-start gap-3"
+              variant="ghost"
+              className={`w-full justify-start gap-3 rounded-xl h-11 transition-colors ${
+                isActive
+                  ? "bg-primary/10 text-primary border border-primary/20 shadow-sm"
+                  : "hover:bg-muted"
+              }`}
               onClick={() => navigate(item.path)}
+              aria-current={isActive ? "page" : undefined}
             >
               <item.icon className="w-5 h-5" />
               {item.label}
