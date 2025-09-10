@@ -1,7 +1,7 @@
 import { Home, MessageCircle, Users, Bell, User, Settings } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
 
-export function MobileTopNav() {
+export function MobileTopNav({ showOnDesktop = false }: { showOnDesktop?: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -15,7 +15,9 @@ export function MobileTopNav() {
   ] as const;
 
   return (
-    <div className="lg:hidden sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+    <div
+      className={`${showOnDesktop ? "" : "lg:hidden "}sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b`}
+    >
       <div className="px-2 py-2 flex items-center justify-around">
         {items.map((item) => {
           const isActive = location.pathname === item.path;

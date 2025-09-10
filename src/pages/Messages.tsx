@@ -82,7 +82,7 @@ export default function Messages() {
           </div>
 
           {/* Global mobile nav bar */}
-          <MobileTopNav />
+          <MobileTopNav showOnDesktop />
 
           {/* Render device layouts explicitly by detection with stable keys */}
           {device === "mobile" && (
