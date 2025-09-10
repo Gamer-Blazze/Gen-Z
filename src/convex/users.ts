@@ -90,3 +90,74 @@ export const getUserCounts = query({
     return { totalUsers, onlineUsers };
   },
 });
+
+// Fetch user by username
+export const getUserByUsername = query({
+  args: { username: v.string() },
+  handler: async (ctx, args) => {
+    const uname = args.username.trim().toLowerCase();
+    if (!uname) return null;
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_username", (q) => q.eq("username", uname))
+      .unique();
+
+    return user ?? null;
+  },
+});
+
+// Update multiple user profile fields with basic validation and username uniqueness
+export const updateUserProfile = mutation({
+  args: {
+    name: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    coverImage: v.optional(v.string()),
+    username: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const patch: Record<string, any> = {};
+
+    if (typeof args.name === "string") {
+      const name = args.name.trim();
+      if (name.length === 0) throw new Error("Name cannot be empty");
+      patch.name = name;
+    }
+
+    if (typeof args.bio === "string") {
+      patch.bio = args.bio.trim();
+    }
+
+    if (typeof args.coverImage === "string") {
+      patch.coverImage = args.coverImage;
+    }
+
+    if (typeof args.username === "string") {
+      const uname = args.username.trim().toLowerCase();
+      if (!/^[a-z0-9._-]{3,20}$/.test(uname)) {
+        throw new Error("Username must be 3-20 chars (a-z, 0-9, ., _, -)");
+      }
+      // ensure not taken by someone else
+      const existing = await ctx.db
+        .query("users")
+        .withIndex("by_username", (q) => q.eq("username", uname))
+        .unique()
+        .catch(() => null);
+
+      if (existing && existing._id !== user._id) {
+        throw new Error("Username already taken");
+      }
+      patch.username = uname;
+    }
+
+    if (Object.keys(patch).length === 0) return true;
+
+    await ctx.db.patch(user._id, patch);
+    return true;
+  },
+});

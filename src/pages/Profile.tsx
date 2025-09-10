@@ -16,39 +16,65 @@ import { Id } from "@/convex/_generated/dataModel";
 import { Sidebar } from "@/components/Sidebar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
+import { useParams } from "react-router";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useDevice } from "@/hooks/use-device";
 
 export default function Profile() {
   const { isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { username } = useParams();
+  const device = useDevice();
+  const isMobile = device === "mobile";
+  const isTablet = device === "tablet";
+  const isDesktop = device === "desktop";
 
-  // Parse ?id=<userId> from the URL to view someone else's profile
+  // Parse ?id=<userId> from the URL to view someone else's profile (fallback for old links)
   const params = new URLSearchParams(location.search);
   const viewUserIdParam = params.get("id") as Id<"users"> | null;
 
-  // If viewing someone else, fetch that user's document
+  // If viewing someone else by username, fetch that user's document
+  const viewedByUsername = useQuery(
+    api.users.getUserByUsername,
+    username ? { username } : "skip"
+  );
+
+  // If viewing someone else by id, fetch that user's document
   const viewedUser = useQuery(
     api.users.getUserById,
-    viewUserIdParam ? { userId: viewUserIdParam } : "skip"
+    !username && viewUserIdParam ? { userId: viewUserIdParam } : "skip"
   );
 
   // Determine target user (self or other)
-  const targetUser = viewUserIdParam ? viewedUser : user;
+  const targetUser = username ? viewedByUsername : viewUserIdParam ? viewedUser : user;
   const isOwnProfile: boolean =
-    !viewUserIdParam || (user ? viewUserIdParam === user._id : false);
+    !!user &&
+    (!!username
+      ? !!targetUser && user._id === targetUser._id
+      : !viewUserIdParam || viewUserIdParam === user._id);
 
   const updateUserImage = useMutation(api.users.updateUserImage);
+  const updateUserProfile = useMutation(api.users.updateUserProfile);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Add: send friend request mutation
   const sendFriend = useMutation(api.friends.sendFriendRequest);
 
-  // Add: file upload actions for profile picture
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
   const getFileUrl = useAction(api.files.getFileUrl);
 
   const [showMobileNav, setShowMobileNav] = useState(false);
+
+  // Edit profile dialog state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState<string>("");
+  const [editBio, setEditBio] = useState<string>("");
+  const [editUsername, setEditUsername] = useState<string>("");
 
   const onPickProfileImage = async (fl: FileList | null) => {
     if (!fl || fl.length === 0) return;
@@ -85,13 +111,62 @@ export default function Profile() {
     }
   };
 
+  // NEW: cover image upload
+  const onPickCoverImage = async (fl: FileList | null) => {
+    if (!fl || fl.length === 0) return;
+    const file = fl[0];
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    setUploadingCover(true);
+    try {
+      const uploadUrl = await generateUploadUrl({});
+      const buf = await new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+      const res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: buf,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const { storageId } = await res.json();
+      const signedUrl = await getFileUrl({ fileId: storageId });
+      await updateUserProfile({ coverImage: signedUrl });
+      toast.success("Cover photo updated");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to update cover photo");
+    } finally {
+      setUploadingCover(false);
+      if (coverInputRef.current) coverInputRef.current.value = "";
+    }
+  };
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate("/auth");
     }
   }, [isLoading, isAuthenticated, navigate]);
 
-  if (isLoading || (viewUserIdParam && typeof viewedUser === "undefined")) {
+  // Initialize edit fields when dialog opens with current values
+  useEffect(() => {
+    if (editOpen && targetUser) {
+      setEditName(targetUser.name || "");
+      setEditBio(targetUser.bio || "");
+      setEditUsername(targetUser.username || "");
+    }
+  }, [editOpen, targetUser]);
+
+  if (
+    isLoading ||
+    (username && typeof viewedByUsername === "undefined") ||
+    (!username && viewUserIdParam && typeof viewedUser === "undefined")
+  ) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -103,7 +178,7 @@ export default function Profile() {
   if (!targetUser) return <div className="min-h-screen flex items-center justify-center">User not found.</div>;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`min-h-screen ${isMobile ? "bg-gradient-to-b from-primary/5 to-background" : "bg-background"}`}>
       {/* Mobile/Tablet sheet container for Sidebar */}
       <Sheet open={showMobileNav} onOpenChange={setShowMobileNav}>
         <SheetContent side="left" className="p-0 w-[85vw] sm:w-[380px]">
@@ -112,72 +187,178 @@ export default function Profile() {
       </Sheet>
 
       <div className="min-h-screen">
-        <main className="w-full px-4 md:px-8 lg:px-12 py-6 space-y-6">
-          {/* Top bar with hamburger to open navigation on mobile */}
-          <div className="p-2 flex items-center">
+        {/* Cover photo area */}
+        <div className="relative h-40 sm:h-56 md:h-64 lg:h-72 w-full bg-muted overflow-hidden">
+          {targetUser.coverImage ? (
+            <img
+              src={targetUser.coverImage}
+              alt="Cover"
+              className="w-full h-full object-cover"
+              loading="eager"
+              decoding="async"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-r from-muted to-muted/60" />
+          )}
+          <div className="absolute top-3 left-3">
             <button
-              className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md hover:bg-muted"
+              className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md bg-background/70 hover:bg-background"
               aria-label="Open navigation"
               onClick={() => setShowMobileNav(true)}
             >
               <Menu className="w-5 h-5" />
             </button>
           </div>
-
-          <h1 className="text-2xl font-bold">
-            {isOwnProfile ? "Your Profile" : `${targetUser.name || "User"}'s Profile`}
-          </h1>
-          <Card>
-            <CardContent className="p-6 flex items-center gap-4">
-              {isOwnProfile && (
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => onPickProfileImage(e.target.files)}
-                />
-              )}
-              <Dialog>
-                <DialogTrigger asChild>
-                  <button aria-label="View profile picture" className="shrink-0">
-                    <Avatar className="w-16 h-16">
-                      <AvatarImage src={targetUser.image} />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                        {targetUser.name?.charAt(0) || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="max-w-3xl">
-                  <img
-                    src={targetUser.image}
-                    alt={targetUser.name || "Profile picture"}
-                    className="w-full h-auto rounded-lg"
-                    loading="eager"
-                    decoding="async"
-                  />
-                </DialogContent>
-              </Dialog>
-              <div className="flex-1">
-                <div className="font-semibold text-lg">{targetUser.name || "User"}</div>
-                <div className="text-muted-foreground">{targetUser.email}</div>
-              </div>
-              {isOwnProfile ? (
+          {isOwnProfile && (
+            <>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => onPickCoverImage(e.target.files)}
+              />
+              <div className="absolute bottom-3 right-3">
                 <Button
-                  variant="outline"
                   size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingImage}
+                  variant="secondary"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={uploadingCover}
                 >
-                  {uploadingImage ? (
+                  {uploadingCover ? (
                     <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                   ) : (
-                    "Change Picture"
+                    "Change Cover"
                   )}
                 </Button>
+              </div>
+            </>
+          )}
+        </div>
+
+        <main className="w-full px-4 md:px-8 lg:px-12 py-6 space-y-6">
+          {/* Header card */}
+          <div className="flex items-start gap-4">
+            {isOwnProfile && (
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => onPickProfileImage(e.target.files)}
+              />
+            )}
+            <Dialog>
+              <DialogTrigger asChild>
+                <button aria-label="View profile picture" className="-mt-16 shrink-0">
+                  <Avatar className="w-24 h-24 ring-4 ring-background rounded-full">
+                    <AvatarImage src={targetUser.image} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                      {targetUser.name?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DialogTrigger>
+              <DialogContent className="max-w-3xl">
+                <img
+                  src={targetUser.image}
+                  alt={targetUser.name || "Profile picture"}
+                  className="w-full h-auto rounded-lg"
+                  loading="eager"
+                  decoding="async"
+                />
+              </DialogContent>
+            </Dialog>
+
+            <div className="flex-1">
+              <div className="font-semibold text-2xl">{targetUser.name || "User"}</div>
+              <div className="text-muted-foreground">
+                {targetUser.username ? `@${targetUser.username}` : targetUser.email}
+              </div>
+              {targetUser.bio && <p className="mt-2 text-sm">{targetUser.bio}</p>}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {isOwnProfile ? (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingImage}
+                  >
+                    {uploadingImage ? (
+                      <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    ) : (
+                      "Change Picture"
+                    )}
+                  </Button>
+                  <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800">
+                        Edit Profile
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Edit Profile</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium">Name</label>
+                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Your name" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium">Username</label>
+                          <Input
+                            value={editUsername}
+                            onChange={(e) => setEditUsername(e.target.value)}
+                            placeholder="username"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            3-20 chars, lowercase letters, numbers, dot, underscore, dash
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium">Bio</label>
+                          <Textarea
+                            value={editBio}
+                            onChange={(e) => setEditBio(e.target.value)}
+                            placeholder="Tell something about yourself"
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter className="mt-2">
+                        <Button
+                          variant="secondary"
+                          onClick={() => setEditOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                          onClick={async () => {
+                            try {
+                              await updateUserProfile({
+                                name: editName,
+                                bio: editBio,
+                                username: editUsername,
+                              });
+                              toast.success("Profile updated");
+                              setEditOpen(false);
+                            } catch (e: any) {
+                              toast.error(e?.message || "Failed to update profile");
+                            }
+                          }}
+                        >
+                          Save
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </>
               ) : (
-                <div className="flex items-center gap-2">
+                <>
                   <Button
                     size="sm"
                     className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
@@ -192,21 +373,45 @@ export default function Profile() {
                   >
                     Add Friend
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate("/messages")}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => navigate("/messages")}>
                     Message
                   </Button>
-                </div>
+                </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Manage Posts of target user; allow delete only on own profile */}
-          <ManagePostsForUser targetUserId={targetUser._id} canManage={isOwnProfile} />
-          {!isOwnProfile && <p className="text-muted-foreground">You are viewing someone else's profile.</p>}
+          {isDesktop ? (
+            <div className="grid grid-cols-12 gap-6">
+              <div className="col-span-4 space-y-4">
+                <AboutCard user={targetUser} isOwnProfile={isOwnProfile} />
+                <FriendsSection targetUserId={targetUser._id} />
+              </div>
+              <div className="col-span-8">
+                <ManagePostsForUser targetUserId={targetUser._id} canManage={isOwnProfile} />
+                {!isOwnProfile && <p className="text-muted-foreground mt-2">You are viewing someone else's profile.</p>}
+              </div>
+            </div>
+          ) : isTablet ? (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="md:col-span-2 space-y-4">
+                <AboutCard user={targetUser} isOwnProfile={isOwnProfile} />
+                <FriendsSection targetUserId={targetUser._id} />
+              </div>
+              <div className="md:col-span-3">
+                <ManagePostsForUser targetUserId={targetUser._id} canManage={isOwnProfile} />
+                {!isOwnProfile && <p className="text-muted-foreground mt-2">You are viewing someone else's profile.</p>}
+              </div>
+            </div>
+          ) : (
+            <>
+              <AboutCard user={targetUser} isOwnProfile={isOwnProfile} variant="mobile" />
+              <FriendsSection targetUserId={targetUser._id} variant="carousel" />
+              <ManagePostsForUser targetUserId={targetUser._id} canManage={isOwnProfile} />
+              {!isOwnProfile && <p className="text-muted-foreground mt-2">You are viewing someone else's profile.</p>}
+            </>
+          )}
         </main>
       </div>
     </motion.div>
@@ -255,6 +460,111 @@ function ManagePostsForUser({ targetUserId, canManage }: { targetUserId: Id<"use
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No posts to show.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AboutCard({
+  user,
+  isOwnProfile,
+  variant,
+}: {
+  user: any;
+  isOwnProfile: boolean;
+  variant?: "mobile";
+}) {
+  return (
+    <Card className={variant === "mobile" ? "border-2 border-primary/10" : ""}>
+      <CardContent className="p-4 space-y-2">
+        <h2 className="font-semibold text-lg">About</h2>
+        {user.bio && <p className="text-sm leading-relaxed">{user.bio}</p>}
+        <div className="text-sm text-muted-foreground space-y-1">
+          {user.username && <div>Username: @{user.username}</div>}
+          {user.email && <div>Email: {user.email}</div>}
+          {user.location && <div>Location: {user.location}</div>}
+          {user.website && (
+            <div className="truncate">
+              Website:{" "}
+              <a href={user.website} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                {user.website}
+              </a>
+            </div>
+          )}
+        </div>
+        {isOwnProfile && (
+          <p className="text-xs text-muted-foreground pt-1">
+            Tip: Use "Edit Profile" to update your name, username, and bio.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function FriendsSection({
+  targetUserId,
+  variant,
+}: {
+  targetUserId: Id<"users">;
+  variant?: "carousel";
+}) {
+  const navigate = useNavigate();
+  const friends = useQuery(api.friends.getUserFriends, { userId: targetUserId });
+
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold text-lg">Friends</h2>
+          <span className="text-xs text-muted-foreground">{Array.isArray(friends) ? friends.length : 0} total</span>
+        </div>
+
+        {friends === undefined ? (
+          <div className="h-16 flex items-center justify-center text-sm text-muted-foreground">Loading...</div>
+        ) : friends && friends.length > 0 ? (
+          variant === "carousel" ? (
+            <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none]">
+              {friends.slice(0, 12).map((f) =>
+                f ? (
+                  <button
+                    key={f._id}
+                    onClick={() => navigate(`/profile?id=${f._id}`)}
+                    className="flex flex-col items-center gap-1 min-w-[72px]"
+                    aria-label="Open friend profile"
+                  >
+                    <Avatar className="w-12 h-12">
+                      <AvatarImage src={f.image} />
+                      <AvatarFallback className="bg-muted text-xs">{f.name?.charAt(0) || "U"}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs max-w-[72px] truncate">{f.name || "Anonymous"}</span>
+                  </button>
+                ) : null
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              {friends.slice(0, 9).map((f) =>
+                f ? (
+                  <button
+                    key={f._id}
+                    onClick={() => navigate(`/profile?id=${f._id}`)}
+                    className="flex flex-col items-center gap-1"
+                    aria-label="Open friend profile"
+                  >
+                    <Avatar className="w-12 h-12">
+                      <AvatarImage src={f.image} />
+                      <AvatarFallback className="bg-muted text-xs">{f.name?.charAt(0) || "U"}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs w-full text-center truncate">{f.name || "Anonymous"}</span>
+                  </button>
+                ) : null
+              )}
+            </div>
+          )
+        ) : (
+          <p className="text-sm text-muted-foreground">No friends to show.</p>
         )}
       </CardContent>
     </Card>
