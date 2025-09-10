@@ -518,7 +518,19 @@ function FriendsSection({
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-lg">Friends</h2>
-          <span className="text-xs text-muted-foreground">{Array.isArray(friends) ? friends.length : 0} total</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">
+              {Array.isArray(friends) ? friends.length : 0} total
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => navigate("/friends")}
+            >
+              View all
+            </Button>
+          </div>
         </div>
 
         {friends === undefined ? (
@@ -564,7 +576,12 @@ function FriendsSection({
             </div>
           )
         ) : (
-          <p className="text-sm text-muted-foreground">No friends to show.</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">No friends to show.</p>
+            <Button size="sm" onClick={() => navigate("/friends")}>
+              Find Friends
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
