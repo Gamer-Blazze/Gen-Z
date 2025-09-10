@@ -20,6 +20,7 @@ import type * as files from "../files.js";
 import type * as friends from "../friends.js";
 import type * as http from "../http.js";
 import type * as messages from "../messages.js";
+import type * as notifications from "../notifications.js";
 import type * as posts from "../posts.js";
 import type * as users from "../users.js";
 
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   friends: typeof friends;
   http: typeof http;
   messages: typeof messages;
+  notifications: typeof notifications;
   posts: typeof posts;
   users: typeof users;
 }>;
