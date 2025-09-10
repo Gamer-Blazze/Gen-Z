@@ -1,5 +1,5 @@
 import { useQuery } from "convex/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface ConversationsListProps {
   selectedConversationId: Id<"conversations"> | null;
@@ -23,6 +24,7 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
   const conversations = useQuery(api.messages.getUserConversations, {});
   const [openNewDialog, setOpenNewDialog] = useState(false);
   const [search, setSearch] = useState("");
+  const [tab, setTab] = useState<"all" | "unread" | "groups" | "communities">("all");
   const { user } = useAuth();
 
   const searchResults = useQuery(
@@ -34,12 +36,36 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
 
   const navigate = useNavigate();
 
+  const filtered = useMemo(() => {
+    if (!conversations) return [];
+    switch (tab) {
+      case "unread":
+        return conversations.filter((conversation: any) => {
+          const last = conversation.lastMessage;
+          const currentUserId = user?._id;
+          const hasUserReadLast =
+            !!last && Array.isArray(last.readBy) && last.readBy.some((rb: { userId: any }) => rb.userId === currentUserId);
+          const sentByMe = last?.senderId === currentUserId;
+          const isUnread = !!last && !sentByMe && !hasUserReadLast;
+          return isUnread;
+        });
+      case "groups":
+        return conversations.filter((c: any) => c.isGroup);
+      case "communities":
+        // Placeholder filter; if communities are a special subtype, adjust accordingly
+        return conversations.filter((c: any) => c.isGroup && c.groupType === "community");
+      case "all":
+      default:
+        return conversations;
+    }
+  }, [conversations, tab, user?._id]);
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Direct</h2>
+          <h2 className="text-xl font-bold">Chats</h2>
           <Dialog open={openNewDialog} onOpenChange={setOpenNewDialog}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2">
@@ -110,17 +136,26 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
             </DialogContent>
           </Dialog>
         </div>
-        <div className="relative">
+        <div className="relative mb-3">
           <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search" className="pl-9 rounded-full" />
         </div>
+        {/* New: Tabs */}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
+          <TabsList className="grid grid-cols-4 w-full">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="unread">Unread</TabsTrigger>
+            <TabsTrigger value="groups">Groups</TabsTrigger>
+            <TabsTrigger value="communities">Communities</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       {/* Conversations */}
       <div className="flex-1 overflow-y-auto">
-        {conversations && conversations.length > 0 ? (
+        {filtered && filtered.length > 0 ? (
           <div className="space-y-1 p-2">
-            {conversations.map((conversation) => {
+            {filtered.map((conversation: any) => {
               const isSelected = selectedConversationId === conversation._id;
               const otherUser = conversation.otherParticipants[0];
               const displayName = conversation.isGroup 
@@ -150,7 +185,7 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
                   <Button
                     variant="ghost"
                     className={`w-full h-auto p-3 justify-start rounded-xl transition-colors ${
-                      isSelected ? "bg-muted" : "hover:bg-muted/60"
+                      isSelected ? "bg-primary/10 border border-primary/20" : "hover:bg-muted/60"
                     }`}
                     onClick={() => onSelectConversation(conversation._id)}
                   >
@@ -215,8 +250,8 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             <div className="text-center">
-              <h3 className="font-semibold mb-2">No conversations yet</h3>
-              <p className="text-sm">Start a new conversation to get started</p>
+              <h3 className="font-semibold mb-2">No conversations</h3>
+              <p className="text-sm">Try another tab or start a new conversation</p>
             </div>
           </div>
         )}

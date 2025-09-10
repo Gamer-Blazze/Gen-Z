@@ -12,6 +12,7 @@ import { ArrowLeft } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useDevice } from "@/hooks/use-device";
 import { MobileTopNav } from "@/components/MobileTopNav";
+import ChatInfoSidebar from "@/components/ChatInfoSidebar";
 
 export default function Messages() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -66,9 +67,8 @@ export default function Messages() {
           </SheetContent>
         </Sheet>
 
-        {/* Main container - force remount on device change to avoid DOM reconciliation issues */}
+        {/* Main container - force remount on device change */}
         <main key={device} className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
-          {/* Render device layouts explicitly by detection with stable keys */}
           {device === "mobile" && (
             <div key="mobile" className="h-full flex flex-col">
               {/* Top bar when in chat view */}
@@ -154,6 +154,11 @@ export default function Messages() {
                   </div>
                 )}
               </section>
+
+              {/* Right info sidebar */}
+              <aside className="w-[340px] border rounded-xl overflow-hidden bg-card/50 backdrop-blur-sm hidden xl:block">
+                <ChatInfoSidebar conversationId={selectedConversationId} />
+              </aside>
             </div>
           )}
         </main>

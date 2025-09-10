@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Phone, Video, MoreVertical } from "lucide-react";
+import { Send, Phone, Video, MoreVertical, Info, Smile, Images } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { Id } from "@/convex/_generated/dataModel";
@@ -253,8 +253,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             <Button variant="ghost" size="sm" onClick={() => placeCall("video")}>
               <Video className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="sm">
-              <MoreVertical className="w-4 h-4" />
+            <Button variant="ghost" size="sm" title="Chat info">
+              <Info className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -297,7 +297,6 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                     </div>
                   ) : msg.messageType === "file" && msg.fileUrl ? (
                     <div className="w-full">
-                      {/* Try to show video if browser can play it */}
                       <video
                         src={msg.fileUrl}
                         className="max-w-xs rounded-2xl border"
@@ -306,21 +305,19 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                         playsInline
                       />
                       {msg.fileName && (
-                        <div className="text-xs text-muted-foreground mt-1 truncate max-w-xs">
-                          {msg.fileName}
-                        </div>
+                        <div className="text-xs text-muted-foreground mt-1 truncate max-w-xs">{msg.fileName}</div>
                       )}
                     </div>
                   ) : (
                     <div
-                      className={`px-3 py-2 rounded-2xl ${
-                        isOwn ? "bg-primary text-primary-foreground" : "bg-muted"
+                      className={`px-4 py-2 rounded-2xl shadow-sm ${
+                        isOwn ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
                       }`}
                     >
                       <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                     </div>
                   )}
-                  <span className="text-xs text-muted-foreground mt-1">
+                  <span className="text-[10px] text-muted-foreground mt-1">
                     {formatDistanceToNow(new Date(msg._creationTime), { addSuffix: true })}
                   </span>
                 </div>
@@ -354,6 +351,12 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             ) : (
               <Paperclip className="w-4 h-4" />
             )}
+          </Button>
+          <Button type="button" variant="ghost" className="h-10 w-10 p-0 rounded-full" title="Emoji">
+            <Smile className="w-4 h-4" />
+          </Button>
+          <Button type="button" variant="ghost" className="h-10 w-10 p-0 rounded-full" title="GIFs">
+            <Images className="w-4 h-4" />
           </Button>
           <Input
             placeholder="Message..."
