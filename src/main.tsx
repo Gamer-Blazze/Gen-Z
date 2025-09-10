@@ -7,7 +7,7 @@ import Friends from "@/pages/Friends.tsx";
 import Notifications from "@/pages/Notifications.tsx";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
-import { StrictMode, useEffect } from "react";
+import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router";
 import "./index.css";
@@ -49,7 +49,7 @@ function RouteSyncer() {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>
+  <>
     <VlyToolbar />
     <InstrumentationProvider>
       <ConvexAuthProvider client={convex}>
@@ -70,5 +70,5 @@ createRoot(document.getElementById("root")!).render(
         <Toaster />
       </ConvexAuthProvider>
     </InstrumentationProvider>
-  </StrictMode>,
+  </>
 );
