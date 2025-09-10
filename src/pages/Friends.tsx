@@ -16,11 +16,14 @@ import { Search } from "lucide-react";
 import { toast } from "sonner";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
+import { Home, MessageCircle, Users, Bell, Settings, User } from "lucide-react";
+import { useLocation } from "react-router";
 
 export default function Friends() {
   const { isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [selectedConversationId, setSelectedConversationId] = useState<Id<"conversations"> | null>(null);
+  const location = useLocation();
 
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [search, setSearch] = useState("");
@@ -66,6 +69,38 @@ export default function Friends() {
         </aside>
 
         <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
+          {/* Mobile & Tablet Top Navigation (Facebook-like) */}
+          <div className="lg:hidden sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+            <div className="px-2 py-2 flex items-center justify-around">
+              {[
+                { icon: Home, path: "/dashboard", label: "Home" },
+                { icon: MessageCircle, path: "/messages", label: "Messages" },
+                { icon: Users, path: "/friends", label: "Friends" },
+                { icon: Bell, path: "/notifications", label: "Notifications" },
+                { icon: User, path: "/profile", label: "Profile" },
+                { icon: Settings, path: "/settings", label: "Settings" },
+              ].map((item) => {
+                const isActive = location.pathname === item.path;
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.path}
+                    onClick={() => navigate(item.path)}
+                    aria-label={item.label}
+                    className={`inline-flex flex-col items-center justify-center px-3 py-1.5 rounded-md text-xs ${
+                      isActive
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 mb-0.5 ${isActive ? "text-primary" : ""}`} />
+                    <span className="hidden sm:inline">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Top action bar with hamburger + Add Friend */}
           <div className="px-2 py-2 lg:px-0 lg:py-0">
             <div className="flex items-center justify-between">
