@@ -11,6 +11,7 @@ import { ArrowLeft } from "lucide-react";
 /* removed unused Menu import */
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useDevice } from "@/hooks/use-device";
+import { MobileTopNav } from "@/components/MobileTopNav";
 
 export default function Messages() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -50,6 +51,8 @@ export default function Messages() {
       animate={{ opacity: 1 }}
       className={`min-h-screen ${pageBg}`}
     >
+      {/* Top navigation bar */}
+      <MobileTopNav showOnDesktop />
       <div className="flex">
         {/* Left Sidebar remains desktop-only; mobile/tablet use the sheet */}
         <div className="hidden lg:block">
