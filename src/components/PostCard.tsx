@@ -79,7 +79,7 @@ export function PostCard({ post }: PostCardProps) {
             className="shrink-0"
             aria-label="View profile"
           >
-            <Avatar>
+            <Avatar className="w-12 h-12 md:w-14 md:h-14">
               <AvatarImage src={post.user?.image} />
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {post.user?.name?.charAt(0) || "U"}
@@ -110,9 +110,10 @@ export function PostCard({ post }: PostCardProps) {
                 key={index}
                 src={image}
                 alt="Post image"
-                className="w-full h-auto rounded-md"
+                className="w-full h-auto rounded-xl object-cover"
                 loading="lazy"
                 decoding="async"
+                sizes="(max-width: 768px) 100vw, 640px"
               />
             ))}
           </div>
