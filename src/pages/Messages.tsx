@@ -66,19 +66,7 @@ export default function Messages() {
 
         {/* Main container - force remount on device change to avoid DOM reconciliation issues */}
         <main key={device} className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
-          {/* Top bar with hamburger + quick action */}
-          <div className="p-2 lg:p-0 flex items-center justify-between">
-            <button
-              className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md hover:bg-muted"
-              aria-label="Open navigation"
-              onClick={() => setShowMobileNav(true)}
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-            <div className="flex-1" />
-          </div>
-
-          {/* Global mobile nav bar */}
+          {/* Global top navigation bar */}
           <MobileTopNav showOnDesktop />
 
           {/* Render device layouts explicitly by detection with stable keys */}
