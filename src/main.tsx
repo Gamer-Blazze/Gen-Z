@@ -9,15 +9,46 @@ import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
 import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router";
+import { BrowserRouter, Route, Routes, useLocation, useNavigate, Navigate } from "react-router";
 import "./index.css";
 import Landing from "./pages/Landing.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import "./types/global.d.ts";
 import Profile from "@/pages/Profile.tsx";
 import Messages from "@/pages/Messages.tsx";
+import { useAuth } from "@/hooks/use-auth";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const { isLoading, isAuthenticated } = useAuth();
+
+  if (isLoading) return null;
+
+  if (!isAuthenticated) {
+    const search = new URLSearchParams();
+    const requested = location.pathname + (location.search || "");
+    search.set("redirect", requested);
+    return <Navigate to={`/auth?${search.toString()}`} replace />;
+  }
+
+  return <>{children}</>;
+}
+
+function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const { isLoading, isAuthenticated } = useAuth();
+
+  if (isLoading) return null;
+
+  if (isAuthenticated) {
+    const redirectParam = new URLSearchParams(location.search).get("redirect");
+    return <Navigate to={redirectParam || "/dashboard"} replace />;
+  }
+
+  return <>{children}</>;
+}
 
 function Redirect({ to }: { to: string }) {
   const navigate = useNavigate();
@@ -59,13 +90,55 @@ createRoot(document.getElementById("root")!).render(
           <RouteSyncer />
           <Routes>
             <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<AuthPage redirectAfterAuth="/dashboard" />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/messages" element={<Messages />} />
-            <Route path="/friends" element={<Friends />} />
-            <Route path="/notifications" element={<Notifications />} />
+            <Route
+              path="/auth"
+              element={
+                <PublicOnlyRoute>
+                  <AuthPage redirectAfterAuth="/dashboard" />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/messages"
+              element={
+                <ProtectedRoute>
+                  <Messages />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/friends"
+              element={
+                <ProtectedRoute>
+                  <Friends />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/notifications"
+              element={
+                <ProtectedRoute>
+                  <Notifications />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/profile/:username" element={<Redirect to="/dashboard" />} />
-            <Route path="/profile" element={<Profile />} />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

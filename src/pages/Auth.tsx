@@ -17,7 +17,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { ArrowRight, Loader2, Mail, UserX } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 
 interface AuthProps {
   redirectAfterAuth?: string;
@@ -26,6 +26,11 @@ interface AuthProps {
 function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
   const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Determine redirect target (URL param has priority)
+  const searchParams = new URLSearchParams(location.search);
+  const redirectTarget = searchParams.get("redirect") || redirectAfterAuth;
+
   const [step, setStep] = useState<"signIn" | { email: string }>("signIn");
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -33,10 +38,9 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      const redirect = redirectAfterAuth; // always use provided/default "/dashboard"
-      navigate(redirect);
+      navigate(redirectTarget, { replace: true });
     }
-  }, [authLoading, isAuthenticated, navigate, redirectAfterAuth]);
+  }, [authLoading, isAuthenticated, navigate, redirectTarget]);
 
   const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -68,8 +72,8 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
 
       console.log("signed in");
 
-      const redirect = redirectAfterAuth; // always use provided/default "/dashboard"
-      navigate(redirect);
+      const redirect = redirectTarget;
+      navigate(redirect, { replace: true });
     } catch (error) {
       console.error("OTP verification error:", error);
 
@@ -87,8 +91,8 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
       console.log("Attempting anonymous sign in...");
       await signIn("anonymous");
       console.log("Anonymous sign in successful");
-      const redirect = redirectAfterAuth; // always use provided/default "/dashboard"
-      navigate(redirect);
+      const redirect = redirectTarget;
+      navigate(redirect, { replace: true });
     } catch (error) {
       console.error("Guest login error:", error);
       console.error("Error details:", JSON.stringify(error, null, 2));
