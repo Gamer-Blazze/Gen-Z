@@ -291,21 +291,45 @@ export const getLastSeen = query({
     const lastSeenVisibility: "everyone" | "friends" | "nobody" =
       privacy.lastSeenVisibility ?? "everyone";
 
-    // Conservative rule: only show when set to "everyone".
-    if (lastSeenVisibility !== "everyone") {
-      return { visible: false } as const;
-    }
-
-    // Respect active status toggle
+    // Respect active status toggle first
     if (!showActiveStatus) {
-      // Active status hidden; optionally still reveal lastSeen if visibility allows.
-      // Here we hide both for simplicity/compliance.
       return { visible: false } as const;
     }
 
+    if (lastSeenVisibility === "nobody") {
+      return { visible: false } as const;
+    }
+
+    if (lastSeenVisibility === "friends") {
+      // Check friendship (accepted) in either direction using indexes
+      const a = await ctx.db
+        .query("friendships")
+        .withIndex("by_user1_and_user2", (q) =>
+          q.eq("userId1", viewer._id).eq("userId2", target._id)
+        )
+        .unique()
+        .catch(() => null);
+
+      const b = !a
+        ? await ctx.db
+            .query("friendships")
+            .withIndex("by_user2_and_user1", (q) =>
+              q.eq("userId2", viewer._id).eq("userId1", target._id)
+            )
+            .unique()
+            .catch(() => null)
+        : null;
+
+      const friendship = a || b;
+      const isFriends = !!friendship && (friendship as any).status === "accepted";
+      if (!isFriends) {
+        return { visible: false } as const;
+      }
+    }
+
+    // "everyone" or allowed-by-friends -> show presence
     const isOnline = !!(target as any).isOnline;
     const lastSeen = (target as any).lastSeen ?? null;
-
     return { visible: true, isOnline, lastSeen } as const;
   },
 });

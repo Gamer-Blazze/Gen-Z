@@ -101,6 +101,9 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const conversation = conversations?.find(c => c._id === conversationId);
   const otherUser = conversation?.otherParticipants[0];
 
+  // Add: toggle to respect read receipts privacy (disabled if explicitly false)
+  const readReceiptsEnabled = user?.settings?.privacy?.readReceipts !== false;
+
   // NEW: query last-seen/active with privacy applied
   const lastSeenInfo = useQuery(
     api.users.getLastSeen,
@@ -114,9 +117,11 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   }, [messages, atBottom]);
 
   useEffect(() => {
-    // Mark messages as read when conversation is opened
-    markAsRead({ conversationId });
-  }, [conversationId, markAsRead]);
+    // Respect privacy: only send read receipts when enabled
+    if (readReceiptsEnabled) {
+      markAsRead({ conversationId });
+    }
+  }, [conversationId, markAsRead, readReceiptsEnabled]);
 
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
   const getFileUrl = useAction(api.files.getFileUrl);
@@ -372,12 +377,12 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                     </div>
                   )}
 
-                  {/* NEW: read indicator line */}
+                  {/* NEW: read indicator line (respects read receipts privacy) */}
                   {isOwn && (
                     <div className="flex items-center gap-1 mt-1">
                       {/* 1:1 — show checks; Group — show up to 3 tiny avatars when seen */}
                       {conversation?.isGroup ? (
-                        seenByOthers.length > 0 ? (
+                        readReceiptsEnabled && seenByOthers.length > 0 ? (
                           <div className="flex -space-x-1">
                             {conversation.otherParticipants
                               .filter((p: any) => seenByOthers.includes(p._id))
@@ -394,7 +399,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                         ) : (
                           <Check className="w-3 h-3 text-muted-foreground" />
                         )
-                      ) : isSeen ? (
+                      ) : readReceiptsEnabled && isSeen ? (
                         <CheckCheck className="w-3.5 h-3.5 text-blue-600" />
                       ) : (
                         <Check className="w-3.5 h-3.5 text-muted-foreground" />

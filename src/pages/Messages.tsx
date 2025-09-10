@@ -44,48 +44,17 @@ export default function Messages() {
   const updateStatus = useMutation(api.users.updateStatus);
 
   useEffect(() => {
-    let isUnmounted = false;
-
-    const ping = async (online: boolean) => {
-      try {
-        await updateStatus({ isOnline: online });
-      } catch {
-        // ignore ping errors
-      }
-    };
-
-    // initial online ping
-    ping(true);
-
-    const interval = setInterval(() => ping(true), 30000);
-
+    // Go online on mount
+    updateStatus({ isOnline: true }).catch(() => {});
     const onVisibility = () => {
-      if (document.visibilityState === "hidden") {
-        ping(false);
-      } else {
-        ping(true);
-      }
+      updateStatus({ isOnline: !document.hidden }).catch(() => {});
     };
-
-    const onBeforeUnload = () => {
-      // best-effort offline ping
-      navigator.sendBeacon?.(
-        "/",
-        new Blob([], { type: "application/octet-stream" })
-      );
-      // fire-and-forget; Convex run is not possible here; rely on visibility + interval
-    };
-
     window.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("beforeunload", onBeforeUnload);
 
     return () => {
-      isUnmounted = true;
-      clearInterval(interval);
       window.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("beforeunload", onBeforeUnload);
-      // mark offline on unmount
-      ping(false);
+      // Best-effort: mark offline on unmount
+      updateStatus({ isOnline: false }).catch(() => {});
     };
   }, [updateStatus]);
 
