@@ -2,7 +2,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { Sidebar } from "@/components/Sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -100,9 +99,8 @@ export default function Profile() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1 max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div className="min-h-screen">
+        <main className="w-full px-4 md:px-8 lg:px-12 py-6 space-y-6">
           <h1 className="text-2xl font-bold">
             {isOwnProfile ? "Your Profile" : `${targetUser.name || "User"}'s Profile`}
           </h1>
