@@ -52,6 +52,8 @@ const schema = defineSchema(
           privacy: v.object({
             canMessage: v.union(v.literal("everyone"), v.literal("friends")),
             postsVisibility: v.union(v.literal("public"), v.literal("friends")),
+            // Add: Active Status toggle to match FB-like settings
+            showActiveStatus: v.boolean(),
           }),
           preferences: v.optional(
             v.object({

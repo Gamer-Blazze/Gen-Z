@@ -82,6 +82,7 @@ export default function Settings() {
         privacy: {
           canMessage: s.privacy?.canMessage ?? "everyone",
           postsVisibility: s.privacy?.postsVisibility ?? "public",
+          showActiveStatus: s.privacy?.showActiveStatus ?? true,
         },
         preferences: {
           language: s.preferences?.language ?? "en",
@@ -94,11 +95,11 @@ export default function Settings() {
   // Local settings state with defaults
   const [settings, setSettings] = useState<{
     notifications: { likes: boolean; comments: boolean; friendRequests: boolean; messages: boolean };
-    privacy: { canMessage: "everyone" | "friends"; postsVisibility: "public" | "friends" };
+    privacy: { canMessage: "everyone" | "friends"; postsVisibility: "public" | "friends"; showActiveStatus: boolean };
     preferences: { language: "en" | "es" | "hi"; density: "comfortable" | "compact" };
   }>({
     notifications: { likes: true, comments: true, friendRequests: true, messages: true },
-    privacy: { canMessage: "everyone", postsVisibility: "public" },
+    privacy: { canMessage: "everyone", postsVisibility: "public", showActiveStatus: true },
     preferences: { language: "en", density: "comfortable" },
   });
 
@@ -284,7 +285,8 @@ export default function Settings() {
 
           <Card>
             <CardContent className="p-6 space-y-4">
-              <h2 className="font-semibold text-lg">Appearance</h2>
+              {/* Rename: Appearance -> Theme */}
+              <h2 className="font-semibold text-lg">Theme</h2>
               <div className="grid gap-2">
                 <label className="text-sm text-muted-foreground">Theme</label>
                 <Select
@@ -310,9 +312,10 @@ export default function Settings() {
             </CardContent>
           </Card>
 
+          {/* Split: Notifications & Privacy -> Notifications */}
           <Card>
             <CardContent className="p-6 space-y-4">
-              <h2 className="font-semibold text-lg">Notifications & Privacy</h2>
+              <h2 className="font-semibold text-lg">Notifications</h2>
 
               {/* Notifications */}
               <div className="space-y-3">
@@ -407,11 +410,16 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              {/* Privacy */}
+          {/* New: Separate Privacy card (moved from previous card) */}
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <h2 className="font-semibold text-lg">Privacy</h2>
+
+              {/* Who can message you */}
               <div className="space-y-3">
-                <div className="text-sm text-muted-foreground">Privacy</div>
-
                 <div className="grid gap-2">
                   <Label className="text-sm">Who can message you</Label>
                   <Select
@@ -438,7 +446,10 @@ export default function Settings() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
 
+              {/* Posts visibility */}
+              <div className="space-y-3">
                 <div className="grid gap-2">
                   <Label className="text-sm">Posts visibility</Label>
                   <Select
@@ -468,6 +479,32 @@ export default function Settings() {
                     Note: Existing posts keep their own visibility; this sets the default for new content.
                   </p>
                 </div>
+              </div>
+
+              {/* Active Status (Facebook-like) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="active-status" className="text-sm">Active Status</Label>
+                  <Switch
+                    id="active-status"
+                    checked={settings.privacy.showActiveStatus}
+                    onCheckedChange={async (val) => {
+                      const prev = settings;
+                      const next = { ...prev, privacy: { ...prev.privacy, showActiveStatus: val } };
+                      setSettings(next);
+                      try {
+                        await updateUserSettings({ privacy: { showActiveStatus: val } });
+                        toast.success(val ? "Active status on" : "Active status off");
+                      } catch {
+                        toast.error("Failed to update");
+                        setSettings(prev);
+                      }
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  When on, friends can see when you're active or recently active.
+                </p>
               </div>
             </CardContent>
           </Card>

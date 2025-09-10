@@ -176,6 +176,8 @@ export const updateUserSettings = mutation({
       v.object({
         canMessage: v.optional(v.union(v.literal("everyone"), v.literal("friends"))),
         postsVisibility: v.optional(v.union(v.literal("public"), v.literal("friends"))),
+        // Add: active status toggle
+        showActiveStatus: v.optional(v.boolean()),
       })
     ),
     // ADD: preferences updates (language + density)
@@ -194,7 +196,7 @@ export const updateUserSettings = mutation({
 
     const existing = (user as any).settings || {
       notifications: { likes: true, comments: true, friendRequests: true, messages: true },
-      privacy: { canMessage: "everyone", postsVisibility: "public" },
+      privacy: { canMessage: "everyone", postsVisibility: "public", showActiveStatus: true }, // default include active status
       preferences: { language: "en", density: "comfortable" }, // default preferences
     };
 
