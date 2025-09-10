@@ -39,32 +39,6 @@ export default function Dashboard() {
       animate={{ opacity: 1 }}
       className="min-h-screen bg-background"
     >
-      {/* Mobile Top Bar with Hamburger (hidden on lg and above) */}
-      <div className="lg:hidden sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto flex h-14 items-center justify-between px-4">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Open menu">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-[280px]">
-              {/* Reuse existing Sidebar inside the sheet for mobile */}
-              <Sidebar />
-            </SheetContent>
-          </Sheet>
-          {/* Make title clickable to go to Profile */}
-          <button
-            className="font-semibold hover:underline"
-            onClick={() => navigate("/profile")}
-            aria-label="Go to Profile"
-          >
-            Gen-Z Nepal
-          </button>
-          <div className="w-9" />
-        </div>
-      </div>
-
       {/* Global mobile nav bar removed on Dashboard */}
 
       <div className="flex flex-col lg:flex-row">
