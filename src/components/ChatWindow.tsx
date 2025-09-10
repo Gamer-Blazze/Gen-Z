@@ -266,12 +266,6 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={() => placeCall("voice")}>
-              <Phone className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => placeCall("video")}>
-              <Video className="w-4 h-4" />
-            </Button>
             <Button variant="ghost" size="sm" title="Chat info">
               <Info className="w-4 h-4" />
             </Button>
@@ -362,6 +356,25 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
       {/* Respect safe-area inset on mobile devices */}
       <div className="p-4 pb-[env(safe-area-inset-bottom)] border-t border-border bg-card shadow-sm">
         <form onSubmit={handleSendMessage} className="flex gap-2 items-end">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => placeCall("voice")}
+            className="h-10 w-10 p-0 rounded-full"
+            title="Voice call"
+          >
+            <Phone className="w-4 h-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => placeCall("video")}
+            className="h-10 w-10 p-0 rounded-full"
+            title="Video call"
+          >
+            <Video className="w-4 h-4" />
+          </Button>
+
           <Button
             type="button"
             variant="ghost"
