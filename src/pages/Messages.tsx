@@ -8,11 +8,14 @@ import { ChatWindow } from "@/components/ChatWindow";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { Menu } from "lucide-react";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 export default function Messages() {
   const { isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const [selectedConversationId, setSelectedConversationId] = useState<Id<"conversations"> | null>(null);
+  const [showMobileNav, setShowMobileNav] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -44,10 +47,26 @@ export default function Messages() {
           <Sidebar />
         </div>
 
+        {/* Add: Mobile/Tablet sheet container for Sidebar */}
+        <Sheet open={showMobileNav} onOpenChange={setShowMobileNav}>
+          <SheetContent side="left" className="p-0 w-[85vw] sm:w-[380px]">
+            <Sidebar />
+          </SheetContent>
+        </Sheet>
+
         {/* Main responsive container */}
         <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
-          {/* Quick action: Go Home */}
-          <div className="p-2 lg:p-0 flex justify-end">
+          {/* Replace: Quick action bar to include hamburger on mobile */}
+          <div className="p-2 lg:p-0 flex items-center justify-between">
+            {/* Hamburger visible on small screens only */}
+            <button
+              className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md hover:bg-muted"
+              aria-label="Open navigation"
+              onClick={() => setShowMobileNav(true)}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div className="flex-1" />
             <Button variant="secondary" size="sm" onClick={() => navigate("/dashboard")}>
               Dashboard
             </Button>
