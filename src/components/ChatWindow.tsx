@@ -34,6 +34,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const [atBottom, setAtBottom] = useState(true);
 
   const endCall = useMutation(api.calls.endCall);
 
@@ -62,6 +64,27 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     }
   }, [activeCall]);
 
+  // Add: handle scroll state based on container scroll
+  const handleScroll = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const threshold = 32; // px tolerance
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+    setAtBottom(isNearBottom);
+  };
+
+  // Add: helpers to jump
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+  const scrollToTop = () => {
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Moved auto-scroll effect below after `messages` declaration to avoid use-before-declare.
+
   const placeCall = async (type: "voice" | "video") => {
     if (!conversation) return;
     try {
@@ -85,8 +108,10 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const otherUser = conversation?.otherParticipants[0];
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (atBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, atBottom]);
 
   useEffect(() => {
     // Mark messages as read when conversation is opened
@@ -262,7 +287,26 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain pb-2">
+      <div
+        ref={messagesContainerRef}
+        onScroll={handleScroll}
+        className="relative flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain pb-2"
+      >
+        {/* Top sticky: quick jump to oldest */}
+        <div className="sticky top-0 z-10 -mt-4 -mx-4 px-4 pt-2 pb-2 bg-gradient-to-b from-background/80 to-transparent backdrop-blur">
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-3 rounded-full"
+              onClick={scrollToTop}
+              title="Jump to the first messages"
+            >
+              View from start
+            </Button>
+          </div>
+        </div>
+
         {messages && messages.length > 0 ? (
           messages.map((msg, index) => {
             const isOwn = msg.senderId === user?._id;
@@ -334,6 +378,19 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
           </div>
         )}
         <div ref={messagesEndRef} />
+        {/* Floating: jump back to latest when not at bottom */}
+        {!atBottom && (
+          <div className="absolute bottom-4 right-4">
+            <Button
+              variant="secondary"
+              className="shadow-lg rounded-full"
+              onClick={scrollToBottom}
+              title="Jump to latest"
+            >
+              Jump to latest
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Message Input */}
