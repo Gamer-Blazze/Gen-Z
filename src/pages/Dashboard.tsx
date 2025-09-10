@@ -46,34 +46,7 @@ export default function Dashboard() {
       {/* Add top navigation bar */}
       <MobileTopNav showOnDesktop />
 
-      {/* Profile Quick Switch Bar */}
-      <div className="w-full px-4 py-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Avatar className="w-9 h-9">
-              <AvatarImage src={user.image} />
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {user.name?.charAt(0) || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <div className="font-medium truncate">{user.name || "User"}</div>
-              <div className="text-xs text-muted-foreground truncate">{user.email}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" onClick={() => navigate("/profile")}>
-              Profile
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/messages")}>
-              Messages
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => navigate("/friends")}>
-              Friends
-            </Button>
-          </div>
-        </div>
-      </div>
+      {/* Removed Profile Quick Switch Bar */}
 
       <div className="flex flex-col lg:flex-row">
         {/* Desktop Sidebar */}
