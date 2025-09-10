@@ -200,7 +200,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
       />
 
       {/* Chat Header */}
-      <div className="p-4 border-b border-border bg-card">
+      {/* Keep header visible while scrolling messages on mobile */}
+      <div className="p-4 border-b border-border bg-card/90 sticky top-0 z-20 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative">
@@ -261,7 +262,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain pb-2">
         {messages && messages.length > 0 ? (
           messages.map((msg, index) => {
             const isOwn = msg.senderId === user?._id;
@@ -336,7 +337,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
       </div>
 
       {/* Message Input */}
-      <div className="p-4 border-t border-border bg-card">
+      {/* Respect safe-area inset on mobile devices */}
+      <div className="p-4 pb-[env(safe-area-inset-bottom)] border-t border-border bg-card shadow-sm">
         <form onSubmit={handleSendMessage} className="flex gap-2 items-end">
           <Button
             type="button"

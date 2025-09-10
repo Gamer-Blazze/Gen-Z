@@ -63,7 +63,8 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-border">
+      {/* Make header sticky on mobile for better UX */}
+      <div className="p-4 border-b border-border sticky top-0 z-10 bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">Chats</h2>
           <Dialog open={openNewDialog} onOpenChange={setOpenNewDialog}>
