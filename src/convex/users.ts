@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, QueryCtx, MutationCtx } from "./_generated/server";
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
 
 /**
  * Get the current signed in user. Returns null if the user is not signed in.
@@ -217,5 +218,23 @@ export const updateUserSettings = mutation({
 
     await ctx.db.patch(user._id, { settings: merged });
     return true;
+  },
+});
+
+export const getUserByRawId = query({
+  args: { rawId: v.string() },
+  handler: async (ctx, args) => {
+    const id = args.rawId.trim();
+    if (!id) return null;
+    try {
+      const maybeUser = await ctx.db.get(id as any);
+      // Ensure it's a users doc (best-effort check)
+      if (maybeUser && (maybeUser as any).email !== undefined) {
+        return maybeUser as Doc<"users">;
+      }
+      return null;
+    } catch {
+      return null;
+    }
   },
 });

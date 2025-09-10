@@ -36,6 +36,18 @@ export default function Friends() {
   const acceptRequest = useMutation(api.friends.acceptRequest);
   const rejectRequest = useMutation(api.friends.rejectRequest);
   const [showMobileNav, setShowMobileNav] = useState(false);
+  const [userIdSearch, setUserIdSearch] = useState("");
+
+  const userById = useQuery(
+    api.users.getUserByRawId,
+    userIdSearch.trim().length > 0 ? { rawId: userIdSearch.trim() } : "skip"
+  );
+
+  type UserDoc = import("@/convex/_generated/dataModel").Doc<"users">;
+  const userByIdUser: UserDoc | null =
+    userById && typeof userById === "object" && "email" in (userById as any)
+      ? (userById as UserDoc)
+      : null;
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -101,9 +113,9 @@ export default function Friends() {
             </div>
           </div>
 
-          {/* Top action bar with hamburger + Add Friend */}
+          {/* Top action bar with hamburger + Add Friend + User ID search (moved here) */}
           <div className="px-2 py-2 lg:px-0 lg:py-0">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <button
                 className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md hover:bg-muted"
                 aria-label="Open navigation"
@@ -112,79 +124,85 @@ export default function Friends() {
                 <Menu className="w-5 h-5" />
               </button>
 
-              <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
-                <DialogTrigger asChild>
-                  <Button size="sm" className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800">
-                    Add Friend
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Find and Add Friends</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search by name or email"
-                        className="pl-9"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                      />
-                    </div>
-                    <div className="max-h-80 overflow-y-auto space-y-2">
-                      {search.trim().length >= 2 ? (
-                        <>
-                          {searchResults && searchResults.length > 0 ? (
-                            searchResults.map((u) => (
-                              <div key={u._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-                                <button
-                                  onClick={() => navigate(`/profile?id=${u._id}`)}
-                                  className="shrink-0"
-                                  aria-label="View profile"
-                                >
-                                  <img
-                                    src={u.image}
-                                    alt={u.name || "User"}
-                                    className="w-10 h-10 rounded-full object-cover border"
-                                  />
-                                </button>
-                                <div className="flex-1 min-w-0">
-                                  <p
-                                    className="font-medium text-sm truncate cursor-pointer hover:underline"
+              <div className="ml-auto flex items-center gap-2 w-full max-w-[720px]">
+                {/* Add Friend dialog */}
+                <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800">
+                      Add Friend
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Find and Add Friends</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search by name or email"
+                          className="pl-9"
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                        />
+                      </div>
+                      <div className="max-h-80 overflow-y-auto space-y-2">
+                        {search.trim().length >= 2 ? (
+                          <>
+                            {searchResults && searchResults.length > 0 ? (
+                              searchResults.map((u) => (
+                                <div key={u._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                                  <button
                                     onClick={() => navigate(`/profile?id=${u._id}`)}
+                                    className="shrink-0"
+                                    aria-label="View profile"
                                   >
-                                    {u.name || "Anonymous"}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                                    <img
+                                      src={u.image}
+                                      alt={u.name || "User"}
+                                      className="w-10 h-10 rounded-full object-cover border"
+                                    />
+                                  </button>
+                                  <div className="flex-1 min-w-0">
+                                    <p
+                                      className="font-medium text-sm truncate cursor-pointer hover:underline"
+                                      onClick={() => navigate(`/profile?id=${u._id}`)}
+                                    >
+                                      {u.name || "Anonymous"}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-3"
+                                    onClick={async () => {
+                                      try {
+                                        await sendFriend({ userId: u._id });
+                                        toast.success("Friend request sent");
+                                      } catch (e: any) {
+                                        toast.error(e?.message || "Failed to send request");
+                                      }
+                                    }}
+                                  >
+                                    Add
+                                  </Button>
                                 </div>
-                                <Button
-                                  size="sm"
-                                  className="h-7 px-3"
-                                  onClick={async () => {
-                                    try {
-                                      await sendFriend({ userId: u._id });
-                                      toast.success("Friend request sent");
-                                    } catch (e: any) {
-                                      toast.error(e?.message || "Failed to send request");
-                                    }
-                                  }}
-                                >
-                                  Add
-                                </Button>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-sm text-muted-foreground px-1">No results</div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="text-sm text-muted-foreground px-1">Type at least 2 characters to search</div>
-                      )}
+                              ))
+                            ) : (
+                              <div className="text-sm text-muted-foreground px-1">No results</div>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-sm text-muted-foreground px-1">Type at least 2 characters to search</div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+
+                {/* User ID quick search moved from top bar to sidebar */}
+                <div className="hidden" />
+              </div>
             </div>
           </div>
 
@@ -276,14 +294,74 @@ export default function Friends() {
             )}
 
             <div className="flex-1 overflow-hidden">
-              {!selectedConversationId ? (
-                <div className="h-full">
-                  <ConversationsList
-                    selectedConversationId={selectedConversationId}
-                    onSelectConversation={(id) => setSelectedConversationId(id)}
-                  />
-                </div>
-              ) : (
+                {!selectedConversationId ? (
+                  <div className="h-full">
+                    {/* Quick User ID search (mobile list view) */}
+                    <div className="p-2 border-b bg-background">
+                      <Input
+                        placeholder="Enter user ID (exact)"
+                        value={userIdSearch}
+                        onChange={(e) => setUserIdSearch(e.target.value)}
+                      />
+                      {userIdSearch.trim().length > 0 && (
+                        <>
+                          {userByIdUser ? (
+                            <div className="mt-2 flex items-center gap-3 p-2 rounded-lg border bg-card">
+                              <button
+                                onClick={() => navigate(`/profile?id=${userByIdUser._id}`)}
+                                className="shrink-0"
+                                aria-label="View profile"
+                              >
+                                <img
+                                  src={userByIdUser.image}
+                                  alt={userByIdUser.name || "User"}
+                                  className="w-10 h-10 rounded-full object-cover border"
+                                />
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <p
+                                  className="font-medium text-sm truncate cursor-pointer hover:underline"
+                                  onClick={() => navigate(`/profile?id=${userByIdUser._id}`)}
+                                >
+                                  {userByIdUser.name || "Anonymous"}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {userByIdUser.email}
+                                </p>
+                                <div className="mt-2">
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-3"
+                                    onClick={async () => {
+                                      try {
+                                        if (!userByIdUser?._id) return;
+                                        await sendFriend({ userId: userByIdUser._id as Id<"users"> });
+                                        toast.success("Friend request sent");
+                                      } catch (e: any) {
+                                        toast.error(e?.message || "Failed to send request");
+                                      }
+                                    }}
+                                  >
+                                    Add Friend
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-2 text-sm text-muted-foreground">
+                              No user found for this ID
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    <ConversationsList
+                      selectedConversationId={selectedConversationId}
+                      onSelectConversation={(id) => setSelectedConversationId(id)}
+                    />
+                  </div>
+                ) : (
                 <div className="h-[calc(100vh-56px)]">
                   <ChatWindow conversationId={selectedConversationId} />
                 </div>
@@ -295,6 +373,66 @@ export default function Friends() {
           <div className="hidden lg:flex h-[calc(100vh)] gap-0 lg:gap-4">
             {/* Conversations list pane */}
             <aside className="w-[360px] border-r">
+              {/* Quick User ID search (sidebar) */}
+              <div className="p-2 border-b bg-background">
+                <Input
+                  placeholder="Enter user ID (exact)"
+                  value={userIdSearch}
+                  onChange={(e) => setUserIdSearch(e.target.value)}
+                />
+                {userIdSearch.trim().length > 0 && (
+                  <>
+                    {userByIdUser ? (
+                      <div className="mt-2 flex items-center gap-3 p-2 rounded-lg border bg-card">
+                        <button
+                          onClick={() => navigate(`/profile?id=${userByIdUser._id}`)}
+                          className="shrink-0"
+                          aria-label="View profile"
+                        >
+                          <img
+                            src={userByIdUser.image}
+                            alt={userByIdUser.name || "User"}
+                            className="w-10 h-10 rounded-full object-cover border"
+                          />
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className="font-medium text-sm truncate cursor-pointer hover:underline"
+                            onClick={() => navigate(`/profile?id=${userByIdUser._id}`)}
+                          >
+                            {userByIdUser.name || "Anonymous"}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {userByIdUser.email}
+                          </p>
+                          <div className="mt-2">
+                            <Button
+                              size="sm"
+                              className="h-7 px-3"
+                              onClick={async () => {
+                                try {
+                                  if (!userByIdUser?._id) return;
+                                  await sendFriend({ userId: userByIdUser._id as Id<"users"> });
+                                  toast.success("Friend request sent");
+                                } catch (e: any) {
+                                  toast.error(e?.message || "Failed to send request");
+                                }
+                              }}
+                            >
+                              Add Friend
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-sm text-muted-foreground">
+                        No user found for this ID
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
               <ConversationsList
                 selectedConversationId={selectedConversationId}
                 onSelectConversation={(id) => setSelectedConversationId(id)}
