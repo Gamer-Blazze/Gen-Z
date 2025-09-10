@@ -105,10 +105,10 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const readReceiptsEnabled = user?.settings?.privacy?.readReceipts !== false;
 
   // NEW: query last-seen/active with privacy applied
-  const lastSeenInfo = useQuery(
-    api.users.getLastSeen,
-    otherUser?._id ? { userId: otherUser._id } : "skip"
-  );
+  // const lastSeenInfo = useQuery(
+  //   api.users.getLastSeen,
+  //   otherUser?._id ? { userId: otherUser._id } : "skip"
+  // );
 
   useEffect(() => {
     if (atBottom) {
@@ -217,15 +217,13 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     ? conversation.groupImage 
     : otherUser?.image;
 
-  // Derive header subtext based on privacy-aware lastSeenInfo
+  // Simplified: derive header subtext directly from otherUser fields
   const headerSubtext = !conversation?.isGroup
     ? (() => {
         if (!otherUser) return "";
-        if (!lastSeenInfo || lastSeenInfo === undefined) return "";
-        if (!lastSeenInfo.visible) return "";
-        if (lastSeenInfo.isOnline) return "Active now";
-        if (lastSeenInfo.lastSeen) {
-          return `Last seen ${formatDistanceToNow(new Date(lastSeenInfo.lastSeen), { addSuffix: true })}`;
+        if (otherUser.isOnline) return "Active now";
+        if (otherUser.lastSeen) {
+          return `Last seen ${formatDistanceToNow(new Date(otherUser.lastSeen), { addSuffix: true })}`;
         }
         return "";
       })()
