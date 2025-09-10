@@ -15,6 +15,7 @@ import Landing from "./pages/Landing.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import "./types/global.d.ts";
 import Profile from "@/pages/Profile.tsx";
+import Messages from "@/pages/Messages.tsx";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -60,7 +61,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<AuthPage redirectAfterAuth="/dashboard" />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/messages" element={<Redirect to="/dashboard" />} />
+            <Route path="/messages" element={<Messages />} />
             <Route path="/friends" element={<Friends />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/profile/:username" element={<Redirect to="/dashboard" />} />
