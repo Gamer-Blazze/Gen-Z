@@ -13,6 +13,9 @@ import { useRef } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { useLocation } from "react-router";
 import { Id } from "@/convex/_generated/dataModel";
+import { Sidebar } from "@/components/Sidebar";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
 
 export default function Profile() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -44,6 +47,8 @@ export default function Profile() {
   // Add: file upload actions for profile picture
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
   const getFileUrl = useAction(api.files.getFileUrl);
+
+  const [showMobileNav, setShowMobileNav] = useState(false);
 
   const onPickProfileImage = async (fl: FileList | null) => {
     if (!fl || fl.length === 0) return;
@@ -99,8 +104,26 @@ export default function Profile() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
+      {/* Mobile/Tablet sheet container for Sidebar */}
+      <Sheet open={showMobileNav} onOpenChange={setShowMobileNav}>
+        <SheetContent side="left" className="p-0 w-[85vw] sm:w-[380px]">
+          <Sidebar />
+        </SheetContent>
+      </Sheet>
+
       <div className="min-h-screen">
         <main className="w-full px-4 md:px-8 lg:px-12 py-6 space-y-6">
+          {/* Top bar with hamburger to open navigation on mobile */}
+          <div className="p-2 flex items-center">
+            <button
+              className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md hover:bg-muted"
+              aria-label="Open navigation"
+              onClick={() => setShowMobileNav(true)}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          </div>
+
           <h1 className="text-2xl font-bold">
             {isOwnProfile ? "Your Profile" : `${targetUser.name || "User"}'s Profile`}
           </h1>
