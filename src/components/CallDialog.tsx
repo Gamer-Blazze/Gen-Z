@@ -259,9 +259,11 @@ export default function CallDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[720px]">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
+      {/* Make the dialog full-screen for a Messenger-like experience */}
+      <DialogContent className="sm:max-w-none w-screen h-screen max-h-screen p-0 rounded-none">
+        <div className="flex flex-col h-full">
+          {/* Top bar */}
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-background/90 backdrop-blur">
             <div className="font-semibold">
               {isVideo ? "Video Call" : "Voice Call"} {isAccepted ? "" : "(Connecting...)"}
             </div>
@@ -270,8 +272,9 @@ export default function CallDialog({
             </Button>
           </div>
 
-          <div className={`grid ${isVideo ? "grid-cols-2 gap-3" : "grid-cols-1"}`}>
-            <div className="relative w-full rounded-xl overflow-hidden bg-black aspect-video">
+          {/* Main content area */}
+          <div className={`flex-1 p-4 ${isVideo ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "grid grid-cols-1"}`}>
+            <div className="relative w-full h-full rounded-xl overflow-hidden bg-black">
               <video
                 ref={localVideoRef}
                 autoPlay
@@ -285,8 +288,9 @@ export default function CallDialog({
                 </div>
               )}
             </div>
-            {isVideo && (
-              <div className="relative w-full rounded-xl overflow-hidden bg-black aspect-video">
+
+            {isVideo ? (
+              <div className="relative w-full h-full rounded-xl overflow-hidden bg-black">
                 <video
                   ref={remoteVideoRef}
                   autoPlay
@@ -294,9 +298,8 @@ export default function CallDialog({
                   className="w-full h-full object-cover"
                 />
               </div>
-            )}
-            {!isVideo && (
-              <div className="relative w-full rounded-xl overflow-hidden bg-muted aspect-video flex items-center justify-center">
+            ) : (
+              <div className="relative w-full h-full rounded-xl overflow-hidden bg-muted flex items-center justify-center">
                 <video
                   ref={remoteVideoRef}
                   autoPlay
