@@ -81,22 +81,25 @@ export default function Notifications() {
           {/* Top navigation bar */}
           <MobileTopNav showOnDesktop />
 
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold">Notifications</h1>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={async () => {
-                try {
-                  await markAllAsRead({});
-                  toast.success("All notifications marked as read");
-                } catch (e) {
-                  toast.error("Failed to mark all as read");
-                }
-              }}
-            >
-              Mark all as read
-            </Button>
+          {/* Make the page header sticky at the top */}
+          <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+            <div className="flex items-center justify-between px-0 py-3">
+              <h1 className="text-2xl font-bold">Notifications</h1>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await markAllAsRead({});
+                    toast.success("All notifications marked as read");
+                  } catch (e) {
+                    toast.error("Failed to mark all as read");
+                  }
+                }}
+              >
+                Mark all as read
+              </Button>
+            </div>
           </div>
 
           <Card>
