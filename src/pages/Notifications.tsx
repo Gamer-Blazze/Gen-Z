@@ -15,9 +15,10 @@ export default function Notifications() {
   const { isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
+  // Initialize hooks before any early returns to keep hook order stable
   const notifications = useQuery(
     api.notifications.getMyNotifications,
-    isLoading || !isAuthenticated || !user ? "skip" : { limit: 50 }
+    isAuthenticated && user ? { limit: 50 } : "skip"
   );
   const markAsRead = useMutation(api.notifications.markAsRead);
   const markAllAsRead = useMutation(api.notifications.markAllAsRead);
