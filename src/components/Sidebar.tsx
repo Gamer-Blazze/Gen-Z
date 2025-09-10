@@ -64,8 +64,14 @@ export function Sidebar() {
             />
           </DialogContent>
         </Dialog>
-        <div className="flex-1 min-w-0">
-          <p className="font-medium truncate">{user?.name || "User"}</p>
+        {/* Make the user info clickable to visit profile */}
+        <div
+          className="flex-1 min-w-0 cursor-pointer"
+          onClick={() => navigate("/profile")}
+          role="button"
+          aria-label="Go to your profile"
+        >
+          <p className="font-medium truncate hover:underline">{user?.name || "User"}</p>
           <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
         </div>
       </div>
