@@ -88,7 +88,15 @@ export const getUserCounts = query({
       onlineUsers++;
     }
 
-    return { totalUsers, onlineUsers };
+    // NEW: Count communities (group conversations) using index
+    let communitiesCount = 0;
+    for await (const _ of ctx.db
+      .query("conversations")
+      .withIndex("by_isGroup", (q) => q.eq("isGroup", true))) {
+      communitiesCount++;
+    }
+
+    return { totalUsers, onlineUsers, communitiesCount };
   },
 });
 

@@ -290,7 +290,9 @@ export default function Landing() {
                 <div className="text-red-100">Online Now</div>
               </div>
               <div>
-                <div className="text-4xl font-bold mb-2">100+</div>
+                <div className="text-4xl font-bold mb-2">
+                  {counts ? counts.communitiesCount : 0}
+                </div>
                 <div className="text-red-100">Communities</div>
               </div>
             </div>

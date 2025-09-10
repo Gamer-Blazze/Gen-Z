@@ -151,7 +151,9 @@ const schema = defineSchema(
       groupName: v.optional(v.string()),
       groupImage: v.optional(v.string()),
       createdBy: v.id("users"),
-    }).index("by_participant", ["participants"]),
+    }).index("by_participant", ["participants"])
+      // Add index to query group conversations efficiently
+      .index("by_isGroup", ["isGroup"]),
 
     // Messages table
     messages: defineTable({
