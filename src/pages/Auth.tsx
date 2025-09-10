@@ -23,7 +23,7 @@ interface AuthProps {
   redirectAfterAuth?: string;
 }
 
-function Auth({ redirectAfterAuth }: AuthProps = {}) {
+function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
   const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState<"signIn" | { email: string }>("signIn");
@@ -33,10 +33,11 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      const redirect = redirectAfterAuth || "/";
+      const redirect = redirectAfterAuth; // always use provided/default "/dashboard"
       navigate(redirect);
     }
   }, [authLoading, isAuthenticated, navigate, redirectAfterAuth]);
+
   const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
@@ -67,7 +68,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
 
       console.log("signed in");
 
-      const redirect = redirectAfterAuth || "/";
+      const redirect = redirectAfterAuth; // always use provided/default "/dashboard"
       navigate(redirect);
     } catch (error) {
       console.error("OTP verification error:", error);
@@ -86,7 +87,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       console.log("Attempting anonymous sign in...");
       await signIn("anonymous");
       console.log("Anonymous sign in successful");
-      const redirect = redirectAfterAuth || "/";
+      const redirect = redirectAfterAuth; // always use provided/default "/dashboard"
       navigate(redirect);
     } catch (error) {
       console.error("Guest login error:", error);
