@@ -10,6 +10,9 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sidebar } from "@/components/Sidebar";
+import { Menu } from "lucide-react";
 
 export default function Settings() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
@@ -68,6 +71,8 @@ export default function Settings() {
     }
   }, [isLoading, isAuthenticated, navigate]);
 
+  const [showMobileNav, setShowMobileNav] = useState(false);
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -80,7 +85,25 @@ export default function Settings() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
+      {/* Mobile/Tablet sheet container for Sidebar */}
+      <Sheet open={showMobileNav} onOpenChange={setShowMobileNav}>
+        <SheetContent side="left" className="p-0 w-[85vw] sm:w-[380px]">
+          <Sidebar />
+        </SheetContent>
+      </Sheet>
+
       <main className="w-full max-w-3xl mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-6">
+        {/* Top bar with hamburger to open navigation on mobile */}
+        <div className="p-2 flex items-center">
+          <button
+            className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md hover:bg-muted"
+            aria-label="Open navigation"
+            onClick={() => setShowMobileNav(true)}
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
+
         <h1 className="text-2xl font-bold">Settings</h1>
         <Card>
           <CardContent className="p-6 space-y-4">
