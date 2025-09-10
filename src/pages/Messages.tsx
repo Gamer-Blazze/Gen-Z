@@ -8,10 +8,9 @@ import { ChatWindow } from "@/components/ChatWindow";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { Menu } from "lucide-react";
+/* removed unused Menu import */
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useDevice } from "@/hooks/use-device";
-import { MobileTopNav } from "@/components/MobileTopNav";
 
 export default function Messages() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -66,9 +65,6 @@ export default function Messages() {
 
         {/* Main container - force remount on device change to avoid DOM reconciliation issues */}
         <main key={device} className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
-          {/* Global top navigation bar */}
-          <MobileTopNav showOnDesktop />
-
           {/* Render device layouts explicitly by detection with stable keys */}
           {device === "mobile" && (
             <div key="mobile" className="h-full flex flex-col">

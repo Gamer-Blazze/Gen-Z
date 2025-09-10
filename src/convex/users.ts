@@ -171,21 +171,35 @@ export const updateUserSettings = mutation({
         comments: v.optional(v.boolean()),
         friendRequests: v.optional(v.boolean()),
         messages: v.optional(v.boolean()),
+        // richer notifications (optional)
+        sound: v.optional(v.boolean()),
+        vibration: v.optional(v.boolean()),
+        previews: v.optional(v.boolean()),
       })
     ),
     privacy: v.optional(
       v.object({
         canMessage: v.optional(v.union(v.literal("everyone"), v.literal("friends"))),
         postsVisibility: v.optional(v.union(v.literal("public"), v.literal("friends"))),
-        // Add: active status toggle
+        // Active status toggle
         showActiveStatus: v.optional(v.boolean()),
+        // optional extras
+        lastSeenVisibility: v.optional(v.union(v.literal("everyone"), v.literal("friends"), v.literal("nobody"))),
+        profilePhotoVisibility: v.optional(v.union(v.literal("everyone"), v.literal("friends"), v.literal("nobody"))),
+        readReceipts: v.optional(v.boolean()),
       })
     ),
-    // ADD: preferences updates (language + density)
+    // Preferences updates (language + density)
     preferences: v.optional(
       v.object({
         language: v.optional(v.union(v.literal("en"), v.literal("es"), v.literal("hi"))),
         density: v.optional(v.union(v.literal("comfortable"), v.literal("compact"))),
+      })
+    ),
+    // NEW: security updates (e.g., 2FA toggle)
+    security: v.optional(
+      v.object({
+        twoFactorEnabled: v.optional(v.boolean()),
       })
     ),
   },
@@ -196,9 +210,10 @@ export const updateUserSettings = mutation({
     }
 
     const existing = (user as any).settings || {
-      notifications: { likes: true, comments: true, friendRequests: true, messages: true },
-      privacy: { canMessage: "everyone", postsVisibility: "public", showActiveStatus: true }, // default include active status
-      preferences: { language: "en", density: "comfortable" }, // default preferences
+      notifications: { likes: true, comments: true, friendRequests: true, messages: true, sound: true, vibration: true, previews: true },
+      privacy: { canMessage: "everyone", postsVisibility: "public", showActiveStatus: true, lastSeenVisibility: "everyone", profilePhotoVisibility: "everyone", readReceipts: true },
+      preferences: { language: "en", density: "comfortable" },
+      security: { twoFactorEnabled: false },
     };
 
     const merged = {
@@ -213,6 +228,10 @@ export const updateUserSettings = mutation({
       preferences: {
         ...existing.preferences,
         ...(args.preferences || {}),
+      },
+      security: {
+        ...existing.security,
+        ...(args.security || {}),
       },
     };
 

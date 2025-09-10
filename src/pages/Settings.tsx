@@ -132,11 +132,13 @@ export default function Settings() {
     localStorage.setItem("accent", accent);
   }, [accent]);
 
+  // Search state (moved above `matches` to avoid TDZ)
+  const [search, setSearch] = useState("");
+
   // Filter helper for section headings
   const matches = useMemo(() => (title: string) => title.toLowerCase().includes(search.toLowerCase()), [search]);
 
-  // Search state
-  const [search, setSearch] = useState("");
+  // Search state moved above `matches` to avoid TDZ
 
   // Apply compact mode class when density changes
   useEffect(() => {
@@ -740,7 +742,8 @@ export default function Settings() {
                           const next = { ...prev, security: { ...(prev.security || {}), twoFactorEnabled: val } };
                           setSettings(next);
                           try {
-                            await updateUserSettings({ security: { twoFactorEnabled: val } as any });
+                            // Cast the whole args object to avoid transient typegen mismatch
+                            await updateUserSettings({ security: { twoFactorEnabled: val } } as any);
                             toast.success(val ? "2FA enabled" : "2FA disabled");
                           } catch {
                             toast.error("Failed to update");
