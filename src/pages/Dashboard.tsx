@@ -9,7 +9,7 @@ import { FriendsSidebar } from "@/components/FriendsSidebar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
-import { MobileTopNav } from "@/components/MobileTopNav";
+/* removed MobileTopNav on dashboard */
 
 export default function Dashboard() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -65,8 +65,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Global mobile nav bar */}
-      <MobileTopNav />
+      {/* Global mobile nav bar removed on Dashboard */}
 
       <div className="flex flex-col lg:flex-row">
         {/* Desktop Sidebar */}
