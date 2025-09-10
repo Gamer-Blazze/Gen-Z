@@ -291,7 +291,6 @@ export const getLastSeen = query({
     const lastSeenVisibility: "everyone" | "friends" | "nobody" =
       privacy.lastSeenVisibility ?? "everyone";
 
-    // Respect active status toggle first
     if (!showActiveStatus) {
       return { visible: false } as const;
     }
@@ -301,33 +300,34 @@ export const getLastSeen = query({
     }
 
     if (lastSeenVisibility === "friends") {
-      // Check friendship (accepted) in either direction using indexes
-      const a = await ctx.db
-        .query("friendships")
-        .withIndex("by_user1_and_user2", (q) =>
-          q.eq("userId1", viewer._id).eq("userId2", target._id)
-        )
-        .unique()
-        .catch(() => null);
+      // TEMP: To avoid schema/index dependency blocking deploy,
+      // conservatively hide last seen for "friends" until friendship checks are wired.
+      return { visible: false } as const;
 
-      const b = !a
-        ? await ctx.db
-            .query("friendships")
-            .withIndex("by_user2_and_user1", (q) =>
-              q.eq("userId2", viewer._id).eq("userId1", target._id)
-            )
-            .unique()
-            .catch(() => null)
-        : null;
-
-      const friendship = a || b;
-      const isFriends = !!friendship && (friendship as any).status === "accepted";
-      if (!isFriends) {
-        return { visible: false } as const;
-      }
+      // NOTE: When ready, replace the above with a friendship check using proper indexes:
+      // const a = await ctx.db
+      //   .query("friendships")
+      //   .withIndex("by_user1_and_user2", (q) =>
+      //     q.eq("userId1", viewer._id).eq("userId2", target._id)
+      //   )
+      //   .unique()
+      //   .catch(() => null);
+      // const b = !a
+      //   ? await ctx.db
+      //       .query("friendships")
+      //       .withIndex("by_user2_and_user1", (q) =>
+      //         q.eq("userId2", viewer._id).eq("userId1", target._id)
+      //       )
+      //       .unique()
+      //       .catch(() => null)
+      //   : null;
+      // const friendship = a || b;
+      // const isFriends = !!friendship && (friendship as any).status === "accepted";
+      // if (!isFriends) {
+      //   return { visible: false } as const;
+      // }
     }
 
-    // "everyone" or allowed-by-friends -> show presence
     const isOnline = !!(target as any).isOnline;
     const lastSeen = (target as any).lastSeen ?? null;
     return { visible: true, isOnline, lastSeen } as const;
