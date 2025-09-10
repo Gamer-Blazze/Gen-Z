@@ -6,19 +6,25 @@ import Dashboard from "@/pages/Dashboard.tsx";
 import Messages from "@/pages/Messages.tsx";
 import Friends from "@/pages/Friends.tsx";
 import Notifications from "@/pages/Notifications.tsx";
-import Profile from "@/pages/Profile.tsx";
-import Settings from "@/pages/Settings.tsx";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
 import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router";
+import { BrowserRouter, Route, Routes, useLocation, useNavigate } from "react-router";
 import "./index.css";
 import Landing from "./pages/Landing.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import "./types/global.d.ts";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+
+function Redirect({ to }: { to: string }) {
+  const navigate = useNavigate();
+  useEffect(() => {
+    navigate(to, { replace: true });
+  }, [navigate, to]);
+  return null;
+}
 
 function RouteSyncer() {
   const location = useLocation();
@@ -57,8 +63,8 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/messages" element={<Messages />} />
             <Route path="/friends" element={<Friends />} />
             <Route path="/notifications" element={<Notifications />} />
-            <Route path="/profile/:username" element={<Profile />} />
-            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/:username" element={<Redirect to="/dashboard" />} />
+            <Route path="/profile" element={<Redirect to="/dashboard" />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
