@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { query, QueryCtx } from "./_generated/server";
+import { query, QueryCtx, MutationCtx } from "./_generated/server";
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 
@@ -26,7 +26,7 @@ export const currentUser = query({
  * @param ctx
  * @returns
  */
-export const getCurrentUser = async (ctx: QueryCtx) => {
+export const getCurrentUser = async (ctx: QueryCtx | MutationCtx) => {
   const userId = await getAuthUserId(ctx);
   if (userId === null) {
     return null;
@@ -158,6 +158,62 @@ export const updateUserProfile = mutation({
     if (Object.keys(patch).length === 0) return true;
 
     await ctx.db.patch(user._id, patch);
+    return true;
+  },
+});
+
+export const updateUserSettings = mutation({
+  args: {
+    notifications: v.optional(
+      v.object({
+        likes: v.optional(v.boolean()),
+        comments: v.optional(v.boolean()),
+        friendRequests: v.optional(v.boolean()),
+        messages: v.optional(v.boolean()),
+      })
+    ),
+    privacy: v.optional(
+      v.object({
+        canMessage: v.optional(v.union(v.literal("everyone"), v.literal("friends"))),
+        postsVisibility: v.optional(v.union(v.literal("public"), v.literal("friends"))),
+      })
+    ),
+    // ADD: preferences updates (language + density)
+    preferences: v.optional(
+      v.object({
+        language: v.optional(v.union(v.literal("en"), v.literal("es"), v.literal("hi"))),
+        density: v.optional(v.union(v.literal("comfortable"), v.literal("compact"))),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    const existing = (user as any).settings || {
+      notifications: { likes: true, comments: true, friendRequests: true, messages: true },
+      privacy: { canMessage: "everyone", postsVisibility: "public" },
+      preferences: { language: "en", density: "comfortable" }, // default preferences
+    };
+
+    const merged = {
+      notifications: {
+        ...existing.notifications,
+        ...(args.notifications || {}),
+      },
+      privacy: {
+        ...existing.privacy,
+        ...(args.privacy || {}),
+      },
+      preferences: {
+        ...existing.preferences,
+        ...(args.preferences || {}),
+      },
+    };
+
+    await ctx.db.patch(user._id, { settings: merged });
     return true;
   },
 });

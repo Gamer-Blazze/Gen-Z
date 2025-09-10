@@ -137,7 +137,7 @@ export const declineFriendRequest = mutation({
   },
 });
 
-// Get user's friends
+// Replace getUserFriends to use composite indexes (no filters)
 export const getUserFriends = query({
   args: {
     userId: v.optional(v.id("users")),
@@ -150,18 +150,17 @@ export const getUserFriends = query({
 
     const targetUserId = args.userId || user._id;
 
-    const friendships = await ctx.db
+    const asUser1 = await ctx.db
       .query("friendships")
-      .filter((q) => 
-        q.and(
-          q.or(
-            q.eq(q.field("userId1"), targetUserId),
-            q.eq(q.field("userId2"), targetUserId)
-          ),
-          q.eq(q.field("status"), "accepted")
-        )
-      )
+      .withIndex("by_user1_and_status", (q) => q.eq("userId1", targetUserId).eq("status", "accepted"))
       .collect();
+
+    const asUser2 = await ctx.db
+      .query("friendships")
+      .withIndex("by_user2_and_status", (q) => q.eq("userId2", targetUserId).eq("status", "accepted"))
+      .collect();
+
+    const friendships = [...asUser1, ...asUser2];
 
     const friends = await Promise.all(
       friendships.map(async (friendship) => {
@@ -175,7 +174,7 @@ export const getUserFriends = query({
   },
 });
 
-// Get pending friend requests
+// Replace getPendingFriendRequests to use an index (no filters)
 export const getPendingFriendRequests = query({
   args: {},
   handler: async (ctx) => {
@@ -186,12 +185,7 @@ export const getPendingFriendRequests = query({
 
     const requests = await ctx.db
       .query("friendships")
-      .filter((q) => 
-        q.and(
-          q.eq(q.field("userId2"), user._id),
-          q.eq(q.field("status"), "pending")
-        )
-      )
+      .withIndex("by_user2_and_status", (q) => q.eq("userId2", user._id).eq("status", "pending"))
       .collect();
 
     const requestsWithUsers = await Promise.all(
@@ -208,39 +202,7 @@ export const getPendingFriendRequests = query({
   },
 });
 
-// Search users
-export const searchUsers = query({
-  args: {
-    query: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
-      return [];
-    }
-
-    if (args.query.length < 2) {
-      return [];
-    }
-
-    const users = await ctx.db
-      .query("users")
-      .filter((q) => 
-        q.and(
-          q.neq(q.field("_id"), user._id),
-          q.or(
-            q.eq(q.field("name"), args.query),
-            q.eq(q.field("email"), args.query)
-          )
-        )
-      )
-      .take(10);
-
-    return users;
-  },
-});
-
-// Get received friend requests (from friend_requests) for the current user
+// Replace getReceivedRequests to a composite index
 export const getReceivedRequests = query({
   args: {},
   handler: async (ctx) => {
@@ -249,8 +211,7 @@ export const getReceivedRequests = query({
 
     const requests = await ctx.db
       .query("friend_requests")
-      .withIndex("by_to", (q) => q.eq("to", user._id))
-      .filter((q) => q.eq(q.field("status"), "pending"))
+      .withIndex("by_to_and_status", (q) => q.eq("to", user._id).eq("status", "pending"))
       .collect();
 
     const withRequester = await Promise.all(
@@ -264,7 +225,7 @@ export const getReceivedRequests = query({
   },
 });
 
-// Accept a friend request (friend_requests) and ensure friendship is created/updated
+// Update acceptRequest to remove filter-based scan
 export const acceptRequest = mutation({
   args: {
     requestId: v.id("friend_requests"),
@@ -278,23 +239,18 @@ export const acceptRequest = mutation({
     if (req.to !== user._id) throw new Error("Not authorized");
     if (req.status !== "pending") throw new Error("Request is not pending");
 
-    // Update request status
     await ctx.db.patch(args.requestId, { status: "accepted" });
 
-    // Ensure friendship record is accepted (update pending one if exists, else create)
-    const maybePending = await ctx.db
+    const maybeExisting = await ctx.db
       .query("friendships")
-      .withIndex("by_user1", (q) => q.eq("userId1", req.from))
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("userId2"), req.to),
-          q.eq(q.field("status"), "pending")
-        )
-      )
+      .withIndex("by_user1_and_user2", (q) => q.eq("userId1", req.from).eq("userId2", req.to))
       .first();
 
-    if (maybePending) {
-      await ctx.db.patch(maybePending._id, { status: "accepted" });
+    if (maybeExisting) {
+      if (maybeExisting.status === "pending") {
+        await ctx.db.patch(maybeExisting._id, { status: "accepted" });
+      }
+      // if already accepted, nothing to do
     } else {
       await ctx.db.insert("friendships", {
         userId1: req.from,
@@ -304,7 +260,6 @@ export const acceptRequest = mutation({
       });
     }
 
-    // Notify requester
     await ctx.db.insert("notifications", {
       userId: req.from,
       type: "friend_accepted",
@@ -317,7 +272,7 @@ export const acceptRequest = mutation({
   },
 });
 
-// Reject a friend request (friend_requests) and clean up pending friendship entry if present
+// Update rejectRequest to remove filter-based scan
 export const rejectRequest = mutation({
   args: {
     requestId: v.id("friend_requests"),
@@ -331,30 +286,22 @@ export const rejectRequest = mutation({
     if (req.to !== user._id) throw new Error("Not authorized");
     if (req.status !== "pending") throw new Error("Request is not pending");
 
-    // Update request status
     await ctx.db.patch(args.requestId, { status: "rejected" });
 
-    // If there is a pending friendship row created earlier, delete it
-    const maybePending = await ctx.db
+    const maybeExisting = await ctx.db
       .query("friendships")
-      .withIndex("by_user1", (q) => q.eq("userId1", req.from))
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("userId2"), req.to),
-          q.eq(q.field("status"), "pending")
-        )
-      )
+      .withIndex("by_user1_and_user2", (q) => q.eq("userId1", req.from).eq("userId2", req.to))
       .first();
 
-    if (maybePending) {
-      await ctx.db.delete(maybePending._id);
+    if (maybeExisting && maybeExisting.status === "pending") {
+      await ctx.db.delete(maybeExisting._id);
     }
 
     return true;
   },
 });
 
-// Relationship status query for current user vs another user
+// Replace getRelationshipStatus to use composite indexes
 export const getRelationshipStatus = query({
   args: { otherUserId: v.id("users") },
   handler: async (ctx, args) => {
@@ -365,34 +312,20 @@ export const getRelationshipStatus = query({
       return "self" as const;
     }
 
-    // Are we already friends?
-    const asUser1 = await ctx.db
+    const doc1 = await ctx.db
       .query("friendships")
-      .withIndex("by_user1", (q) => q.eq("userId1", me._id))
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("userId2"), args.otherUserId),
-          q.eq(q.field("status"), "accepted")
-        )
-      )
+      .withIndex("by_user1_and_user2", (q) => q.eq("userId1", me._id).eq("userId2", args.otherUserId))
       .first();
 
-    if (asUser1) return "friends" as const;
+    if (doc1 && doc1.status === "accepted") return "friends" as const;
 
-    const asUser2 = await ctx.db
+    const doc2 = await ctx.db
       .query("friendships")
-      .withIndex("by_user2", (q) => q.eq("userId2", me._id))
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("userId1"), args.otherUserId),
-          q.eq(q.field("status"), "accepted")
-        )
-      )
+      .withIndex("by_user2_and_user1", (q) => q.eq("userId2", me._id).eq("userId1", args.otherUserId))
       .first();
 
-    if (asUser2) return "friends" as const;
+    if (doc2 && doc2.status === "accepted") return "friends" as const;
 
-    // Outgoing request (I sent to them)
     const outgoing = await ctx.db
       .query("friend_requests")
       .withIndex("by_from_and_to", (q) => q.eq("from", me._id).eq("to", args.otherUserId))
@@ -402,7 +335,6 @@ export const getRelationshipStatus = query({
       return "outgoing_request" as const;
     }
 
-    // Incoming request (they sent to me)
     const incoming = await ctx.db
       .query("friend_requests")
       .withIndex("by_from_and_to", (q) => q.eq("from", args.otherUserId).eq("to", me._id))
@@ -413,5 +345,41 @@ export const getRelationshipStatus = query({
     }
 
     return "none" as const;
+  },
+});
+
+// Search users (optimize to use indexes instead of full scans)
+export const searchUsers = query({
+  args: {
+    query: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const me = await getCurrentUser(ctx);
+    if (!me) {
+      return [];
+    }
+
+    const q = args.query.trim();
+    if (q.length < 2) {
+      return [];
+    }
+
+    // Search by exact email via email index
+    const byEmail = await ctx.db
+      .query("users")
+      .withIndex("email", (qi) => qi.eq("email", q))
+      .take(10);
+
+    // Search by exact name via by_name index
+    const byName = await ctx.db
+      .query("users")
+      .withIndex("by_name", (qi) => qi.eq("name", q))
+      .take(10);
+
+    // Combine results, remove self, and de-duplicate by _id
+    const combined = [...byName, ...byEmail].filter((u) => u._id !== me._id);
+    const dedup = Array.from(new Map(combined.map((u) => [u._id, u])).values());
+
+    return dedup;
   },
 });

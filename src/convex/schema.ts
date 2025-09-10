@@ -40,7 +40,28 @@ const schema = defineSchema(
       lastSeen: v.optional(v.number()),
       // ADD: unique-ish public handle for profile URLs
       username: v.optional(v.string()),
-    }).index("email", ["email"]).index("by_isOnline", ["isOnline"]).index("by_username", ["username"]), // add index for username lookups
+      // ADD: user settings (notifications & privacy)
+      settings: v.optional(
+        v.object({
+          notifications: v.object({
+            likes: v.boolean(),
+            comments: v.boolean(),
+            friendRequests: v.boolean(),
+            messages: v.boolean(),
+          }),
+          privacy: v.object({
+            canMessage: v.union(v.literal("everyone"), v.literal("friends")),
+            postsVisibility: v.union(v.literal("public"), v.literal("friends")),
+          }),
+          preferences: v.optional(
+            v.object({
+              language: v.union(v.literal("en"), v.literal("es"), v.literal("hi")),
+              density: v.union(v.literal("comfortable"), v.literal("compact")),
+            })
+          ),
+        })
+      ),
+    }).index("email", ["email"]).index("by_isOnline", ["isOnline"]).index("by_username", ["username"]).index("by_name", ["name"]), // add index for username lookups
 
     // Posts table
     posts: defineTable({
@@ -84,7 +105,8 @@ const schema = defineSchema(
       .index("by_to", ["to"])
       .index("by_from", ["from"])
       .index("by_status", ["status"])
-      .index("by_from_and_to", ["from", "to"]),
+      .index("by_from_and_to", ["from", "to"])
+      .index("by_to_and_status", ["to", "status"]),
 
     // Friend requests and friendships
     friendships: defineTable({
@@ -94,7 +116,11 @@ const schema = defineSchema(
       requesterId: v.id("users"), // who sent the request
     }).index("by_user1", ["userId1"])
       .index("by_user2", ["userId2"])
-      .index("by_status", ["status"]),
+      .index("by_status", ["status"])
+      .index("by_user1_and_user2", ["userId1", "userId2"])
+      .index("by_user2_and_user1", ["userId2", "userId1"])
+      .index("by_user1_and_status", ["userId1", "status"])
+      .index("by_user2_and_status", ["userId2", "status"]),
 
     // Conversations for messaging
     conversations: defineTable({
