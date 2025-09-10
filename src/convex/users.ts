@@ -257,3 +257,55 @@ export const getUserByRawId = query({
     }
   },
 });
+
+export const updateStatus = mutation({
+  args: { isOnline: v.boolean() },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+    const patch: Record<string, any> = { isOnline: args.isOnline };
+    if (!args.isOnline) {
+      patch.lastSeen = Date.now();
+    }
+    await ctx.db.patch(user._id, patch);
+    return true;
+  },
+});
+
+// Return privacy-respecting last seen data for a user
+export const getLastSeen = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const viewer = await getCurrentUser(ctx);
+    if (!viewer) {
+      throw new Error("Not authenticated");
+    }
+    const target = await ctx.db.get(args.userId);
+    if (!target) return { visible: false } as const;
+
+    const settings = (target as any).settings || {};
+    const privacy = settings.privacy || {};
+    const showActiveStatus: boolean = privacy.showActiveStatus ?? true;
+    const lastSeenVisibility: "everyone" | "friends" | "nobody" =
+      privacy.lastSeenVisibility ?? "everyone";
+
+    // Conservative rule: only show when set to "everyone".
+    if (lastSeenVisibility !== "everyone") {
+      return { visible: false } as const;
+    }
+
+    // Respect active status toggle
+    if (!showActiveStatus) {
+      // Active status hidden; optionally still reveal lastSeen if visibility allows.
+      // Here we hide both for simplicity/compliance.
+      return { visible: false } as const;
+    }
+
+    const isOnline = !!(target as any).isOnline;
+    const lastSeen = (target as any).lastSeen ?? null;
+
+    return { visible: true, isOnline, lastSeen } as const;
+  },
+});

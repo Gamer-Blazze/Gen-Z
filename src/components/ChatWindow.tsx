@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Phone, Video, MoreVertical, Info, Smile, Images } from "lucide-react";
+import { Check, CheckCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { Id } from "@/convex/_generated/dataModel";
@@ -99,6 +100,12 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const conversations = useQuery(api.messages.getUserConversations, {});
   const conversation = conversations?.find(c => c._id === conversationId);
   const otherUser = conversation?.otherParticipants[0];
+
+  // NEW: query last-seen/active with privacy applied
+  const lastSeenInfo = useQuery(
+    api.users.getLastSeen,
+    otherUser?._id ? { userId: otherUser._id } : "skip"
+  );
 
   useEffect(() => {
     if (atBottom) {
@@ -205,6 +212,20 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     ? conversation.groupImage 
     : otherUser?.image;
 
+  // Derive header subtext based on privacy-aware lastSeenInfo
+  const headerSubtext = !conversation?.isGroup
+    ? (() => {
+        if (!otherUser) return "";
+        if (!lastSeenInfo || lastSeenInfo === undefined) return "";
+        if (!lastSeenInfo.visible) return "";
+        if (lastSeenInfo.isOnline) return "Active now";
+        if (lastSeenInfo.lastSeen) {
+          return `Last seen ${formatDistanceToNow(new Date(lastSeenInfo.lastSeen), { addSuffix: true })}`;
+        }
+        return "";
+      })()
+    : "";
+
   return (
     <div className="h-full flex flex-col">
       {/* Hidden file input */}
@@ -256,11 +277,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
               </h3>
               {!conversation.isGroup && (
                 <p className="text-sm text-muted-foreground">
-                  {otherUser?.isOnline
-                    ? "Active now"
-                    : otherUser?.lastSeen
-                      ? `Last seen ${formatDistanceToNow(new Date(otherUser.lastSeen), { addSuffix: true })}`
-                      : ""}
+                  {headerSubtext}
                 </p>
               )}
             </div>
@@ -291,6 +308,19 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             const isOwn = msg.senderId === user?._id;
             const showAvatar = index === 0 || messages[index - 1].senderId !== msg.senderId;
             
+            // Compute seen status for 1:1 and group
+            const otherParticipantIds: Array<string> =
+              Array.isArray(conversation?.participants)
+                ? (conversation!.participants as any[])
+                    .map((p: any) => p._id || p)
+                    .filter((pid: string) => pid !== user?._id)
+                : (conversation?.otherParticipants?.map((p: any) => p._id) || []);
+            const readByUserIds: Array<string> = (msg.readBy || []).map((r: any) => r.userId);
+            const seenByOthers = otherParticipantIds.filter((pid) => readByUserIds.includes(pid));
+
+            // For 1:1: seen if the single counterpart has read
+            const isSeen = seenByOthers.length > 0;
+
             return (
               <motion.div
                 key={msg._id}
@@ -341,6 +371,37 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                       <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                     </div>
                   )}
+
+                  {/* NEW: read indicator line */}
+                  {isOwn && (
+                    <div className="flex items-center gap-1 mt-1">
+                      {/* 1:1 — show checks; Group — show up to 3 tiny avatars when seen */}
+                      {conversation?.isGroup ? (
+                        seenByOthers.length > 0 ? (
+                          <div className="flex -space-x-1">
+                            {conversation.otherParticipants
+                              .filter((p: any) => seenByOthers.includes(p._id))
+                              .slice(0, 3)
+                              .map((p: any) => (
+                                <Avatar key={p._id} className="w-4 h-4 ring-1 ring-background">
+                                  <AvatarImage src={p.image} />
+                                  <AvatarFallback className="text-[9px] bg-muted">
+                                    {p.name?.charAt(0) || "U"}
+                                  </AvatarFallback>
+                                </Avatar>
+                              ))}
+                          </div>
+                        ) : (
+                          <Check className="w-3 h-3 text-muted-foreground" />
+                        )
+                      ) : isSeen ? (
+                        <CheckCheck className="w-3.5 h-3.5 text-blue-600" />
+                      ) : (
+                        <Check className="w-3.5 h-3.5 text-muted-foreground" />
+                      )}
+                    </div>
+                  )}
+
                   <span className="text-[10px] text-muted-foreground mt-1">
                     {formatDistanceToNow(new Date(msg._creationTime), { addSuffix: true })}
                   </span>

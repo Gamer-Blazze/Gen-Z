@@ -41,6 +41,53 @@ export default function Messages() {
       : otherUser?.name || "Chat";
 
   const startCall = useMutation(api.calls.startCall);
+  const updateStatus = useMutation(api.users.updateStatus);
+
+  useEffect(() => {
+    let isUnmounted = false;
+
+    const ping = async (online: boolean) => {
+      try {
+        await updateStatus({ isOnline: online });
+      } catch {
+        // ignore ping errors
+      }
+    };
+
+    // initial online ping
+    ping(true);
+
+    const interval = setInterval(() => ping(true), 30000);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        ping(false);
+      } else {
+        ping(true);
+      }
+    };
+
+    const onBeforeUnload = () => {
+      // best-effort offline ping
+      navigator.sendBeacon?.(
+        "/",
+        new Blob([], { type: "application/octet-stream" })
+      );
+      // fire-and-forget; Convex run is not possible here; rely on visibility + interval
+    };
+
+    window.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("beforeunload", onBeforeUnload);
+
+    return () => {
+      isUnmounted = true;
+      clearInterval(interval);
+      window.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      // mark offline on unmount
+      ping(false);
+    };
+  }, [updateStatus]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
