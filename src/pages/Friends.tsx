@@ -36,7 +36,7 @@ export default function Friends() {
           <Sidebar />
         </aside>
 
-        <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
+        <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]" key={selectedConversationId ? "chat" : "list"}>
           {/* Mobile & Tablet Top Navigation (Facebook-like) */}
           <MobileTopNav />
 
@@ -74,15 +74,15 @@ export default function Friends() {
             )}
 
             <div className="flex-1 overflow-hidden">
-                {!selectedConversationId ? (
-                  <div className="h-full">
-                    <ConversationsList
-                      selectedConversationId={selectedConversationId}
-                      onSelectConversation={(id) => setSelectedConversationId(id)}
-                    />
-                  </div>
-                ) : (
-                <div className="h-[calc(100vh-56px)]">
+              {!selectedConversationId ? (
+                <div className="h-full" key="mobile-list">
+                  <ConversationsList
+                    selectedConversationId={selectedConversationId}
+                    onSelectConversation={(id) => setSelectedConversationId(id)}
+                  />
+                </div>
+              ) : (
+                <div className="h-[calc(100vh-56px)]" key="mobile-chat">
                   <ChatWindow conversationId={selectedConversationId} />
                 </div>
               )}
@@ -102,11 +102,11 @@ export default function Friends() {
             {/* Chat pane */}
             <section className="flex-1 min-w-0">
               {selectedConversationId ? (
-                <div className="h-full">
+                <div className="h-full" key="desktop-chat">
                   <ChatWindow conversationId={selectedConversationId} />
                 </div>
               ) : (
-                <div className="h-full flex items-center justify-center text-muted-foreground px-4">
+                <div className="h-full flex items-center justify-center text-muted-foreground px-4" key="desktop-empty">
                   <div className="text-center">
                     <h3 className="font-semibold mb-2">Select a conversation</h3>
                     <p className="text-sm">Choose a chat from the left to start messaging</p>
