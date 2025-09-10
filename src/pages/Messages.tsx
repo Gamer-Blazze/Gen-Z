@@ -64,8 +64,8 @@ export default function Messages() {
           </SheetContent>
         </Sheet>
 
-        {/* Main container */}
-        <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
+        {/* Main container - force remount on device change to avoid DOM reconciliation issues */}
+        <main key={device} className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
           {/* Top bar with hamburger + quick action */}
           <div className="p-2 lg:p-0 flex items-center justify-between">
             <button
@@ -84,9 +84,9 @@ export default function Messages() {
           {/* Global mobile nav bar */}
           <MobileTopNav />
 
-          {/* Render device layouts explicitly by detection (not only CSS breakpoints) */}
+          {/* Render device layouts explicitly by detection with stable keys */}
           {device === "mobile" && (
-            <div className="h-full flex flex-col">
+            <div key="mobile" className="h-full flex flex-col">
               {/* Top bar when in chat view */}
               {selectedConversationId && (
                 <div className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
@@ -116,7 +116,7 @@ export default function Messages() {
           )}
 
           {device === "tablet" && (
-            <div className="h-[calc(100vh)]">
+            <div key="tablet" className="h-[calc(100vh)]">
               <div className="flex h-full border rounded-xl overflow-hidden bg-card/30 backdrop-blur-sm">
                 {/* Conversations list pane */}
                 <aside className="w-1/2 border-r">
@@ -146,7 +146,7 @@ export default function Messages() {
           )}
 
           {device === "desktop" && (
-            <div className="h-[calc(100vh)] gap-4 hidden lg:flex">
+            <div key="desktop" className="h-[calc(100vh)] gap-4 hidden lg:flex">
               {/* Conversations list pane */}
               <aside className="w-[360px] border-r rounded-xl overflow-hidden bg-card/50 backdrop-blur-sm">
                 <ConversationsList
