@@ -11,6 +11,7 @@ import { ArrowLeft } from "lucide-react";
 import { Menu } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useDevice } from "@/hooks/use-device";
+import { MobileTopNav } from "@/components/MobileTopNav";
 
 export default function Messages() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -79,6 +80,9 @@ export default function Messages() {
               Dashboard
             </Button>
           </div>
+
+          {/* Global mobile nav bar */}
+          <MobileTopNav />
 
           {/* Render device layouts explicitly by detection (not only CSS breakpoints) */}
           {device === "mobile" && (
