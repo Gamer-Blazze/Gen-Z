@@ -13,6 +13,10 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useDevice } from "@/hooks/use-device";
 import { MobileTopNav } from "@/components/MobileTopNav";
 import ChatInfoSidebar from "@/components/ChatInfoSidebar";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Phone, Video } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Messages() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -27,6 +31,16 @@ export default function Messages() {
       : device === "tablet"
       ? "bg-[radial-gradient(60rem_60rem_at_0%_0%,theme(colors.muted/20),transparent)]"
       : "bg-[radial-gradient(80rem_80rem_at_100%_0%,theme(colors.muted/15),transparent)]";
+
+  const conversations = useQuery(api.messages.getUserConversations, {});
+  const conversation = conversations?.find((c) => c._id === selectedConversationId);
+  const otherUser = conversation?.otherParticipants?.[0];
+  const displayName =
+    conversation?.isGroup
+      ? conversation?.groupName
+      : otherUser?.name || "Chat";
+
+  const startCall = useMutation(api.calls.startCall);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -74,11 +88,45 @@ export default function Messages() {
               {/* Top bar when in chat view */}
               {selectedConversationId && (
                 <div className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
-                  <div className="h-14 flex items-center px-2">
-                    <Button variant="ghost" size="icon" onClick={() => setSelectedConversationId(null)}>
-                      <ArrowLeft className="w-5 h-5" />
-                    </Button>
-                    <div className="ml-2 font-semibold">Chat</div>
+                  <div className="h-14 flex items-center px-2 justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Button variant="ghost" size="icon" onClick={() => setSelectedConversationId(null)}>
+                        <ArrowLeft className="w-5 h-5" />
+                      </Button>
+                      <div className="ml-1 font-semibold truncate">{displayName}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Voice call"
+                        onClick={async () => {
+                          try {
+                            if (!selectedConversationId) return;
+                            await startCall({ conversationId: selectedConversationId, type: "voice" });
+                          } catch (e: any) {
+                            toast.error(e?.message || "Failed to start call");
+                          }
+                        }}
+                      >
+                        <Phone className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Video call"
+                        onClick={async () => {
+                          try {
+                            if (!selectedConversationId) return;
+                            await startCall({ conversationId: selectedConversationId, type: "video" });
+                          } catch (e: any) {
+                            toast.error(e?.message || "Failed to start call");
+                          }
+                        }}
+                      >
+                        <Video className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
