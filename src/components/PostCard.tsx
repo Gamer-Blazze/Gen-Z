@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { Id } from "@/convex/_generated/dataModel";
+import { useNavigate } from "react-router";
 
 interface PostCardProps {
   post: {
@@ -34,6 +35,7 @@ export function PostCard({ post }: PostCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [commentContent, setCommentContent] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const navigate = useNavigate();
 
   const toggleLike = useMutation(api.posts.toggleLike);
   const addComment = useMutation(api.posts.addComment);
@@ -72,14 +74,25 @@ export function PostCard({ post }: PostCardProps) {
     <Card className="border border-border/50 hover:border-border transition-colors">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-3">
-          <Avatar>
-            <AvatarImage src={post.user?.image} />
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              {post.user?.name?.charAt(0) || "U"}
-            </AvatarFallback>
-          </Avatar>
+          <button
+            onClick={() => navigate(`/profile?id=${post.userId}`)}
+            className="shrink-0"
+            aria-label="View profile"
+          >
+            <Avatar>
+              <AvatarImage src={post.user?.image} />
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                {post.user?.name?.charAt(0) || "U"}
+              </AvatarFallback>
+            </Avatar>
+          </button>
           <div className="flex-1">
-            <p className="font-semibold">{post.user?.name || "Anonymous"}</p>
+            <p
+              className="font-semibold cursor-pointer hover:underline"
+              onClick={() => navigate(`/profile?id=${post.userId}`)}
+            >
+              {post.user?.name || "Anonymous"}
+            </p>
             <p className="text-sm text-muted-foreground">
               {formatDistanceToNow(new Date(post._creationTime), { addSuffix: true })}
             </p>
