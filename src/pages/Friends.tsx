@@ -125,81 +125,7 @@ export default function Friends() {
               </button>
 
               <div className="ml-auto flex items-center gap-2 w-full max-w-[720px]">
-                {/* Add Friend dialog */}
-                <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800">
-                      Add Friend
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Find and Add Friends</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Search by name or email"
-                          className="pl-9"
-                          value={search}
-                          onChange={(e) => setSearch(e.target.value)}
-                        />
-                      </div>
-                      <div className="max-h-80 overflow-y-auto space-y-2">
-                        {search.trim().length >= 2 ? (
-                          <>
-                            {searchResults && searchResults.length > 0 ? (
-                              searchResults.map((u) => (
-                                <div key={u._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-                                  <button
-                                    onClick={() => navigate(`/profile?id=${u._id}`)}
-                                    className="shrink-0"
-                                    aria-label="View profile"
-                                  >
-                                    <img
-                                      src={u.image}
-                                      alt={u.name || "User"}
-                                      className="w-10 h-10 rounded-full object-cover border"
-                                    />
-                                  </button>
-                                  <div className="flex-1 min-w-0">
-                                    <p
-                                      className="font-medium text-sm truncate cursor-pointer hover:underline"
-                                      onClick={() => navigate(`/profile?id=${u._id}`)}
-                                    >
-                                      {u.name || "Anonymous"}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    className="h-7 px-3"
-                                    onClick={async () => {
-                                      try {
-                                        await sendFriend({ userId: u._id });
-                                        toast.success("Friend request sent");
-                                      } catch (e: any) {
-                                        toast.error(e?.message || "Failed to send request");
-                                      }
-                                    }}
-                                  >
-                                    Add
-                                  </Button>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="text-sm text-muted-foreground px-1">No results</div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="text-sm text-muted-foreground px-1">Type at least 2 characters to search</div>
-                        )}
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
+                {/* Moved friend search to sidebar (desktop & mobile sections) */}
                 {/* User ID quick search moved from top bar to sidebar */}
                 <div className="hidden" />
               </div>
@@ -354,6 +280,60 @@ export default function Friends() {
                           )}
                         </>
                       )}
+                      {/* Find Friends (name/email) on mobile */}
+                      <div className="mt-3">
+                        <Input
+                          placeholder="Search by name or email"
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
+                        />
+                        {search.trim().length >= 2 && (
+                          <div className="mt-2 space-y-2 max-h-72 overflow-y-auto">
+                            {searchResults && searchResults.length > 0 ? (
+                              searchResults.map((u) => (
+                                <div key={u._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                                  <button
+                                    onClick={() => navigate(`/profile?id=${u._id}`)}
+                                    className="shrink-0"
+                                    aria-label="View profile"
+                                  >
+                                    <img
+                                      src={u.image}
+                                      alt={u.name || "User"}
+                                      className="w-10 h-10 rounded-full object-cover border"
+                                    />
+                                  </button>
+                                  <div className="flex-1 min-w-0">
+                                    <p
+                                      className="font-medium text-sm truncate cursor-pointer hover:underline"
+                                      onClick={() => navigate(`/profile?id=${u._id}`)}
+                                    >
+                                      {u.name || "Anonymous"}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    className="h-7 px-3"
+                                    onClick={async () => {
+                                      try {
+                                        await sendFriend({ userId: u._id });
+                                        toast.success("Friend request sent");
+                                      } catch (e: any) {
+                                        toast.error(e?.message || "Failed to send request");
+                                      }
+                                    }}
+                                  >
+                                    Add
+                                  </Button>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="text-sm text-muted-foreground px-1">No results</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     <ConversationsList
@@ -431,6 +411,60 @@ export default function Friends() {
                     )}
                   </>
                 )}
+                {/* Find Friends (name/email) on desktop sidebar */}
+                <div className="mt-3">
+                  <Input
+                    placeholder="Search by name or email"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  {search.trim().length >= 2 && (
+                    <div className="mt-2 space-y-2 max-h-72 overflow-y-auto">
+                      {searchResults && searchResults.length > 0 ? (
+                        searchResults.map((u) => (
+                          <div key={u._id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                            <button
+                              onClick={() => navigate(`/profile?id=${u._id}`)}
+                              className="shrink-0"
+                              aria-label="View profile"
+                            >
+                              <img
+                                src={u.image}
+                                alt={u.name || "User"}
+                                className="w-10 h-10 rounded-full object-cover border"
+                              />
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <p
+                                className="font-medium text-sm truncate cursor-pointer hover:underline"
+                                onClick={() => navigate(`/profile?id=${u._id}`)}
+                              >
+                                {u.name || "Anonymous"}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                            </div>
+                            <Button
+                              size="sm"
+                              className="h-7 px-3"
+                              onClick={async () => {
+                                try {
+                                  await sendFriend({ userId: u._id });
+                                  toast.success("Friend request sent");
+                                } catch (e: any) {
+                                  toast.error(e?.message || "Failed to send request");
+                                }
+                              }}
+                            >
+                              Add
+                            </Button>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-sm text-muted-foreground px-1">No results</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <ConversationsList
