@@ -266,6 +266,13 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Moved call buttons to header */}
+            <Button variant="ghost" size="sm" title="Voice call" onClick={() => placeCall("voice")}>
+              <Phone className="w-4 h-4" />
+            </Button>
+            <Button variant="ghost" size="sm" title="Video call" onClick={() => placeCall("video")}>
+              <Video className="w-4 h-4" />
+            </Button>
             <Button variant="ghost" size="sm" title="Chat info">
               <Info className="w-4 h-4" />
             </Button>
