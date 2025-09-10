@@ -94,54 +94,6 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6">
-          {/* Facebook-like Profile Header */}
-          <div className="mb-16">
-            <div className="relative h-40 sm:h-56 w-full overflow-hidden rounded-xl border bg-muted">
-              {coverImageUrl ? (
-                <img
-                  src={coverImageUrl}
-                  alt="cover"
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div className="h-full w-full bg-gradient-to-r from-muted to-muted/70" />
-              )}
-
-              {/* Avatar */}
-              <div className="absolute -bottom-10 left-4 flex items-end gap-3">
-                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full overflow-hidden border-4 border-background bg-card shadow">
-                  <img
-                    src={imageUrl || "/assets/untitled-0.png"}
-                    alt="avatar"
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="pb-2">
-                  <div className="text-xl sm:text-2xl font-bold leading-tight">
-                    {user?.name || "Unnamed"}
-                  </div>
-                  {user?.username ? (
-                    <div className="text-sm text-muted-foreground">@{user.username}</div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="mt-12 flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  editSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
-              >
-                Edit Profile
-              </Button>
-            </div>
-          </div>
-
-          {/* Spacer is handled by mb-16 above */}
-
           {/* Existing edit card wrapped with ref for smooth scroll target */}
           <div ref={editSectionRef}>
             <Card className="mb-6">
