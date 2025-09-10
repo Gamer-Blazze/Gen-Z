@@ -366,25 +366,6 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => placeCall("voice")}
-            className="h-10 w-10 p-0 rounded-full"
-            title="Voice call"
-          >
-            <Phone className="w-4 h-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => placeCall("video")}
-            className="h-10 w-10 p-0 rounded-full"
-            title="Video call"
-          >
-            <Video className="w-4 h-4" />
-          </Button>
-
-          <Button
-            type="button"
-            variant="ghost"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
             className="h-10 w-10 p-0 rounded-full"
