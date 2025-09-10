@@ -191,256 +191,264 @@ export default function Profile() {
         </SheetContent>
       </Sheet>
 
-      <div className="min-h-screen">
-        {/* Cover photo area */}
-        <div className="relative h-40 sm:h-56 md:h-64 lg:h-72 w-full bg-muted overflow-hidden">
-          {targetUser.coverImage ? (
-            <img
-              src={targetUser.coverImage}
-              alt="Cover"
-              className="w-full h-full object-cover"
-              loading="eager"
-              decoding="async"
-            />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-r from-muted to-muted/60" />
-          )}
-          <div className="absolute top-3 left-3">
-            <button
-              className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md bg-background/70 hover:bg-background"
-              aria-label="Open navigation"
-              onClick={() => setShowMobileNav(true)}
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-          </div>
-          {isOwnProfile && (
-            <>
-              <input
-                ref={coverInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => onPickCoverImage(e.target.files)}
-              />
-              <div className="absolute bottom-3 right-3">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => coverInputRef.current?.click()}
-                  disabled={uploadingCover}
-                >
-                  {uploadingCover ? (
-                    <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                  ) : (
-                    "Change Cover"
-                  )}
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
+      {/* Add persistent desktop sidebar and wrap content */}
+      <div className="flex">
+        {/* Left app navigation (desktop) */}
+        <aside className="hidden lg:block w-64 border-r bg-card/50">
+          <Sidebar />
+        </aside>
 
-        <main className="w-full px-4 md:px-8 lg:px-12 py-6 space-y-6">
-          {/* Header card */}
-          <div className="flex items-start gap-4">
-            {isOwnProfile && (
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => onPickProfileImage(e.target.files)}
+        <div className="min-h-screen flex-1">
+          {/* Cover photo area */}
+          <div className="relative h-40 sm:h-56 md:h-64 lg:h-72 w-full bg-muted overflow-hidden">
+            {targetUser.coverImage ? (
+              <img
+                src={targetUser.coverImage}
+                alt="Cover"
+                className="w-full h-full object-cover"
+                loading="eager"
+                decoding="async"
               />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-r from-muted to-muted/60" />
             )}
-            <Dialog>
-              <DialogTrigger asChild>
-                <button aria-label="View profile picture" className="-mt-16 shrink-0">
-                  <Avatar className="w-24 h-24 ring-4 ring-background rounded-full">
-                    <AvatarImage src={targetUser.image} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                      {targetUser.name?.charAt(0) || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </DialogTrigger>
-              <DialogContent className="max-w-3xl">
-                <img
-                  src={targetUser.image}
-                  alt={targetUser.name || "Profile picture"}
-                  className="w-full h-auto rounded-lg"
-                  loading="eager"
-                  decoding="async"
-                />
-              </DialogContent>
-            </Dialog>
-
-            <div className="flex-1">
-              <div className="font-semibold text-2xl">{targetUser.name || "User"}</div>
-              <div className="text-muted-foreground">
-                {targetUser.username ? `@${targetUser.username}` : targetUser.email}
-              </div>
-              {targetUser.bio && <p className="mt-2 text-sm">{targetUser.bio}</p>}
+            <div className="absolute top-3 left-3">
+              <button
+                className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md bg-background/70 hover:bg-background"
+                aria-label="Open navigation"
+                onClick={() => setShowMobileNav(true)}
+              >
+                <Menu className="w-5 h-5" />
+              </button>
             </div>
-
-            <div className="flex items-center gap-2">
-              {isOwnProfile ? (
-                <>
+            {isOwnProfile && (
+              <>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => onPickCoverImage(e.target.files)}
+                />
+                <div className="absolute bottom-3 right-3">
                   <Button
-                    variant="outline"
                     size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingImage}
+                    variant="secondary"
+                    onClick={() => coverInputRef.current?.click()}
+                    disabled={uploadingCover}
                   >
-                    {uploadingImage ? (
+                    {uploadingCover ? (
                       <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                     ) : (
-                      "Change Picture"
+                      "Change Cover"
                     )}
                   </Button>
-                  <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800">
-                        Edit Profile
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Edit Profile</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-3">
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium">Name</label>
-                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Your name" />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium">Username</label>
-                          <Input
-                            value={editUsername}
-                            onChange={(e) => setEditUsername(e.target.value)}
-                            placeholder="username"
-                          />
-                          <p className="text-xs text-muted-foreground">
-                            3-20 chars, lowercase letters, numbers, dot, underscore, dash
-                          </p>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-sm font-medium">Bio</label>
-                          <Textarea
-                            value={editBio}
-                            onChange={(e) => setEditBio(e.target.value)}
-                            placeholder="Tell something about yourself"
-                          />
-                        </div>
-                      </div>
-                      <DialogFooter className="mt-2">
-                        <Button
-                          variant="secondary"
-                          onClick={() => setEditOpen(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
-                          onClick={async () => {
-                            try {
-                              await updateUserProfile({
-                                name: editName,
-                                bio: editBio,
-                                username: editUsername,
-                              });
-                              toast.success("Profile updated");
-                              setEditOpen(false);
-                            } catch (e: any) {
-                              toast.error(e?.message || "Failed to update profile");
-                            }
-                          }}
-                        >
-                          Save
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </>
-              ) : (
-                <>
-                  {/* Dynamic Friend Button based on relationship status */}
-                  {relationshipStatus === "friends" && (
-                    <Button size="sm" variant="secondary" disabled>
-                      Friend
-                    </Button>
-                  )}
-                  {relationshipStatus === "outgoing_request" && (
-                    <Button size="sm" variant="secondary" disabled>
-                      Request Sent
-                    </Button>
-                  )}
-                  {relationshipStatus === "incoming_request" && (
-                    <Button
-                      size="sm"
-                      className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
-                      onClick={() => navigate("/friends")}
-                    >
-                      Respond
-                    </Button>
-                  )}
-                  {(relationshipStatus === "none" || relationshipStatus === undefined) && (
-                    <Button
-                      size="sm"
-                      className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
-                      onClick={async () => {
-                        try {
-                          await sendFriend({ userId: targetUser._id });
-                          toast.success("Friend request sent");
-                        } catch (e: any) {
-                          toast.error(e?.message || "Failed to send request");
-                        }
-                      }}
-                    >
-                      Add Friend
-                    </Button>
-                  )}
-
-                  <Button variant="outline" size="sm" onClick={() => navigate("/messages")}>
-                    Message
-                  </Button>
-                </>
-              )}
-            </div>
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Manage Posts of target user; allow delete only on own profile */}
-          {isDesktop ? (
-            <div className="grid grid-cols-12 gap-6">
-              <div className="col-span-4 space-y-4">
-                <AboutCard user={targetUser} isOwnProfile={isOwnProfile} />
-                <FriendsSection targetUserId={targetUser._id} />
+          <main className="w-full px-4 md:px-8 lg:px-12 py-6 space-y-6">
+            {/* Header card */}
+            <div className="flex items-start gap-4">
+              {isOwnProfile && (
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => onPickProfileImage(e.target.files)}
+                />
+              )}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button aria-label="View profile picture" className="-mt-16 shrink-0">
+                    <Avatar className="w-24 h-24 ring-4 ring-background rounded-full">
+                      <AvatarImage src={targetUser.image} />
+                      <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                        {targetUser.name?.charAt(0) || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="max-w-3xl">
+                  <img
+                    src={targetUser.image}
+                    alt={targetUser.name || "Profile picture"}
+                    className="w-full h-auto rounded-lg"
+                    loading="eager"
+                    decoding="async"
+                  />
+                </DialogContent>
+              </Dialog>
+
+              <div className="flex-1">
+                <div className="font-semibold text-2xl">{targetUser.name || "User"}</div>
+                <div className="text-muted-foreground">
+                  {targetUser.username ? `@${targetUser.username}` : targetUser.email}
+                </div>
+                {targetUser.bio && <p className="mt-2 text-sm">{targetUser.bio}</p>}
               </div>
-              <div className="col-span-8">
-                <ManagePostsForUser targetUserId={targetUser._id} canManage={isOwnProfile} />
-                {!isOwnProfile && <p className="text-muted-foreground mt-2">You are viewing someone else's profile.</p>}
+
+              <div className="flex items-center gap-2">
+                {isOwnProfile ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImage}
+                    >
+                      {uploadingImage ? (
+                        <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                      ) : (
+                        "Change Picture"
+                      )}
+                    </Button>
+                    <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                      <DialogTrigger asChild>
+                        <Button size="sm" className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800">
+                          Edit Profile
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Edit Profile</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium">Name</label>
+                            <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Your name" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium">Username</label>
+                            <Input
+                              value={editUsername}
+                              onChange={(e) => setEditUsername(e.target.value)}
+                              placeholder="username"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              3-20 chars, lowercase letters, numbers, dot, underscore, dash
+                            </p>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-sm font-medium">Bio</label>
+                            <Textarea
+                              value={editBio}
+                              onChange={(e) => setEditBio(e.target.value)}
+                              placeholder="Tell something about yourself"
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter className="mt-2">
+                          <Button
+                            variant="secondary"
+                            onClick={() => setEditOpen(false)}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                            onClick={async () => {
+                              try {
+                                await updateUserProfile({
+                                  name: editName,
+                                  bio: editBio,
+                                  username: editUsername,
+                                });
+                                toast.success("Profile updated");
+                                setEditOpen(false);
+                              } catch (e: any) {
+                                toast.error(e?.message || "Failed to update profile");
+                              }
+                            }}
+                          >
+                            Save
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </>
+                ) : (
+                  <>
+                    {/* Dynamic Friend Button based on relationship status */}
+                    {relationshipStatus === "friends" && (
+                      <Button size="sm" variant="secondary" disabled>
+                        Friend
+                      </Button>
+                    )}
+                    {relationshipStatus === "outgoing_request" && (
+                      <Button size="sm" variant="secondary" disabled>
+                        Request Sent
+                      </Button>
+                    )}
+                    {relationshipStatus === "incoming_request" && (
+                      <Button
+                        size="sm"
+                        className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                        onClick={() => navigate("/friends")}
+                      >
+                        Respond
+                      </Button>
+                    )}
+                    {(relationshipStatus === "none" || relationshipStatus === undefined) && (
+                      <Button
+                        size="sm"
+                        className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                        onClick={async () => {
+                          try {
+                            await sendFriend({ userId: targetUser._id });
+                            toast.success("Friend request sent");
+                          } catch (e: any) {
+                            toast.error(e?.message || "Failed to send request");
+                          }
+                        }}
+                      >
+                        Add Friend
+                      </Button>
+                    )}
+
+                    <Button variant="outline" size="sm" onClick={() => navigate("/messages")}>
+                      Message
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
-          ) : isTablet ? (
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div className="md:col-span-2 space-y-4">
-                <AboutCard user={targetUser} isOwnProfile={isOwnProfile} />
-                <FriendsSection targetUserId={targetUser._id} />
+
+            {/* Manage Posts of target user; allow delete only on own profile */}
+            {isDesktop ? (
+              <div className="grid grid-cols-12 gap-6">
+                <div className="col-span-4 space-y-4">
+                  <AboutCard user={targetUser} isOwnProfile={isOwnProfile} />
+                  <FriendsSection targetUserId={targetUser._id} />
+                </div>
+                <div className="col-span-8">
+                  <ManagePostsForUser targetUserId={targetUser._id} canManage={isOwnProfile} />
+                  {!isOwnProfile && <p className="text-muted-foreground mt-2">You are viewing someone else's profile.</p>}
+                </div>
               </div>
-              <div className="md:col-span-3">
+            ) : isTablet ? (
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="md:col-span-2 space-y-4">
+                  <AboutCard user={targetUser} isOwnProfile={isOwnProfile} />
+                  <FriendsSection targetUserId={targetUser._id} />
+                </div>
+                <div className="md:col-span-3">
+                  <ManagePostsForUser targetUserId={targetUser._id} canManage={isOwnProfile} />
+                  {!isOwnProfile && <p className="text-muted-foreground mt-2">You are viewing someone else's profile.</p>}
+                </div>
+              </div>
+            ) : (
+              <>
+                <AboutCard user={targetUser} isOwnProfile={isOwnProfile} variant="mobile" />
+                <FriendsSection targetUserId={targetUser._id} variant="carousel" />
                 <ManagePostsForUser targetUserId={targetUser._id} canManage={isOwnProfile} />
                 {!isOwnProfile && <p className="text-muted-foreground mt-2">You are viewing someone else's profile.</p>}
-              </div>
-            </div>
-          ) : (
-            <>
-              <AboutCard user={targetUser} isOwnProfile={isOwnProfile} variant="mobile" />
-              <FriendsSection targetUserId={targetUser._id} variant="carousel" />
-              <ManagePostsForUser targetUserId={targetUser._id} canManage={isOwnProfile} />
-              {!isOwnProfile && <p className="text-muted-foreground mt-2">You are viewing someone else's profile.</p>}
-            </>
-          )}
-        </main>
+              </>
+            )}
+          </main>
+        </div>
       </div>
     </motion.div>
   );
