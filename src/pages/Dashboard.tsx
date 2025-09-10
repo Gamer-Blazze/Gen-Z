@@ -52,7 +52,14 @@ export default function Dashboard() {
               <Sidebar />
             </SheetContent>
           </Sheet>
-          <div className="font-semibold">Gen-Z Nepal</div>
+          {/* Make title clickable to go to Profile */}
+          <button
+            className="font-semibold hover:underline"
+            onClick={() => navigate("/profile")}
+            aria-label="Go to Profile"
+          >
+            Gen-Z Nepal
+          </button>
           <div className="w-9" />
         </div>
       </div>
