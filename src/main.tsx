@@ -3,7 +3,6 @@ import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
 import { InstrumentationProvider } from "@/instrumentation.tsx";
 import AuthPage from "@/pages/Auth.tsx";
 import Dashboard from "@/pages/Dashboard.tsx";
-import Messages from "@/pages/Messages.tsx";
 import Friends from "@/pages/Friends.tsx";
 import Notifications from "@/pages/Notifications.tsx";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
@@ -60,7 +59,7 @@ createRoot(document.getElementById("root")!).render(
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<AuthPage redirectAfterAuth="/dashboard" />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/messages" element={<Messages />} />
+            <Route path="/messages" element={<Redirect to="/dashboard" />} />
             <Route path="/friends" element={<Friends />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/profile/:username" element={<Redirect to="/dashboard" />} />
