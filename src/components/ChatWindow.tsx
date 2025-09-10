@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { Paperclip } from "lucide-react";
 import { useNavigate } from "react-router";
 import CallDialog from "./CallDialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface ChatWindowProps {
   conversationId: Id<"conversations">;
@@ -27,24 +28,39 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const [callId, setCallId] = useState<Id<"calls"> | null>(null);
   const [callType, setCallType] = useState<"voice" | "video">("voice");
   const [callRole, setCallRole] = useState<"caller" | "callee">("caller");
+  const [incomingOpen, setIncomingOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // When there's an incoming ringing call for me, prompt to accept
+  const endCall = useMutation(api.calls.endCall);
+
+  // When there's an incoming ringing call for me, show Accept/Reject prompt; auto-open only if already accepted
   useEffect(() => {
     if (!activeCall || !user) return;
     const isIncoming = activeCall.status === "ringing" && activeCall.calleeId === user._id;
     const isAcceptedOngoing = activeCall.status === "accepted";
-    if ((isIncoming || isAcceptedOngoing) && !callOpen) {
+
+    if (isIncoming) {
+      // Show incoming prompt instead of auto-opening
+      setIncomingOpen(true);
+    } else if (isAcceptedOngoing && !callOpen) {
       setCallId(activeCall._id as Id<"calls">);
       setCallType(activeCall.type);
-      setCallRole(isIncoming ? "callee" : activeCall.callerId === user._id ? "caller" : "callee");
+      setCallRole(activeCall.callerId === user._id ? "caller" : "callee");
       setCallOpen(true);
+      setIncomingOpen(false);
     }
   }, [activeCall, user, callOpen]);
+
+  // Close incoming prompt if call ends or disappears
+  useEffect(() => {
+    if (!activeCall || activeCall.status === "ended") {
+      setIncomingOpen(false);
+    }
+  }, [activeCall]);
 
   const placeCall = async (type: "voice" | "video") => {
     if (!conversation) return;
@@ -360,6 +376,50 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
           </Button>
         </form>
       </div>
+
+      {/* Incoming Call Prompt */}
+      {incomingOpen && activeCall && user && activeCall.calleeId === user._id && (
+        <Dialog open={incomingOpen} onOpenChange={setIncomingOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Incoming {activeCall.type === "video" ? "Video" : "Voice"} Call</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                You have an incoming {activeCall.type} call. Do you want to accept?
+              </p>
+            </div>
+            <DialogFooter className="flex gap-2 sm:justify-end">
+              <Button
+                variant="secondary"
+                onClick={async () => {
+                  try {
+                    await endCall({ callId: activeCall._id as Id<"calls"> });
+                  } catch {
+                    // ignore
+                  } finally {
+                    setIncomingOpen(false);
+                  }
+                }}
+              >
+                Reject
+              </Button>
+              <Button
+                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                onClick={() => {
+                  setCallId(activeCall._id as Id<"calls">);
+                  setCallType(activeCall.type);
+                  setCallRole("callee");
+                  setIncomingOpen(false);
+                  setCallOpen(true); // CallDialog handles the actual accept flow
+                }}
+              >
+                Accept
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {callOpen && callId && (
         <CallDialog
