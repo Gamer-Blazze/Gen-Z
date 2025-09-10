@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, MessageCircle, Heart, MessageSquareText, UserPlus, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { MobileTopNav } from "@/components/MobileTopNav";
 
 export default function Notifications() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -79,6 +80,9 @@ export default function Notifications() {
       <div className="flex">
         <Sidebar />
         <main className="flex-1 max-w-2xl mx-auto px-4 py-6">
+          {/* Top navigation bar */}
+          <MobileTopNav showOnDesktop />
+
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold">Notifications</h1>
             <Button
