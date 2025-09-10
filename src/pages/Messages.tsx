@@ -50,7 +50,7 @@ export default function Messages() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className={`min-h-screen ${pageBg}`}
+      className={`h-screen overflow-hidden ${pageBg}`}
     >
       {/* Top navigation bar */}
       <MobileTopNav showOnDesktop />
@@ -67,8 +67,8 @@ export default function Messages() {
           </SheetContent>
         </Sheet>
 
-        {/* Main container - force remount on device change */}
-        <main key={device} className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
+        {/* Main container - remove outer paddings, lock to viewport */}
+        <main key={device} className="flex-1 mx-auto px-0 py-0 h-screen">
           {device === "mobile" && (
             <div key="mobile" className="h-full flex flex-col">
               {/* Top bar when in chat view */}
