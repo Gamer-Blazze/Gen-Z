@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { toast } from "sonner";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Menu } from "lucide-react";
 
 export default function Friends() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -30,6 +32,7 @@ export default function Friends() {
   const receivedRequests = useQuery(api.friends.getReceivedRequests, {});
   const acceptRequest = useMutation(api.friends.acceptRequest);
   const rejectRequest = useMutation(api.friends.rejectRequest);
+  const [showMobileNav, setShowMobileNav] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -49,13 +52,26 @@ export default function Friends() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
+      {/* Mobile/Tablet sheet container for Sidebar */}
+      <Sheet open={showMobileNav} onOpenChange={setShowMobileNav}>
+        <SheetContent side="left" className="p-0 w-[85vw] sm:w-[380px]">
+          <Sidebar />
+        </SheetContent>
+      </Sheet>
+
       <div className="flex">
-        <Sidebar />
-        {/* Messenger-style container */}
         <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]">
-          {/* Add: top action bar with Add Friend dialog trigger */}
+          {/* Top action bar with hamburger + Add Friend */}
           <div className="px-2 py-2 lg:px-0 lg:py-0">
-            <div className="flex justify-end lg:justify-end">
+            <div className="flex items-center justify-between">
+              <button
+                className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md hover:bg-muted"
+                aria-label="Open navigation"
+                onClick={() => setShowMobileNav(true)}
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+
               <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
                 <DialogTrigger asChild>
                   <Button size="sm" className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800">
