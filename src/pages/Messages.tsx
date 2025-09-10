@@ -76,9 +76,6 @@ export default function Messages() {
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex-1" />
-            <Button variant="secondary" size="sm" onClick={() => navigate("/dashboard")}>
-              Dashboard
-            </Button>
           </div>
 
           {/* Global mobile nav bar */}
