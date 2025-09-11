@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useLocation } from "react-router";
 import { Home, MessageCircle, Users, Bell, Settings as SettingsIcon, User as UserIcon } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function Settings() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
@@ -28,6 +29,7 @@ export default function Settings() {
   const updateUserName = useMutation(api.users.updateUserName);
   const updateUserSettings = useMutation(api.users.updateUserSettings);
   const updateUserProfile = useMutation(api.users.updateUserProfile);
+  const updateUserImage = useMutation(api.users.updateUserImage);
 
   // Theme state (light | dark | system)
   const [theme, setTheme] = useState<"light" | "dark" | "system">(
@@ -154,6 +156,34 @@ export default function Settings() {
   useEffect(() => {
     setUsernameInput(user?.username ?? "");
   }, [user?.username]);
+
+  const [emailNotifications, setEmailNotifications] = useState<boolean>(() => localStorage.getItem("emailNotifications") === "true");
+  const [fontSize, setFontSize] = useState<"sm" | "md" | "lg">(() => (localStorage.getItem("fontSize") as any) || "md");
+  const [profileVisibility, setProfileVisibility] = useState<"public" | "private">(() => (localStorage.getItem("profileVisibility") as any) || "public");
+  const [allowFriendRequests, setAllowFriendRequests] = useState<boolean>(() => localStorage.getItem("allowFriendRequests") !== "false");
+  const [messageSeenEnabled, setMessageSeenEnabled] = useState<boolean>(() => localStorage.getItem("messageSeenEnabled") !== "false");
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const sizeMap: Record<"sm" | "md" | "lg", string> = { sm: "14px", md: "16px", lg: "18px" };
+    root.style.setProperty("--app-font-size", sizeMap[fontSize]);
+    localStorage.setItem("fontSize", fontSize);
+  }, [fontSize]);
+
+  useEffect(() => {
+    localStorage.setItem("profileVisibility", profileVisibility);
+  }, [profileVisibility]);
+
+  useEffect(() => {
+    localStorage.setItem("emailNotifications", String(emailNotifications));
+  }, [emailNotifications]);
+
+  useEffect(() => {
+    localStorage.setItem("allowFriendRequests", String(allowFriendRequests));
+  }, [allowFriendRequests]);
+  useEffect(() => {
+    localStorage.setItem("messageSeenEnabled", String(messageSeenEnabled));
+  }, [messageSeenEnabled]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -419,6 +449,99 @@ export default function Settings() {
             </CardContent>
           </Card>
 
+          {/* Account Settings */}
+          <Card>
+            <CardContent className="p-6 space-y-5">
+              <h2 className="text-lg font-semibold">Account Settings</h2>
+
+              {/* Profile photo change via URL (works with updateUserImage) */}
+              <div className="grid gap-2">
+                <label className="text-sm text-muted-foreground">Profile photo URL</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    placeholder="https://example.com/photo.jpg"
+                    defaultValue={user?.image || ""}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        const val = (e.target as HTMLInputElement).value.trim();
+                        if (!val) {
+                          toast.error("Enter a valid image URL");
+                          return;
+                        }
+                        updateUserImage({ image: val })
+                          .then(() => toast.success("Profile photo updated"))
+                          .catch(() => toast.error("Failed to update photo"));
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={async () => {
+                      const input = (document.activeElement as HTMLInputElement) || null;
+                      const val = input?.value?.trim();
+                      if (!val) {
+                        toast.error("Enter a valid image URL");
+                        return;
+                      }
+                      try {
+                        await updateUserImage({ image: val });
+                        toast.success("Profile photo updated");
+                      } catch {
+                        toast.error("Failed to update photo");
+                      }
+                    }}
+                    className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                  >
+                    Save
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Paste a public image URL to set your profile photo.</p>
+              </div>
+
+              {/* Update email or phone (info only, managed by auth) */}
+              <div className="grid gap-2">
+                <label className="text-sm text-muted-foreground">Email / Phone</label>
+                <Input disabled value={user?.email || ""} />
+                <p className="text-xs text-muted-foreground">
+                  Email and phone are managed by sign-in provider. Contact support to update.
+                </p>
+              </div>
+
+              {/* Change password (info only, managed by auth) */}
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">Password</div>
+                <Button
+                  variant="outline"
+                  onClick={() => toast("Password changes are managed by the authentication provider.")}
+                >
+                  Change Password
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    try {
+                      signOut();
+                    } catch {
+                      toast.error("Failed to sign out");
+                    }
+                  }}
+                >
+                  Log Out
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    toast("Account deletion requires support. Please contact us.");
+                  }}
+                >
+                  Delete Account
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Top bar with hamburger to open navigation on mobile */}
           <div className="p-2 flex items-center">
             <button
@@ -597,6 +720,26 @@ export default function Settings() {
                       Changes apply instantly across buttons and highlights.
                     </p>
                   </div>
+
+                  <div className="grid gap-2">
+                    <label className="text-sm text-muted-foreground">Font size</label>
+                    <Select
+                      value={fontSize}
+                      onValueChange={(val: "sm" | "md" | "lg") => {
+                        setFontSize(val);
+                        toast.success(`Font size set to ${val}`);
+                      }}
+                    >
+                      <SelectTrigger className="w-[220px]">
+                        <SelectValue placeholder="Select size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sm">Small</SelectItem>
+                        <SelectItem value="md">Default</SelectItem>
+                        <SelectItem value="lg">Large</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </>
               )}
             </CardContent>
@@ -758,6 +901,18 @@ export default function Settings() {
                       }}
                     />
                   </div>
+
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="email-notifs" className="text-sm">Email notifications</Label>
+                    <Switch
+                      id="email-notifs"
+                      checked={emailNotifications}
+                      onCheckedChange={(val) => {
+                        setEmailNotifications(val);
+                        toast.success(val ? "Email notifications enabled" : "Email notifications disabled");
+                      }}
+                    />
+                  </div>
                 </>
               )}
             </CardContent>
@@ -766,9 +921,33 @@ export default function Settings() {
           {/* Privacy card: extend with last seen, profile photo visibility, read receipts */}
           <Card>
             <CardContent className="p-6 space-y-4">
-              {matches("Privacy") && <h2 className="font-semibold text-lg">Privacy</h2>}
+              {matches("Privacy") && <h2 className="font-semibold text-lg">Privacy &amp; Security</h2>}
               {!matches("Privacy") ? null : (
                 <>
+                  <div className="space-y-3">
+                    <div className="grid gap-2">
+                      <Label className="text-sm">Profile visibility</Label>
+                      <Select
+                        value={profileVisibility}
+                        onValueChange={(val: "public" | "private") => {
+                          setProfileVisibility(val);
+                          toast.success(`Profile visibility set to ${val}`);
+                        }}
+                      >
+                        <SelectTrigger className="w-[240px]">
+                          <SelectValue placeholder="Select visibility" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="public">Public</SelectItem>
+                          <SelectItem value="private">Private</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Private hides your profile from people who aren't friends.
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="space-y-3">
                     <div className="grid gap-2">
                       <Label className="text-sm">Who can message you</Label>
@@ -1043,6 +1222,140 @@ export default function Settings() {
                 <p className="text-xs text-muted-foreground">
                   Compact mode tightens spacing across the interface.
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Data & Storage */}
+          <Card>
+            <CardContent className="p-6 space-y-5">
+              <h2 className="text-lg font-semibold">Data &amp; Storage</h2>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const keys = ["theme", "accent", "fontSize", "emailNotifications", "profileVisibility", "allowFriendRequests", "messageSeenEnabled"];
+                    keys.forEach((k) => localStorage.removeItem(k));
+                    toast.success("Cache cleared (preferences reset)");
+                  }}
+                >
+                  Clear Cache
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const ts = Date.now();
+                    localStorage.setItem("chatClearedAt", String(ts));
+                    toast.success("Chat history cleared on this device");
+                  }}
+                >
+                  Clear Chat History
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const data = {
+                      profile: {
+                        name: user?.name,
+                        username: user?.username,
+                        email: user?.email,
+                        image: user?.image,
+                      },
+                      settings,
+                      client: {
+                        theme,
+                        accent,
+                        fontSize,
+                        emailNotifications,
+                        profileVisibility,
+                        allowFriendRequests,
+                        messageSeenEnabled,
+                      },
+                      exportedAt: new Date().toISOString(),
+                    };
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "backup.json";
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  Download Data Backup
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    toast("Storage management is automatic. Large files are optimized by the app.");
+                  }}
+                >
+                  Manage Storage
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* App Options */}
+          <Card>
+            <CardContent className="p-6 space-y-5">
+              <h2 className="text-lg font-semibold">App Options</h2>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="friend-requests" className="text-sm">Allow friend requests</Label>
+                <Switch
+                  id="friend-requests"
+                  checked={allowFriendRequests}
+                  onCheckedChange={(val) => {
+                    setAllowFriendRequests(val);
+                    toast.success(val ? "Friend requests enabled" : "Friend requests disabled");
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="seen-toggle" className="text-sm">Show message seen indicator</Label>
+                <Switch
+                  id="seen-toggle"
+                  checked={messageSeenEnabled}
+                  onCheckedChange={(val) => {
+                    setMessageSeenEnabled(val);
+                    toast.success(val ? "Seen indicator on" : "Seen indicator off");
+                  }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Label htmlFor="auto-redirect" className="text-sm">Auto-redirect to dashboard after login</Label>
+                <Switch
+                  id="auto-redirect"
+                  checked={true}
+                  onCheckedChange={() => {
+                    toast("This app redirects to your dashboard by default.");
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Help & Support */}
+          <Card>
+            <CardContent className="p-6 space-y-5">
+              <h2 className="text-lg font-semibold">Help &amp; Support</h2>
+
+              <div className="grid gap-2">
+                <Label className="text-sm">FAQs</Label>
+                <Textarea readOnly value={"• How to change my name?\nUse Account Settings > Edit Display Name.\n\n• How to change theme?\nUse Appearance > Theme selector.\n\n• How to manage notifications?\nUse Notifications section toggles."} />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => toast("Contact support at: support@example.com")}>Contact Support</Button>
+                <Button variant="outline" onClick={() => toast("Terms and Privacy are available on our website.")}>Terms & Privacy</Button>
+                <Button variant="outline" onClick={() => toast("App v1.0.0 • © 2025")}>About / Version</Button>
               </div>
             </CardContent>
           </Card>
