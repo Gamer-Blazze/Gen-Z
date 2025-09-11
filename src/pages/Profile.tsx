@@ -425,22 +425,6 @@ export default function Profile() {
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
-
-                        {/* Standalone Unfriend button for easy access */}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={async () => {
-                            try {
-                              await doUnfriend({ otherUserId: targetUser._id });
-                              toast.success("Unfriended");
-                            } catch (e: any) {
-                              toast.error(e?.message || "Failed to unfriend");
-                            }
-                          }}
-                        >
-                          Unfriend
-                        </Button>
                       </div>
                     )}
                     {relationshipStatus === "outgoing_request" && (
