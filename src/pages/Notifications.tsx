@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -8,12 +8,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, MessageCircle, Heart, MessageSquareText, UserPlus, CheckCircle2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { MobileTopNav } from "@/components/MobileTopNav";
 
 export default function Notifications() {
   const { isLoading, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+
+  // Add loading states
+  const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [loadingItemIds, setLoadingItemIds] = useState<Set<string>>(new Set());
+  const startLoading = (id: string) => setLoadingItemIds((prev) => new Set(prev).add(id));
+  const stopLoading = (id: string) =>
+    setLoadingItemIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
 
   // Initialize hooks before any early returns to keep hook order stable
   const notifications = useQuery(
@@ -88,16 +100,28 @@ export default function Notifications() {
               <Button
                 variant="outline"
                 size="sm"
+                disabled={isMarkingAll}
                 onClick={async () => {
                   try {
+                    setIsMarkingAll(true);
                     await markAllAsRead({});
                     toast.success("All notifications marked as read");
                   } catch (e) {
                     toast.error("Failed to mark all as read");
+                  } finally {
+                    setIsMarkingAll(false);
                   }
                 }}
+                aria-busy={isMarkingAll}
               >
-                Mark all as read
+                {isMarkingAll ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Marking…
+                  </span>
+                ) : (
+                  "Mark all as read"
+                )}
               </Button>
             </div>
           </div>
@@ -154,34 +178,59 @@ export default function Notifications() {
                               size="sm"
                               variant="secondary"
                               className="h-7 px-2"
+                              disabled={loadingItemIds.has(n._id as unknown as string)}
                               onClick={async () => {
+                                const idStr = n._id as unknown as string;
                                 try {
+                                  startLoading(idStr);
                                   await markAsRead({ notificationId: n._id });
                                 } catch {
                                   toast.error("Failed to mark as read");
+                                } finally {
+                                  stopLoading(idStr);
                                 }
                               }}
+                              aria-busy={loadingItemIds.has(n._id as unknown as string)}
                             >
-                              Mark as read
+                              {loadingItemIds.has(n._id as unknown as string) ? (
+                                <span className="inline-flex items-center gap-1.5">
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  Marking…
+                                </span>
+                              ) : (
+                                "Mark as read"
+                              )}
                             </Button>
                           )}
                           <Button
                             size="sm"
                             className="h-7 px-3"
+                            disabled={loadingItemIds.has(n._id as unknown as string)}
                             onClick={async () => {
+                              const idStr = n._id as unknown as string;
                               try {
+                                startLoading(idStr);
                                 if (!n.isRead) {
                                   await markAsRead({ notificationId: n._id });
                                 }
                               } catch {
                                 // non-blocking
                               } finally {
+                                stopLoading(idStr);
                                 const to = navigateToTarget(n);
                                 window.location.href = to;
                               }
                             }}
+                            aria-busy={loadingItemIds.has(n._id as unknown as string)}
                           >
-                            View
+                            {loadingItemIds.has(n._id as unknown as string) ? (
+                              <span className="inline-flex items-center gap-1.5">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                Opening…
+                              </span>
+                            ) : (
+                              "View"
+                            )}
                           </Button>
                         </div>
                       </div>
