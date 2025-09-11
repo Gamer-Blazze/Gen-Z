@@ -36,6 +36,10 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emailInput, setEmailInput] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailIsValid = isValidEmail(emailInput.trim());
+  const canSend = !isLoading && emailInput.trim().length > 0 && emailIsValid;
 
   const resendCode = async (email: string) => {
     setIsLoading(true);
@@ -63,9 +67,10 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
     setIsLoading(true);
     setError(null);
     try {
-      const email = emailInput.trim();
-      const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-      if (!isValidEmail) {
+      const email = emailInput.trim().toLowerCase();
+      const isValidEmailLocal = isValidEmail(email);
+      if (!isValidEmailLocal) {
+        setEmailTouched(true);
         setError("Please enter a valid email address.");
         setIsLoading(false);
         return;
@@ -164,9 +169,29 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                       disabled={isLoading}
                       required
                       value={emailInput}
-                      onChange={(e) => setEmailInput(e.target.value)}
+                      inputMode="email"
+                      autoComplete="email"
+                      spellCheck={false}
+                      aria-invalid={emailTouched && !emailIsValid ? "true" : "false"}
+                      aria-describedby={emailTouched && !emailIsValid ? "email-error" : undefined}
+                      pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$"
+                      maxLength={254}
+                      onBlur={() => setEmailTouched(true)}
+                      onChange={(e) => {
+                        const val = e.target.value.toLowerCase();
+                        setEmailInput(val);
+                        // Clear top-level error as user edits
+                        if (error) setError(null);
+                      }}
                     />
                   </div>
+
+                  {/* Inline email validation message */}
+                  {emailTouched && !emailIsValid && (
+                    <p id="email-error" role="alert" className="text-xs text-red-500">
+                      Enter a valid email address (e.g., name@example.com).
+                    </p>
+                  )}
 
                   {/* Error */}
                   {error && <p className="text-sm text-red-500">{error}</p>}
@@ -176,7 +201,7 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                   <Button
                     type="submit"
                     variant="default"
-                    disabled={isLoading}
+                    disabled={!canSend}
                     className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white"
                   >
                     {isLoading ? (
