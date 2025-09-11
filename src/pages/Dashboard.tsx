@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
+import { TopNav } from "@/components/TopNav";
 
 /* removed MobileTopNav on dashboard */
 
@@ -150,8 +151,8 @@ export default function Dashboard() {
       <NotificationWatcher />
 
       {/* Insert Top Navigation */}
-      {/* TopNav component removed from layout */}
-      
+      <TopNav />
+
       {/* Removed Profile Quick Switch Bar */}
       <div className="flex flex-col lg:flex-row">
         {/* Desktop Sidebar */}
