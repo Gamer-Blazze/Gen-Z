@@ -112,23 +112,36 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   };
 
   const playNotify = async () => {
+    if (notifyMuted) return; // respect mute
     try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.type = "sine";
-      o.frequency.value = 880; // gentle high beep
-      g.gain.setValueAtTime(0.0001, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.14);
-      o.connect(g);
-      g.connect(ctx.destination);
-      o.start();
-      o.stop(ctx.currentTime + 0.15);
-      // Auto-close context shortly after to free resources
-      setTimeout(() => ctx.close().catch(() => {}), 200);
+      const Ctor = (window as any).AudioContext || (window as any).webkitAudioContext;
+      const ctx = new Ctor();
+      const master = ctx.createGain();
+      master.gain.value = 0.06;
+      master.connect(ctx.destination);
+
+      // Soft double-chime: two short sine pings with slight pitch difference
+      const makePing = (freq: number, startAt: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + startAt);
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + startAt);
+        gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + startAt + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startAt + 0.18);
+        osc.connect(gain);
+        gain.connect(master);
+        osc.start(ctx.currentTime + startAt);
+        osc.stop(ctx.currentTime + startAt + 0.22);
+      };
+
+      makePing(880, 0);     // first chime
+      makePing(988, 0.12);  // second chime slightly higher
+
+      // Close context after envelope finishes
+      setTimeout(() => ctx.close().catch(() => {}), 500);
     } catch {
-      // ignore audio errors
+      // ignore audio errors to avoid blocking UI
     }
   };
 
@@ -211,6 +224,19 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
   const getFileUrl = useAction(api.files.getFileUrl);
   const navigate = useNavigate();
+
+  const [notifyMuted, setNotifyMuted] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("chat_notify_muted");
+      if (saved) setNotifyMuted(saved === "1");
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("chat_notify_muted", notifyMuted ? "1" : "0");
+    } catch {}
+  }, [notifyMuted]);
 
   const onPickFiles = async (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
@@ -467,7 +493,17 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Moved call buttons to header */}
+            {/* Mute/unmute notifications */}
+            <Button
+              variant="ghost"
+              size="sm"
+              title={notifyMuted ? "Unmute notifications" : "Mute notifications"}
+              aria-label={notifyMuted ? "Unmute notifications" : "Mute notifications"}
+              onClick={() => setNotifyMuted((v) => !v)}
+            >
+              {notifyMuted ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+            </Button>
+
             <Button variant="ghost" size="sm" title="Voice call" onClick={() => placeCall("voice")}>
               <Phone className="w-4 h-4" />
             </Button>
@@ -572,6 +608,9 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                           controls
                           preload="metadata"
                           onPlay={onAudioPlay}
+                          onError={() => {
+                            toast.error("Audio failed to load or play");
+                          }}
                           className="w-40"
                         />
                       </div>
