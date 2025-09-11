@@ -6,17 +6,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Image, Send } from "lucide-react";
+import { Image, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Id } from "@/convex/_generated/dataModel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { X, Users, Globe, Lock, CalendarClock, MapPin, Smile } from "lucide-react";
+import { Users, Globe, Lock, CalendarClock, MapPin, Smile } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "convex/react";
 import { useRef, useEffect } from "react";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 
 function readFileAsArrayBuffer(file: File) {
   return new Promise<ArrayBuffer>((resolve, reject) => {
@@ -44,33 +45,28 @@ export function CreatePost() {
   const [files, setFiles] = useState<File[]>([]);
   const [imageIds, setImageIds] = useState<Array<Id<"_storage">>>([]);
   const [videoIds, setVideoIds] = useState<Array<Id<"_storage">>>([]);
-  // Use Convex action hook to request an upload URL
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
 
-  // ADD: audience, tags, scheduling, upload states
   const [audience, setAudience] = useState<"public" | "friends" | "private">("public");
   const friends = useQuery(api.friends.getUserFriends, {});
   const [tagged, setTagged] = useState<Array<{ _id: Id<"users">; name?: string; image?: string }>>([]);
+// Add missing local state for location and feeling
+const [location, setLocation] = useState("");
+const [feeling, setFeeling] = useState("");
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState<string>(""); // datetime-local string
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const [isChecking, setIsChecking] = useState(false); // disable post while background checks (validation / uploads)
-  const autoPostedRef = useRef(false); // Add: ensure auto-post triggers only once
-  const [location, setLocation] = useState<string>(""); // NEW
-  const [feeling, setFeeling] = useState<string>(""); // NEW
 
-  // Add: clear a completed upload (remove its preview) by storageId
   const clearCompletedUploadByStorageId = (storageId: Id<"_storage">) => {
     setUploads((prev) => {
       const idx = prev.findIndex((u) => u.storageId === storageId);
       if (idx === -1) return prev;
-      // Remove matching preview item at same index from files
       setFiles((filesPrev) => filesPrev.filter((_, i) => i !== idx));
       return prev.filter((_, i) => i !== idx);
     });
   };
 
-  // Add: clear all uploads/media from the uploading section (UI only, no server delete)
   const clearAllUploads = () => {
     setFiles([]);
     setUploads([]);
@@ -78,7 +74,6 @@ export function CreatePost() {
     setVideoIds([]);
   };
 
-  // Validation limits
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
   const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500MB
   const ACCEPTED_IMAGE = ["image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -135,9 +130,6 @@ export function CreatePost() {
               } else if (file.type.startsWith("video/")) {
                 setVideoIds((prev) => [...prev, storageId]);
               }
-              // Auto "cancel" (reset/clear preview) after completion
-              // Note: This does not abort the upload; it only clears the UI tile
-              setTimeout(() => clearCompletedUploadByStorageId(storageId), 0);
               resolve();
             } catch (err) {
               reject(new Error("Invalid upload response"));
@@ -173,19 +165,17 @@ export function CreatePost() {
       setUploads((prev) =>
         prev.map((uu, i) => (i === index ? { ...uu, status: "canceled", error: "Canceled" } : uu))
       );
-    } else if (u.status === "done") {
-      // For completed uploads, treat cancel as a clear/reset of the preview tile
-      setUploads((prev) => prev.filter((_, i) => i !== index));
       setFiles((prev) => prev.filter((_, i) => i !== index));
-      // Note: We intentionally keep storageId in imageIds/videoIds so the post can use it
     } else {
-      // For other states (idle/error/canceled), just clear the tile
+      if (u.storageId) {
+        setImageIds((ids) => ids.filter((id) => (id as unknown as string) !== (u.storageId as unknown as string)));
+        setVideoIds((ids) => ids.filter((id) => (id as unknown as string) !== (u.storageId as unknown as string)));
+      }
       setUploads((prev) => prev.filter((_, i) => i !== index));
       setFiles((prev) => prev.filter((_, i) => i !== index));
     }
   };
 
-  // Programmatic submit helper (reuse createPost logic)
   const submitNow = async (asDraft: boolean) => {
     if (
       !content.trim() &&
@@ -233,7 +223,6 @@ export function CreatePost() {
     if (!picked || picked.length === 0) return;
     const selected = Array.from(picked);
     setFiles((prev) => [...prev, ...selected]);
-    autoPostedRef.current = false; // reset auto-post for this batch
     setIsChecking(true);
     for (const file of selected) {
       await startUpload(file);
@@ -241,17 +230,6 @@ export function CreatePost() {
     setIsChecking(false);
     toast.success("Files queued for upload");
   };
-
-  // Auto-post when all uploads have finished and there is at least one uploaded media
-  useEffect(() => {
-    const anyMedia = imageIds.length + videoIds.length > 0;
-    const uploading = uploads.some((u) => u.status === "uploading");
-    const uploadsFinished = uploads.length === 0 || !uploading;
-    if (!isChecking && !isSubmitting && anyMedia && uploadsFinished && !autoPostedRef.current) {
-      autoPostedRef.current = true;
-      submitNow(false);
-    }
-  }, [uploads, imageIds, videoIds, isChecking, isSubmitting]);
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -298,7 +276,6 @@ export function CreatePost() {
     }
   };
 
-  // Tag selection helpers
   const toggleTag = (u: any) => {
     const id = u?._id;
     if (!id) return;
@@ -338,7 +315,6 @@ export function CreatePost() {
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                {/* Header controls: audience + schedule */}
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   <Select value={audience} onValueChange={(v) => setAudience(v as any)}>
                     <SelectTrigger className="h-8 w-[150px]">
@@ -363,7 +339,6 @@ export function CreatePost() {
                     </SelectContent>
                   </Select>
 
-                  {/* NEW: Location & Feeling quick inputs */}
                   <div className="flex items-center gap-2">
                     <div className="relative">
                       <MapPin className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -405,7 +380,6 @@ export function CreatePost() {
                     )}
                   </div>
 
-                  {/* Tag friends */}
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button type="button" variant="outline" size="sm">
@@ -448,7 +422,6 @@ export function CreatePost() {
                     </PopoverContent>
                   </Popover>
 
-                  {/* Tagged chips */}
                   {tagged.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {tagged.map((t) => (
@@ -470,7 +443,110 @@ export function CreatePost() {
                   className="min-h-[100px] resize-none border-0 p-0 text-base placeholder:text-muted-foreground focus-visible:ring-0"
                 />
 
-                {/* Drag & drop area */}
+                {(uploads.length > 0 || files.length > 0) && (
+                  <div className="mt-3">
+                    {uploads.length > 1 ? (
+                      <Carousel className="w-full">
+                        <CarouselContent>
+                          {uploads.map((u, i) => {
+                            const isVideo = u.file.type.startsWith("video/");
+                            const url = URL.createObjectURL(u.file);
+                            return (
+                              <CarouselItem key={i} className="basis-full">
+                                <div className="relative rounded-lg overflow-hidden border">
+                                  {isVideo ? (
+                                    <video
+                                      src={url}
+                                      muted
+                                      loop
+                                      autoPlay
+                                      className="w-full max-h-72 object-contain bg-black"
+                                    />
+                                  ) : (
+                                    <img
+                                      src={url}
+                                      alt="preview"
+                                      className="w-full max-h-72 object-contain bg-black/5"
+                                    />
+                                  )}
+                                  {u.status !== "done" && (
+                                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                      <div className="text-white text-sm">
+                                        {u.status === "uploading"
+                                          ? `Uploading… ${u.progress}%`
+                                          : u.status === "error"
+                                          ? u.error || "Upload error"
+                                          : u.status === "canceled"
+                                          ? "Canceled"
+                                          : "Queued"}
+                                      </div>
+                                    </div>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => cancelUpload(i)}
+                                    className="absolute top-2 right-2 rounded-full bg-white/90 px-2 py-1 text-xs shadow hover:bg-white"
+                                    aria-label="Remove media"
+                                    title={u.status === "uploading" ? "Cancel upload" : "Remove"}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </CarouselItem>
+                            );
+                          })}
+                        </CarouselContent>
+                      </Carousel>
+                    ) : (
+                      uploads.map((u, i) => {
+                        const isVideo = u.file.type.startsWith("video/");
+                        const url = URL.createObjectURL(u.file);
+                        return (
+                          <div key={i} className="relative mt-2 rounded-lg overflow-hidden border">
+                            {isVideo ? (
+                              <video
+                                src={url}
+                                muted
+                                loop
+                                autoPlay
+                                className="w-full max-h-72 object-contain bg-black"
+                              />
+                            ) : (
+                              <img
+                                src={url}
+                                alt="preview"
+                                className="w-full max-h-72 object-contain bg-black/5"
+                              />
+                            )}
+                            {u.status !== "done" && (
+                              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                <div className="text-white text-sm">
+                                  {u.status === "uploading"
+                                    ? `Uploading… ${u.progress}%`
+                                    : u.status === "error"
+                                    ? u.error || "Upload error"
+                                    : u.status === "canceled"
+                                    ? "Canceled"
+                                    : "Queued"}
+                                </div>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => cancelUpload(i)}
+                              className="absolute top-2 right-2 rounded-full bg-white/90 px-2 py-1 text-xs shadow hover:bg-white"
+                              aria-label="Remove media"
+                              title={u.status === "uploading" ? "Cancel upload" : "Remove"}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+
                 <div
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -498,35 +574,6 @@ export function CreatePost() {
                   <div className="flex items-center gap-2">
                     <Button
                       type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary"
-                      onClick={() => {
-                        const el = document.getElementById("create-post-file-input");
-                        (el as HTMLInputElement)?.click();
-                      }}
-                    >
-                      <Image className="w-4 h-4 mr-1" />
-                      Photo/Video
-                    </Button>
-
-                    {/* Add: Clear all media button (UI only) */}
-                    {(files.length > 0 || imageIds.length > 0 || videoIds.length > 0) && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={clearAllUploads}
-                        aria-label="Clear all media"
-                        className="text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/30"
-                      >
-                        Clear media
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
                       variant="outline"
                       disabled={isSubmitting || isChecking}
                       onClick={handleSaveDraft}
@@ -540,7 +587,8 @@ export function CreatePost() {
                           imageIds.length === 0 &&
                           videoIds.length === 0) ||
                         isSubmitting ||
-                        isChecking
+                        isChecking ||
+                        uploads.some((u) => u.status === "uploading")
                       }
                       className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-full"
                     >

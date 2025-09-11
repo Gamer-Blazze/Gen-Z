@@ -449,3 +449,30 @@ export const sharePost = mutation({
     return true;
   },
 });
+
+// Add: edit a post (owner only)
+export const editPost = mutation({
+  args: {
+    postId: v.id("posts"),
+    content: v.string(),
+    location: v.optional(v.string()),
+    feeling: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const post = await ctx.db.get(args.postId);
+    if (!post) throw new Error("Post not found");
+    if (post.userId !== user._id) throw new Error("Not authorized to edit this post");
+
+    await ctx.db.patch(args.postId, {
+      content: args.content,
+      location: args.location,
+      feeling: args.feeling,
+      updatedBy: user._id,
+      // keep publishedAt/status unchanged
+    });
+    return true;
+  },
+});

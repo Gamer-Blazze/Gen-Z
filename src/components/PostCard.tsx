@@ -14,6 +14,8 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useNavigate } from "react-router";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useEffect } from "react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 
 function linkify(text: string) {
   // very lightweight linkifier for URLs, #hashtags, and @mentions
@@ -98,9 +100,13 @@ export function PostCard({ post }: PostCardProps) {
     setViewerOpen(true);
   };
 
+  const isOwner = user && ((user._id as unknown as string) === (post.userId as unknown as string));
+
   const toggleLike = useMutation(api.posts.toggleLike);
   const addComment = useMutation(api.posts.addComment);
   const sharePost = useMutation(api.posts.sharePost);
+  const deletePost = useMutation(api.posts.deletePost);
+  const editPost = useMutation(api.posts.editPost);
   const comments = useQuery(api.posts.getPostComments, { postId: post._id });
 
   // NEW: See more / See less for long text
@@ -149,6 +155,40 @@ export function PostCard({ post }: PostCardProps) {
     }
   };
 
+  const handleDelete = async () => {
+    const ok = window.confirm("Delete this post?");
+    if (!ok) return;
+    try {
+      await deletePost({ postId: post._id });
+      toast.success("Post deleted");
+    } catch {
+      toast.error("Failed to delete post");
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editedContent.trim()) {
+      toast.error("Content cannot be empty");
+      return;
+    }
+    try {
+      await editPost({
+        postId: post._id,
+        content: editedContent.trim(),
+        location: (post as any).location,
+        feeling: (post as any).feeling,
+      });
+      setEditing(false);
+      toast.success("Post updated");
+    } catch {
+      toast.error("Failed to update post");
+    }
+  };
+
+  // Edit mode state
+  const [editing, setEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(post.content);
+
   return (
     <Card className="border border-border/50 hover:border-border transition-colors">
       <CardHeader className="pb-3">
@@ -181,22 +221,63 @@ export function PostCard({ post }: PostCardProps) {
               )}
             </p>
           </div>
+
+          {/* NEW: Owner actions */}
+          {isOwner && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setEditing(true)}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit post
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDelete} className="text-red-600">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete post
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </CardHeader>
 
       <CardContent className="pt-0">
-        {/* Content with See more/less */}
-        <p className="text-sm leading-relaxed mb-2 whitespace-pre-wrap">
-          {linkify(displayedContent)}
-        </p>
-        {isLong && (
-          <button
-            type="button"
-            className="text-xs text-[#1877F2] hover:underline mb-2"
-            onClick={() => setCollapsed((s) => !s)}
-          >
-            {collapsed ? "See more" : "See less"}
-          </button>
+        {/* Content with See more/less OR edit textarea */}
+        {!editing ? (
+          <>
+            <p className="text-sm leading-relaxed mb-2 whitespace-pre-wrap">
+              {linkify(displayedContent)}
+            </p>
+            {isLong && (
+              <button
+                type="button"
+                className="text-xs text-[#1877F2] hover:underline mb-2"
+                onClick={() => setCollapsed((s) => !s)}
+              >
+                {collapsed ? "See more" : "See less"}
+              </button>
+            )}
+          </>
+        ) : (
+          <div className="mb-3">
+            <Textarea
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              className="min-h-[100px] text-sm"
+            />
+            <div className="mt-2 flex gap-2">
+              <Button size="sm" onClick={handleSaveEdit} className="bg-[#1877F2] hover:bg-[#166FE5] text-white">
+                Save
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setEditing(false); setEditedContent(post.content); }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
         )}
 
         {/* Optional: small meta line for location/feeling if available */}
