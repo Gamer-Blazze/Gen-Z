@@ -120,6 +120,11 @@ export default function Friends() {
 
         {/* Main Friends Content */}
         <div className="flex-1">
+          {/* Mobile Top Navigation Panel */}
+          <div className="md:hidden sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+            <MobileTopNav />
+          </div>
+
           <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6">
             {/* Top bar */}
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
