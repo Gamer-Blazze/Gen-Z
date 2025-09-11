@@ -10,7 +10,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, MessageCircle, Heart, MessageSquareText, UserPlus, CheckCircle2, Phone, Video, PhoneOff, VideoOff } from "lucide-react";
 import { toast } from "sonner";
 import { MobileTopNav } from "@/components/MobileTopNav";
-import { TopNav } from "@/components/TopNav";
 
 export default function Notifications() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -92,10 +91,7 @@ export default function Notifications() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
       <div className="flex">
         <main className="flex-1 w-full mx-auto px-4 py-6 h-[calc(100vh)]">
-          {/* New Facebook-like top navigation bar with counters */}
-          <TopNav />
-
-          {/* Top navigation bar (existing mobile) */}
+          {/* Keep the existing mobile top navigation bar (configured to show on desktop if needed) */}
           <MobileTopNav showOnDesktop />
 
           {/* Make the page header sticky at the top */}
