@@ -11,7 +11,6 @@ import { ArrowLeft } from "lucide-react";
 /* removed unused Menu import */
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useDevice } from "@/hooks/use-device";
-import { MobileTopNav } from "@/components/MobileTopNav";
 import ChatInfoSidebar from "@/components/ChatInfoSidebar";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -83,7 +82,6 @@ export default function Messages() {
       className={`h-screen overflow-hidden ${pageBg}`}
     >
       {/* Top navigation bar */}
-      <MobileTopNav showOnDesktop />
       <div className="flex">
         {/* Left Sidebar remains desktop-only; mobile/tablet use the sheet */}
         <div className="hidden lg:block">
