@@ -47,6 +47,31 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
 
   const endCall = useMutation(api.calls.endCall);
 
+  // Add: conversation details and messages
+  const conversationsList = useQuery(api.messages.getUserConversations, {});
+  const conversation = conversationsList?.find((c: any) => c._id === conversationId);
+  const otherUser = conversation?.isGroup ? null : (conversation?.otherParticipants?.[0] ?? null);
+
+  const messages = useQuery(api.messages.getConversationMessages, { conversationId, limit: 200 }) as any[] | undefined;
+
+  // Add: required message mutations
+  const sendMessage = useMutation(api.messages.sendMessage);
+  const markAsRead = useMutation(api.messages.markMessagesAsRead);
+
+  // Add: helper to initiate a call
+  const placeCall = async (type: "voice" | "video") => {
+    try {
+      const newCallId = await startCall({ conversationId, type });
+      setCallType(type);
+      setCallRole("caller");
+      setCallId(newCallId as Id<"calls">);
+      setCallOpen(true);
+    } catch (e) {
+      toast.error("Failed to start call");
+      console.error(e);
+    }
+  };
+
   // When there's an incoming ringing call for me, show Accept/Reject prompt; auto-open only if already accepted
   useEffect(() => {
     if (!activeCall || !user) return;
@@ -463,7 +488,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
         className="relative flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain pb-2"
       >
         {messages && messages.length > 0 ? (
-          messages.map((msg, index) => {
+          messages.map((msg: any, index: number) => {
             const isOwn = msg.senderId === user?._id;
             const showAvatar = index === 0 || messages[index - 1].senderId !== msg.senderId;
             
