@@ -16,7 +16,7 @@ import {
 
 import { useAuth } from "@/hooks/use-auth";
 import { ArrowRight, Loader2, Mail } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { toast } from "sonner";
 
@@ -44,13 +44,35 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
   const emailIsValid = isValidEmail(emailInput.trim());
   const canSend = !isLoading && emailInput.trim().length > 0 && emailIsValid;
 
+  // Add resend cooldown state (seconds)
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Countdown effect for resend cooldown
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const id = setInterval(() => {
+      setResendCooldown((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [resendCooldown]);
+
+  // Form ref to auto-submit OTP when valid
+  const otpFormRef = useRef<HTMLFormElement | null>(null);
+
   const resendCode = async (email: string) => {
+    if (resendCooldown > 0) {
+      toast(`Please wait ${resendCooldown}s before resending.`);
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
       const formData = new FormData();
       formData.set("email", email);
       await signIn("email-otp", formData);
+      // Start cooldown after a successful resend
+      setResendCooldown(60);
+      toast("Verification code sent");
     } catch (e) {
       console.error("Resend code error:", e);
       setError("Failed to resend code. Please try again in a moment.");
@@ -82,6 +104,8 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
       formData.set("email", email);
       await signIn("email-otp", formData);
       setStep({ email });
+      // Start cooldown right after initial send
+      setResendCooldown(60);
       setIsLoading(false);
     } catch (error) {
       console.error("Email sign-in error:", error);
@@ -238,6 +262,7 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                         variant="outline"
                         className="flex-1 bg-white text-black border hover:bg-white/90 dark:bg-white dark:text-black dark:hover:bg-white/90"
                         onClick={() => toast("Google sign-in is coming soon")}
+                        disabled={isLoading}
                       >
                         <span className="mr-2 inline-flex items-center">
                           {/* Google G icon */}
@@ -254,6 +279,7 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                         variant="outline"
                         className="flex-1 bg-[#1877F2] hover:bg-[#166FE5] text-white"
                         onClick={() => toast("Facebook sign-in is coming soon")}
+                        disabled={isLoading}
                       >
                         Continue with Facebook
                       </Button>
@@ -273,7 +299,7 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                   We've sent a 6‑digit code to {step.email}
                 </CardDescription>
               </CardHeader>
-              <form onSubmit={handleOtpSubmit}>
+              <form onSubmit={handleOtpSubmit} ref={otpFormRef}>
                 <CardContent className="pb-4">
                   <input type="hidden" name="email" value={step.email} />
                   <input type="hidden" name="code" value={otp} />
@@ -285,7 +311,13 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                         const digitsOnly = val.replace(/\D/g, "").slice(0, 6);
                         setOtp(digitsOnly);
                         if (!otpTouched && digitsOnly.length > 0) setOtpTouched(true);
-                        // Clear top-level error as user edits
+                        // Auto-submit when 6 digits and not loading
+                        if (digitsOnly.length === 6 && !isLoading) {
+                          // Defer a tick to let hidden input sync
+                          setTimeout(() => {
+                            otpFormRef.current?.requestSubmit();
+                          }, 0);
+                        }
                         if (error) setError(null);
                       }}
                       maxLength={6}
@@ -325,9 +357,9 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                       variant="link"
                       className="p-0 h-auto"
                       onClick={() => resendCode(step.email)}
-                      disabled={isLoading}
+                      disabled={isLoading || resendCooldown > 0}
                     >
-                      Resend code
+                      {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
                     </Button>
                   </p>
                 </CardContent>
