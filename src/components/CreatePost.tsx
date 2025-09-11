@@ -68,6 +68,14 @@ export function CreatePost() {
     });
   };
 
+  // Add: clear all uploads/media from the uploading section (UI only, no server delete)
+  const clearAllUploads = () => {
+    setFiles([]);
+    setUploads([]);
+    setImageIds([]);
+    setVideoIds([]);
+  };
+
   // Validation limits
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
   const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500MB
@@ -511,6 +519,20 @@ export function CreatePost() {
                       <Image className="w-4 h-4 mr-1" />
                       Photo/Video
                     </Button>
+
+                    {/* Add: Clear all media button (UI only) */}
+                    {(files.length > 0 || imageIds.length > 0 || videoIds.length > 0) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={clearAllUploads}
+                        aria-label="Clear all media"
+                        className="text-red-600 border-red-200 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      >
+                        Clear media
+                      </Button>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
