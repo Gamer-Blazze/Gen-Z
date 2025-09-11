@@ -43,6 +43,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const [atBottom, setAtBottom] = useState(true);
+  const lastMessageIdRef = useRef<string | null>(null);
 
   const endCall = useMutation(api.calls.endCall);
 
@@ -85,27 +86,80 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const placeCall = async (type: "voice" | "video") => {
-    if (!conversation) return;
+  const playNotify = async () => {
     try {
-      const id = await startCall({ conversationId, type });
-      setCallId(id);
-      setCallType(type);
-      setCallRole("caller");
-      setCallOpen(true);
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to start call");
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.value = 880; // gentle high beep
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.14);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start();
+      o.stop(ctx.currentTime + 0.15);
+      // Auto-close context shortly after to free resources
+      setTimeout(() => ctx.close().catch(() => {}), 200);
+    } catch {
+      // ignore audio errors
     }
   };
 
-  const messages = useQuery(api.messages.getConversationMessages, { conversationId });
-  const sendMessage = useMutation(api.messages.sendMessage);
-  const markAsRead = useMutation(api.messages.markMessagesAsRead);
+  // Add: play notification sound for new incoming messages only
+  useEffect(() => {
+    if (!messages || messages.length === 0) return;
+    const last = messages[messages.length - 1];
+    // Initialize without playing on first load
+    if (lastMessageIdRef.current === null) {
+      lastMessageIdRef.current = (last as any)._id as string;
+      return;
+    }
+    if (lastMessageIdRef.current !== (last as any)._id) {
+      lastMessageIdRef.current = (last as any)._id as string;
+      // Beep only if message is from someone else
+      if (last.senderId !== user?._id) {
+        playNotify();
+      }
+    }
+  }, [messages, user?._id]);
 
-  // Get conversation details
-  const conversations = useQuery(api.messages.getUserConversations, {});
-  const conversation = conversations?.find(c => c._id === conversationId);
-  const otherUser = conversation?.otherParticipants[0];
+  // Add: lightweight animated waveform component for recording indicator
+  const RecordingWaveform = () => {
+    // Animate bars with CSS and minor JS-driven randomization to feel alive
+    const [bars, setBars] = useState<number[]>([8, 14, 20, 14, 8]);
+    useEffect(() => {
+      let raf = 0;
+      let t = 0;
+      const loop = () => {
+        t += 1;
+        // subtle, smooth variation
+        setBars((prev) =>
+          prev.map((h, i) => {
+            const base = [8, 14, 22, 14, 8][i];
+            const wobble = Math.sin((t + i * 6) / 6) * 6;
+            const jitter = (Math.random() - 0.5) * 2;
+            return Math.max(6, Math.min(28, Math.round(base + wobble + jitter)));
+          })
+        );
+        raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+      return () => cancelAnimationFrame(raf);
+    }, []);
+    return (
+      <div className="flex items-end gap-0.5 h-7 px-2 rounded-full bg-muted/60 border">
+        {bars.map((h, idx) => (
+          <div
+            key={idx}
+            className="w-[3px] rounded-sm bg-primary"
+            style={{ height: `${h}px` }}
+          />
+        ))}
+      </div>
+    );
+  };
 
   // Add: toggle to respect read receipts privacy (disabled if explicitly false)
   const readReceiptsEnabled = user?.settings?.privacy?.readReceipts !== false;
@@ -592,6 +646,12 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             onFocus={() => setInputFocused(true)}
             onBlur={() => setInputFocused(false)}
           />
+          {/* Add: waveform animation when recording */}
+          {inputFocused && isRecording && (
+            <div className="flex items-center gap-2">
+              <RecordingWaveform />
+            </div>
+          )}
           {inputFocused && (
             isRecording ? (
               <Button
