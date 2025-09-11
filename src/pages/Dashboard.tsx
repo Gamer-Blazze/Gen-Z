@@ -151,9 +151,6 @@ export default function Dashboard() {
       animate={{ opacity: 1 }}
       className="min-h-screen bg-background"
     >
-      {/* Background notifications watcher */}
-      <NotificationWatcher />
-
       {/* Desktop Top Navigation (sticky) */}
       <div className="hidden md:block sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto max-w-7xl px-4 h-14 flex items-center gap-4">
