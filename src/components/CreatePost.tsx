@@ -13,7 +13,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Users, Globe, Lock, CalendarClock, MapPin, Smile } from "lucide-react";
+import { Users, Globe, Lock, CalendarClock, MapPin, Smile, Type, Video, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "convex/react";
 import { useRef, useEffect } from "react";
@@ -47,6 +47,7 @@ export function CreatePost() {
   const [imageIds, setImageIds] = useState<Array<Id<"_storage">>>([]);
   const [videoIds, setVideoIds] = useState<Array<Id<"_storage">>>([]);
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [audience, setAudience] = useState<"public" | "friends" | "private">("public");
   const friends = useQuery(api.friends.getUserFriends, {});
@@ -353,11 +354,19 @@ export function CreatePost() {
     >
       <input
         type="file"
-        accept="image/*,video/*"
+        accept="image/*"
         multiple
         className="hidden"
         onChange={(e) => onPickFiles(e.target.files)}
-        id="create-post-file-input"
+        id="create-post-file-input-images"
+      />
+      <input
+        type="file"
+        accept="video/*"
+        multiple
+        className="hidden"
+        onChange={(e) => onPickFiles(e.target.files)}
+        id="create-post-file-input-videos"
       />
       <Card className="border-2 border-primary/20">
         <CardContent className="p-4">
@@ -492,6 +501,7 @@ export function CreatePost() {
                 </div>
 
                 <Textarea
+                  ref={textareaRef}
                   placeholder="What's on your mind?"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
@@ -499,19 +509,46 @@ export function CreatePost() {
                 />
 
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {/* Photo/Video */}
+                  {/* Text (focus composer) */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#1877F2]"
+                    onClick={() => textareaRef.current?.focus()}
+                    title="Write text"
+                  >
+                    <Type className="w-4 h-4 mr-2" />
+                    Text
+                  </Button>
+
+                  {/* Photo */}
                   <Button
                     type="button"
                     variant="ghost"
                     className="rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#1877F2]"
                     onClick={() => {
-                      const el = document.getElementById("create-post-file-input");
+                      const el = document.getElementById("create-post-file-input-images");
                       (el as HTMLInputElement)?.click();
                     }}
-                    title="Photo/Video"
+                    title="Add photos"
                   >
                     <Image className="w-4 h-4 mr-2" />
-                    Photo/Video
+                    Photo
+                  </Button>
+
+                  {/* Video */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#1877F2]"
+                    onClick={() => {
+                      const el = document.getElementById("create-post-file-input-videos");
+                      (el as HTMLInputElement)?.click();
+                    }}
+                    title="Add videos"
+                  >
+                    <Video className="w-4 h-4 mr-2" />
+                    Video
                   </Button>
 
                   {/* Tag friends */}
@@ -523,7 +560,7 @@ export function CreatePost() {
                         className="rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#1877F2]"
                         title="Tag friends"
                       >
-                        <Users className="w-4 h-4 mr-2" />
+                        <UserPlus className="w-4 h-4 mr-2" />
                         Tag
                       </Button>
                     </PopoverTrigger>
