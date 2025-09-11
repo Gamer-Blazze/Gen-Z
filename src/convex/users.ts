@@ -116,6 +116,25 @@ export const getUserByUsername = query({
   },
 });
 
+// Check username availability (case-insensitive)
+export const checkUsernameAvailable = query({
+  args: { username: v.string() },
+  handler: async (ctx, args) => {
+    const uname = args.username.trim().toLowerCase();
+    if (!/^[a-z0-9._-]{3,20}$/.test(uname)) {
+      // invalid format treated as not available for safety (frontends should validate format)
+      return { available: false };
+    }
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_username", (q) => q.eq("username", uname))
+      .unique()
+      .catch(() => null);
+
+    return { available: !existing };
+  },
+});
+
 // Update multiple user profile fields with basic validation and username uniqueness
 export const updateUserProfile = mutation({
   args: {
