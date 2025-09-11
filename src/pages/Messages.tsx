@@ -12,6 +12,7 @@ import { ArrowLeft } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useDevice } from "@/hooks/use-device";
 import ChatInfoSidebar from "@/components/ChatInfoSidebar";
+import FriendsOnlineSidebar from "@/components/FriendsOnlineSidebar";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Phone, Video } from "lucide-react";
@@ -222,7 +223,7 @@ export default function Messages() {
 
               {/* Right info sidebar */}
               <aside className="w-[340px] border rounded-xl overflow-hidden bg-white/90 backdrop-blur-sm hidden xl:block">
-                <ChatInfoSidebar conversationId={selectedConversationId} />
+                <FriendsOnlineSidebar conversationId={selectedConversationId} />
               </aside>
             </div>
           )}
