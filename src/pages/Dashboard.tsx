@@ -19,6 +19,7 @@ import { LogoDropdown } from "@/components/LogoDropdown";
 import { Stories } from "@/components/Stories";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { UserPlus } from "lucide-react";
+import { CreatePost } from "@/components/CreatePost";
 
 export default function Dashboard() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
@@ -272,6 +273,8 @@ export default function Dashboard() {
         <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6">
           {/* Stories row */}
           <Stories />
+          {/* Post Upload box */}
+          <CreatePost />
           <Feed />
         </main>
 
