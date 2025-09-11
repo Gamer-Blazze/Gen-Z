@@ -251,7 +251,8 @@ export default function Profile() {
             )}
           </div>
 
-          <main className="w-full px-4 md:px-8 lg:px-12 py-6 space-y-6">
+          {/* Constrain content width for all devices and adjust paddings */}
+          <main className="w-full max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-6">
             {/* Header card */}
             <div className="flex items-start gap-4">
               {isOwnProfile && (
@@ -265,8 +266,9 @@ export default function Profile() {
               )}
               <Dialog>
                 <DialogTrigger asChild>
-                  <button aria-label="View profile picture" className="-mt-16 shrink-0">
-                    <Avatar className="w-24 h-24 ring-4 ring-background rounded-full">
+                  {/* Make avatar size & overlap responsive for different devices */}
+                  <button aria-label="View profile picture" className="-mt-12 sm:-mt-14 md:-mt-16 lg:-mt-20 shrink-0">
+                    <Avatar className="w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24 lg:w-28 lg:h-28 ring-4 ring-background rounded-full">
                       <AvatarImage src={targetUser.image} />
                       <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
                         {targetUser.name?.charAt(0) || "U"}
@@ -274,7 +276,8 @@ export default function Profile() {
                     </Avatar>
                   </button>
                 </DialogTrigger>
-                <DialogContent className="max-w-3xl">
+                {/* Ensure the full image dialog scales well on small screens */}
+                <DialogContent className="max-w-[95vw] sm:max-w-2xl md:max-w-3xl">
                   <img
                     src={targetUser.image}
                     alt={targetUser.name || "Profile picture"}
