@@ -57,6 +57,18 @@ const [feeling, setFeeling] = useState("");
   const [scheduledAt, setScheduledAt] = useState<string>(""); // datetime-local string
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const [isChecking, setIsChecking] = useState(false); // disable post while background checks (validation / uploads)
+  const [hadUploading, setHadUploading] = useState(false);
+
+  useEffect(() => {
+    const currentlyUploading = uploads.some((u) => u.status === "uploading");
+    if (currentlyUploading && !hadUploading) {
+      setHadUploading(true);
+    }
+    if (!currentlyUploading && hadUploading) {
+      toast.success("All media uploaded. You can post now.");
+      setHadUploading(false);
+    }
+  }, [uploads, hadUploading]);
 
   const clearCompletedUploadByStorageId = (storageId: Id<"_storage">) => {
     setUploads((prev) => {
@@ -580,27 +592,39 @@ const [feeling, setFeeling] = useState("");
                     >
                       Save Draft
                     </Button>
-                    <Button
-                      type="submit"
-                      disabled={
-                        (!content.trim() &&
-                          imageIds.length === 0 &&
-                          videoIds.length === 0) ||
-                        isSubmitting ||
-                        isChecking ||
-                        uploads.some((u) => u.status === "uploading")
-                      }
-                      className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-full"
-                    >
-                      {isSubmitting ? (
-                        <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4 mr-1" />
-                          Post
-                        </>
-                      )}
-                    </Button>
+                    {(() => {
+                      const hasContentOrMedia =
+                        !!content.trim() || imageIds.length > 0 || videoIds.length > 0;
+                      const hasUploading = uploads.some((u) => u.status === "uploading");
+                      const canPost =
+                        hasContentOrMedia && !isSubmitting && !isChecking && !hasUploading;
+
+                      return (
+                        <Button
+                          type="submit"
+                          disabled={!canPost}
+                          title={
+                            !hasContentOrMedia
+                              ? "Add text or media to post"
+                              : hasUploading || isChecking
+                              ? "Please wait for uploads to finish"
+                              : isSubmitting
+                              ? "Posting…"
+                              : undefined
+                          }
+                          className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-full"
+                        >
+                          {isSubmitting ? (
+                            <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                          ) : (
+                            <>
+                              <Send className="w-4 h-4 mr-1" />
+                              Post
+                            </>
+                          )}
+                        </Button>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
