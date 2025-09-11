@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { useQuery } from "convex/react";
 import { useRef, useEffect } from "react";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 function readFileAsArrayBuffer(file: File) {
   return new Promise<ArrayBuffer>((resolve, reject) => {
@@ -50,14 +51,26 @@ export function CreatePost() {
   const [audience, setAudience] = useState<"public" | "friends" | "private">("public");
   const friends = useQuery(api.friends.getUserFriends, {});
   const [tagged, setTagged] = useState<Array<{ _id: Id<"users">; name?: string; image?: string }>>([]);
-// Add missing local state for location and feeling
-const [location, setLocation] = useState("");
-const [feeling, setFeeling] = useState("");
+  const [location, setLocation] = useState("");
+  const [feeling, setFeeling] = useState("");
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState<string>(""); // datetime-local string
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const [isChecking, setIsChecking] = useState(false); // disable post while background checks (validation / uploads)
   const [hadUploading, setHadUploading] = useState(false);
+
+  const feelings: Array<string> = [
+    "Happy",
+    "Excited", 
+    "Blessed",
+    "Grateful",
+    "Loved",
+    "Tired",
+    "Productive",
+    "Chilling",
+    "Celebrating",
+    "Traveling",
+  ];
 
   useEffect(() => {
     const currentlyUploading = uploads.some((u) => u.status === "uploading");
@@ -485,6 +498,188 @@ const [feeling, setFeeling] = useState("");
                   className="min-h-[100px] resize-none border-0 p-0 text-base placeholder:text-muted-foreground focus-visible:ring-0"
                 />
 
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {/* Photo/Video */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#1877F2]"
+                    onClick={() => {
+                      const el = document.getElementById("create-post-file-input");
+                      (el as HTMLInputElement)?.click();
+                    }}
+                    title="Photo/Video"
+                  >
+                    <Image className="w-4 h-4 mr-2" />
+                    Photo/Video
+                  </Button>
+
+                  {/* Tag friends */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#1877F2]"
+                        title="Tag friends"
+                      >
+                        <Users className="w-4 h-4 mr-2" />
+                        Tag
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-0">
+                      <div className="p-2 border-b font-medium text-sm">Tag people</div>
+                      <ScrollArea className="h-56">
+                        <div className="p-2 space-y-1">
+                          {Array.isArray(friends) && friends.length > 0 ? (
+                            friends.map((f: any) => {
+                              const id = f._id;
+                              const active = tagged.find(
+                                (t) => (t._id as unknown as string) === (id as unknown as string)
+                              );
+                              return (
+                                <button
+                                  key={(id as unknown as string)}
+                                  type="button"
+                                  onClick={() => toggleTag(f)}
+                                  className={`w-full flex items-center gap-2 rounded-md p-2 text-left hover:bg-muted ${
+                                    active ? "bg-muted" : ""
+                                  }`}
+                                >
+                                  <Avatar className="h-7 w-7">
+                                    <AvatarImage src={f.image} />
+                                    <AvatarFallback className="bg-muted text-xs">
+                                      {f.name?.charAt(0) || "U"}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="truncate text-sm">{f.name || "Anonymous"}</div>
+                                  </div>
+                                  {active && <span className="text-xs text-primary">Tagged</span>}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="p-3 text-xs text-muted-foreground">No friends to tag.</div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Feeling / Activity */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#1877F2]"
+                        title="Feeling / Activity"
+                      >
+                        <Smile className="w-4 h-4 mr-2" />
+                        Feeling/Activity
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-60 p-2">
+                      <div className="text-sm font-medium px-1 pb-2">What are you up to?</div>
+                      <div className="grid grid-cols-2 gap-1">
+                        {feelings.map((f) => (
+                          <button
+                            key={f}
+                            type="button"
+                            className={`text-left text-sm px-2 py-1 rounded-md hover:bg-muted ${
+                              feeling === f ? "bg-muted" : ""
+                            }`}
+                            onClick={() => setFeeling(f)}
+                          >
+                            {f}
+                          </button>
+                        ))}
+                      </div>
+                      {feeling && (
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Selected: {feeling}</span>
+                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setFeeling("")}>
+                            Clear
+                          </Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Location */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#1877F2]"
+                        title="Add location"
+                      >
+                        <MapPin className="w-4 h-4 mr-2" />
+                        Location
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72">
+                      <div className="text-sm font-medium mb-2">Add a place</div>
+                      <Input
+                        placeholder="Where are you?"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                      />
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        {location && (
+                          <Button variant="ghost" size="sm" onClick={() => setLocation("")}>
+                            Clear
+                          </Button>
+                        )}
+                        <Button size="sm" onClick={() => { /* Close via outside click; value already set */ }}>
+                          Save
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Optional: Privacy dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/30 text-[#1877F2]"
+                        title="Privacy"
+                      >
+                        {audience === "public" ? (
+                          <Globe className="w-4 h-4 mr-2" />
+                        ) : audience === "friends" ? (
+                          <Users className="w-4 h-4 mr-2" />
+                        ) : (
+                          <Lock className="w-4 h-4 mr-2" />
+                        )}
+                        {audience === "public" ? "Public" : audience === "friends" ? "Friends" : "Only Me"}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-44">
+                      <DropdownMenuItem onClick={() => setAudience("public" as any)}>
+                        <Globe className="w-4 h-4 mr-2" /> Public
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setAudience("friends" as any)}>
+                        <Users className="w-4 h-4 mr-2" /> Friends
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setAudience("private" as any)}>
+                        <Lock className="w-4 h-4 mr-2" /> Only Me
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Small inline preview for feeling/location */}
+                {(feeling || location) && (
+                  <div className="mt-2 text-xs text-muted-foreground">
+                    {feeling ? `Feeling ${feeling}` : ""}{feeling && location ? " · " : ""}{location ? `At ${location}` : ""}
+                  </div>
+                )}
+
                 {(uploads.length > 0 || files.length > 0) && (
                   <div className="mt-3">
                     {uploads.length > 1 ? (
@@ -614,6 +809,21 @@ const [feeling, setFeeling] = useState("");
 
                 <div className="flex items-center justify-between mt-3 pt-3 border-t">
                   <div className="flex items-center gap-2">
+                    {/* New: One button to add photo/video */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        const el = document.getElementById("create-post-file-input");
+                        (el as HTMLInputElement)?.click();
+                      }}
+                      title="Add photo or video"
+                      className="gap-2"
+                    >
+                      <Image className="w-4 h-4" />
+                      Add Media
+                    </Button>
+
                     <Button
                       type="button"
                       variant="outline"
