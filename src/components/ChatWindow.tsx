@@ -111,7 +111,10 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const ENABLE_MESSAGE_SOUND = false;
+
   const playNotify = async () => {
+    if (!ENABLE_MESSAGE_SOUND) return;
     if (notifyMuted) return; // respect mute
     try {
       const Ctor = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -493,17 +496,6 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Mute/unmute notifications */}
-            <Button
-              variant="ghost"
-              size="sm"
-              title={notifyMuted ? "Unmute notifications" : "Mute notifications"}
-              aria-label={notifyMuted ? "Unmute notifications" : "Mute notifications"}
-              onClick={() => setNotifyMuted((v) => !v)}
-            >
-              {notifyMuted ? <BellOff className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-            </Button>
-
             <Button variant="ghost" size="sm" title="Voice call" onClick={() => placeCall("voice")}>
               <Phone className="w-4 h-4" />
             </Button>
