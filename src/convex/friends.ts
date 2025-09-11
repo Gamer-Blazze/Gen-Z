@@ -427,3 +427,69 @@ export const getSuggestions = query({
     return filtered;
   },
 });
+
+export const cancelOutgoingRequest = mutation({
+  args: {
+    otherUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const me = await getCurrentUser(ctx);
+    if (!me) throw new Error("Not authenticated");
+
+    // Find the outgoing pending friend request (me -> other)
+    const req = await ctx.db
+      .query("friend_requests")
+      .withIndex("by_from_and_to", (q) => q.eq("from", me._id).eq("to", args.otherUserId))
+      .first();
+
+    if (!req || req.status !== "pending") {
+      throw new Error("No pending outgoing request to cancel");
+    }
+
+    // Mark the request as rejected
+    await ctx.db.patch(req._id, { status: "rejected" });
+
+    // If a mirrored pending friendship exists, remove it
+    const maybeFriendship = await ctx.db
+      .query("friendships")
+      .withIndex("by_user1_and_user2", (q) => q.eq("userId1", me._id).eq("userId2", args.otherUserId))
+      .first();
+
+    if (maybeFriendship && maybeFriendship.status === "pending") {
+      await ctx.db.delete(maybeFriendship._id);
+    }
+
+    return true;
+  },
+});
+
+export const unfriend = mutation({
+  args: {
+    otherUserId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const me = await getCurrentUser(ctx);
+    if (!me) throw new Error("Not authenticated");
+
+    // Check both directions for accepted friendship and delete
+    const dir1 = await ctx.db
+      .query("friendships")
+      .withIndex("by_user1_and_user2", (q) => q.eq("userId1", me._id).eq("userId2", args.otherUserId))
+      .first();
+
+    if (dir1 && dir1.status === "accepted") {
+      await ctx.db.delete(dir1._id);
+    }
+
+    const dir2 = await ctx.db
+      .query("friendships")
+      .withIndex("by_user2_and_user1", (q) => q.eq("userId2", me._id).eq("userId1", args.otherUserId))
+      .first();
+
+    if (dir2 && dir2.status === "accepted") {
+      await ctx.db.delete(dir2._id);
+    }
+
+    return true;
+  },
+});

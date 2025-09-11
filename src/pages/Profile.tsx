@@ -15,7 +15,7 @@ import { useLocation } from "react-router";
 import { Id } from "@/convex/_generated/dataModel";
 import { Sidebar } from "@/components/Sidebar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { Menu, LogOut } from "lucide-react";
+import { Menu, LogOut, ChevronDown } from "lucide-react";
 import { useParams } from "react-router";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,6 +23,7 @@ import { DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useDevice } from "@/hooks/use-device";
 import { useMemo } from "react";
 import { MobileTopNav } from "@/components/MobileTopNav";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 export default function Profile() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
@@ -66,6 +67,8 @@ export default function Profile() {
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
   const sendFriend = useMutation(api.friends.sendFriendRequest);
+  const cancelOutgoing = useMutation(api.friends.cancelOutgoingRequest);
+  const doUnfriend = useMutation(api.friends.unfriend);
   const relationshipStatus = useQuery(
     api.friends.getRelationshipStatus,
     !isOwnProfile && targetUser ? { otherUserId: targetUser._id } : "skip"
@@ -397,13 +400,63 @@ export default function Profile() {
                   <>
                     {/* Dynamic Friend Button based on relationship status */}
                     {relationshipStatus === "friends" && (
-                      <Button size="sm" variant="secondary" disabled>
-                        Friend
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        {/* Friends button with dropdown */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button size="sm" variant="secondary" className="inline-flex items-center gap-1.5">
+                              Friends
+                              <ChevronDown className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={async () => {
+                                try {
+                                  await doUnfriend({ otherUserId: targetUser._id });
+                                  toast.success("Unfriended");
+                                } catch (e: any) {
+                                  toast.error(e?.message || "Failed to unfriend");
+                                }
+                              }}
+                            >
+                              Unfriend
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+
+                        {/* Standalone Unfriend button for easy access */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            try {
+                              await doUnfriend({ otherUserId: targetUser._id });
+                              toast.success("Unfriended");
+                            } catch (e: any) {
+                              toast.error(e?.message || "Failed to unfriend");
+                            }
+                          }}
+                        >
+                          Unfriend
+                        </Button>
+                      </div>
                     )}
                     {relationshipStatus === "outgoing_request" && (
-                      <Button size="sm" variant="secondary" disabled>
-                        Request Sent
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            await cancelOutgoing({ otherUserId: targetUser._id });
+                            toast.success("Friend request canceled");
+                          } catch (e: any) {
+                            toast.error(e?.message || "Failed to cancel request");
+                          }
+                        }}
+                      >
+                        Cancel Request
                       </Button>
                     )}
                     {relationshipStatus === "incoming_request" && (
