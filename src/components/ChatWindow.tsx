@@ -468,18 +468,37 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                       )}
                     </div>
                   ) : msg.messageType === "audio" && msg.audioUrl ? (
-                    <div className={`px-3 py-2 rounded-2xl border ${isOwn ? "bg-primary/10" : "bg-muted"} max-w-xs`}>
-                      <audio
-                        src={msg.audioUrl}
-                        controls
-                        preload="metadata"
-                        onPlay={onAudioPlay}
-                        className="w-56"
-                      />
+                    // Messenger-like voice message bubble
+                    <div className="group max-w-[280px]">
+                      <div
+                        className={`flex items-center gap-3 px-3 py-2 rounded-2xl shadow-sm border ${
+                          isOwn
+                            ? "bg-primary text-primary-foreground border-primary/20"
+                            : "bg-muted text-foreground border-muted/50"
+                        }`}
+                      >
+                        {/* Circular mic badge to the left, similar to Messenger */}
+                        <div
+                          className={`size-8 rounded-full flex items-center justify-center ${
+                            isOwn ? "bg-white/20 text-primary-foreground" : "bg-background text-muted-foreground"
+                          }`}
+                          title="Voice message"
+                        >
+                          <Mic className="w-4 h-4" />
+                        </div>
+
+                        {/* Inline player kept simple and compact */}
+                        <audio
+                          src={msg.audioUrl}
+                          controls
+                          preload="metadata"
+                          onPlay={onAudioPlay}
+                          className="w-40"
+                        />
+                      </div>
                       {typeof msg.audioDuration === "number" && msg.audioDuration > 0 && (
-                        <div className="text-[11px] text-muted-foreground mt-1">
-                          {Math.floor(msg.audioDuration / 60)}:
-                          {(msg.audioDuration % 60).toString().padStart(2, "0")}
+                        <div className={`mt-1 text-[11px] ${isOwn ? "text-primary/80 text-right" : "text-muted-foreground text-left"}`}>
+                          {Math.floor(msg.audioDuration / 60)}:{(msg.audioDuration % 60).toString().padStart(2, "0")}
                         </div>
                       )}
                     </div>
