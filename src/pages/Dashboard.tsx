@@ -147,8 +147,6 @@ export default function Dashboard() {
     >
       {/* Global mobile nav bar removed on Dashboard */}
       {/* Add top navigation bar */}
-      <TopNav />
-
       {/* Background notifications watcher */}
       <NotificationWatcher />
 
