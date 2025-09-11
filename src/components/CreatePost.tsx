@@ -173,7 +173,6 @@ export function CreatePost() {
 
     // prevent submitting while some uploads in progress
     if (uploads.some((u) => u.status === "uploading")) {
-      toast.error("Please wait for uploads to finish or cancel them");
       return;
     }
 
@@ -217,7 +216,6 @@ export function CreatePost() {
       return;
     }
     if (uploads.some((u) => u.status === "uploading")) {
-      toast.error("Please wait for uploads to finish or cancel them");
       return;
     }
     setIsSubmitting(true);
@@ -441,22 +439,14 @@ export function CreatePost() {
                               playsInline
                             />
                           )}
-                          {/* Progress bar and cancel */}
-                          <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white">
-                            <div className="h-1 bg-primary" style={{ width: `${Math.min(u?.progress ?? 0, 100)}%` }} />
-                            <div className="flex items-center justify-between px-2 py-1">
-                              <span className="text-[10px]">
-                                {u?.status === "uploading"
-                                  ? `Uploading ${u?.progress ?? 0}%`
-                                  : u?.status === "done"
-                                  ? "Uploaded"
-                                  : u?.status === "error"
-                                  ? "Error"
-                                  : u?.status === "canceled"
-                                  ? "Canceled"
-                                  : ""}
-                              </span>
-                              {u?.status === "uploading" && (
+                          {/* Progress overlay: show only while actively uploading */}
+                          {u?.status === "uploading" && (
+                            <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white">
+                              <div className="h-1 bg-primary" style={{ width: `${Math.min(u?.progress ?? 0, 100)}%` }} />
+                              <div className="flex items-center justify-between px-2 py-1">
+                                <span className="text-[10px]">
+                                  {`Uploading ${u?.progress ?? 0}%`}
+                                </span>
                                 <button
                                   type="button"
                                   className="text-xs underline"
@@ -464,9 +454,9 @@ export function CreatePost() {
                                 >
                                   Cancel
                                 </button>
-                              )}
+                              </div>
                             </div>
-                          </div>
+                          )}
                         </div>
                       );
                     })}
