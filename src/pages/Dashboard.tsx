@@ -20,6 +20,8 @@ import { Stories } from "@/components/Stories";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { UserPlus } from "lucide-react";
 import FriendsOnlineSidebar from "@/components/FriendsOnlineSidebar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Image as ImageIcon, Video as VideoIcon, Clapperboard } from "lucide-react";
 
 export default function Dashboard() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
@@ -149,6 +151,64 @@ export default function Dashboard() {
     return null;
   }
 
+  // New: Visual-only composer that matches the requested UI look
+  function ComposerMock() {
+    const { user } = useAuth();
+    const displayName = user?.name ? user.name.split(" ")[0] : "there";
+    return (
+      <Card className="rounded-2xl bg-card/80 backdrop-blur border-border/60 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={user?.image} />
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                {user?.name?.charAt(0) || "U"}
+              </AvatarFallback>
+            </Avatar>
+            <button
+              type="button"
+              className="flex-1 h-10 px-4 rounded-full bg-muted/70 text-left text-sm text-muted-foreground hover:bg-muted transition"
+              title="Share your thoughts…"
+              aria-label="Share your thoughts"
+            >
+              What's on your mind, {displayName}?
+            </button>
+          </div>
+
+          <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+            <button
+              type="button"
+              className="flex items-center justify-center gap-2 h-9 rounded-lg hover:bg-muted transition"
+              title="Live video"
+              aria-label="Live video"
+            >
+              <VideoIcon className="h-4 w-4 text-rose-500" />
+              Live video
+            </button>
+            <button
+              type="button"
+              className="flex items-center justify-center gap-2 h-9 rounded-lg hover:bg-muted transition"
+              title="Photo/video"
+              aria-label="Photo or video"
+            >
+              <ImageIcon className="h-4 w-4 text-emerald-500" />
+              Photo/video
+            </button>
+            <button
+              type="button"
+              className="flex items-center justify-center gap-2 h-9 rounded-lg hover:bg-muted transition"
+              title="Reel"
+              aria-label="Reel"
+            >
+              <Clapperboard className="h-4 w-4 text-pink-500" />
+              Reel
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -270,15 +330,19 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content */}
-        <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6">
-          {/* Stories row */}
-          <Stories />
+        <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 space-y-4">
+          {/* New: Visual composer to match requested UI */}
+          <ComposerMock />
+          {/* Stories row in a subtle card background to match reference */}
+          <div className="rounded-2xl bg-card/60 border border-border/60 p-3">
+            <Stories />
+          </div>
+          {/* Feed remains real-time and functional */}
           <Feed />
         </main>
 
         {/* Right Sidebar (only on xl and up) */}
         <div className="hidden xl:block">
-          {/* Stack friend requests and contacts similar to Facebook */}
           <div className="w-80 space-y-4 pr-2">
             <FriendsSidebar />
             <FriendsOnlineSidebar />
