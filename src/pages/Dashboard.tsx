@@ -13,9 +13,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
-import { MobileTopNav } from "@/components/MobileTopNav";
-
-/* removed MobileTopNav on dashboard */
 
 export default function Dashboard() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -152,7 +149,7 @@ export default function Dashboard() {
       {/* <NotificationWatcher /> */}
 
       {/* Add old mobile navigation bar under TopNav (mobile only) */}
-      <MobileTopNav />
+      {/* <MobileTopNav /> */}
 
       {/* Removed Profile Quick Switch Bar */}
       <div className="flex flex-col lg:flex-row">
