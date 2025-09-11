@@ -139,6 +139,7 @@ createRoot(document.getElementById("root")!).render(
                 </ProtectedRoute>
               }
             />
+            <Route path="/settings" element={<Redirect to="/dashboard" />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
