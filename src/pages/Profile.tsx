@@ -239,11 +239,15 @@ export default function Profile() {
                     variant="secondary"
                     onClick={() => coverInputRef.current?.click()}
                     disabled={uploadingCover}
+                    className="text-xs sm:text-sm"
                   >
                     {uploadingCover ? (
                       <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
                     ) : (
-                      "Change Cover"
+                      <>
+                        <span className="sm:inline hidden">Change Cover</span>
+                        <span className="sm:hidden inline">Change</span>
+                      </>
                     )}
                   </Button>
                 </div>
@@ -254,7 +258,7 @@ export default function Profile() {
           {/* Constrain content width for all devices and adjust paddings */}
           <main className="w-full max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-6">
             {/* Header card */}
-            <div className="flex items-start gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
               {isOwnProfile && (
                 <input
                   ref={fileInputRef}
@@ -267,7 +271,7 @@ export default function Profile() {
               <Dialog>
                 <DialogTrigger asChild>
                   {/* Make avatar size & overlap responsive for different devices */}
-                  <button aria-label="View profile picture" className="-mt-12 sm:-mt-14 md:-mt-16 lg:-mt-20 shrink-0">
+                  <button aria-label="View profile picture" className="-mt-12 sm:-mt-14 md:-mt-16 lg:-mt-20 shrink-0 self-start">
                     <Avatar className="w-20 h-20 sm:w-22 sm:h-22 md:w-24 md:h-24 lg:w-28 lg:h-28 ring-4 ring-background rounded-full">
                       <AvatarImage src={targetUser.image} />
                       <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
