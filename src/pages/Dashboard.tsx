@@ -9,7 +9,6 @@ import { FriendsSidebar } from "@/components/FriendsSidebar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
-import { TopNav } from "@/components/TopNav";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -151,8 +150,8 @@ export default function Dashboard() {
       <NotificationWatcher />
 
       {/* Insert Top Navigation */}
-      <TopNav />
-
+      {/* TopNav component removed from layout */}
+      
       {/* Removed Profile Quick Switch Bar */}
       <div className="flex flex-col lg:flex-row">
         {/* Desktop Sidebar */}
