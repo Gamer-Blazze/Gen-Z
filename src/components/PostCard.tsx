@@ -13,6 +13,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Id } from "@/convex/_generated/dataModel";
 import { useNavigate } from "react-router";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useEffect } from "react";
 
 function linkify(text: string) {
   // very lightweight linkifier for URLs, #hashtags, and @mentions
@@ -71,6 +72,25 @@ export function PostCard({ post }: PostCardProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerSrc, setViewerSrc] = useState<string | null>(null);
   const [viewerKind, setViewerKind] = useState<"image" | "video">("image");
+
+  // ADD: measure media loading time
+  const [mediaLoadStart, setMediaLoadStart] = useState<number | null>(null);
+  const [mediaLoadMs, setMediaLoadMs] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Start timing if the post has media and timing hasn't started yet
+    const hasMedia = (post.images?.length ?? 0) > 0 || (post.videos?.length ?? 0) > 0;
+    if (hasMedia && mediaLoadStart === null) {
+      setMediaLoadStart(performance.now());
+    }
+  }, [post.images, post.videos, mediaLoadStart]);
+
+  const markMediaLoaded = () => {
+    if (mediaLoadMs !== null) return; // already recorded
+    const now = performance.now();
+    const start = mediaLoadStart ?? now;
+    setMediaLoadMs(Math.max(0, now - start));
+  };
 
   const openViewer = (src: string, kind: "image" | "video") => {
     setViewerSrc(src);
@@ -136,6 +156,11 @@ export function PostCard({ post }: PostCardProps) {
             </p>
             <p className="text-sm text-muted-foreground">
               {formatDistanceToNow(new Date(post._creationTime), { addSuffix: true })}
+              {mediaLoadMs !== null && (
+                <span className="ml-2">
+                  • media loaded in {(mediaLoadMs / 1000).toFixed(1)}s
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -147,11 +172,13 @@ export function PostCard({ post }: PostCardProps) {
         </p>
 
         {(post.images?.length ?? 0) > 0 && (
-          <div className={`mb-4 rounded-lg overflow-hidden grid gap-2 ${
-            (post.images?.length ?? 0) === 1 ? "grid-cols-1" :
-            (post.images?.length ?? 0) === 2 ? "grid-cols-2" :
-            "grid-cols-2"
-          }`}>
+          <div
+            className={`mb-4 rounded-lg overflow-hidden grid gap-2 ${
+              (post.images?.length ?? 0) === 1 ? "grid-cols-1" :
+              (post.images?.length ?? 0) === 2 ? "grid-cols-2" :
+              "grid-cols-2"
+            }`}
+          >
             {(post.images ?? []).slice(0, 4).map((image, index) => (
               <img
                 key={index}
@@ -160,6 +187,7 @@ export function PostCard({ post }: PostCardProps) {
                 className={`w-full h-auto ${((post.images?.length ?? 0) > 1 ? "aspect-video object-cover" : "object-contain")} rounded-xl bg-black/5 cursor-zoom-in`}
                 loading="lazy"
                 decoding="async"
+                onLoad={markMediaLoaded}
                 onClick={() => openViewer(image, "image")}
               />
             ))}
@@ -176,8 +204,8 @@ export function PostCard({ post }: PostCardProps) {
                 className="w-full h-auto rounded-md bg-black cursor-zoom-in"
                 preload="metadata"
                 playsInline
+                onLoadedData={markMediaLoaded}
                 onClick={(e) => {
-                  // Prevent immediate play/pause toggling when opening viewer
                   e.preventDefault();
                   e.stopPropagation();
                   openViewer(video, "video");
