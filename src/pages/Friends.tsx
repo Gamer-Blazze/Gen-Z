@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { Sidebar } from "@/components/Sidebar";
 import { ConversationsList } from "@/components/ConversationsList";
@@ -12,6 +12,14 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { useLocation } from "react-router";
 import { MobileTopNav } from "@/components/MobileTopNav";
+/* removed duplicate imports */
+import { api } from "@/convex/_generated/api";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MessageCircle, UserPlus, X } from "lucide-react";
+import { toast } from "sonner";
 
 export default function Friends() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -21,102 +29,222 @@ export default function Friends() {
 
   const [showMobileNav, setShowMobileNav] = useState(false);
 
+  const [tab, setTab] = useState<"friends" | "suggestions">("friends");
+  const [search, setSearch] = useState("");
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+
+  // Data
+  const friends = useQuery(api.friends.getUserFriends, {});
+  const suggestions = useQuery(api.friends.getSuggestions, { limit: 12 });
+  const searchResults = useQuery(
+    api.friends.searchUsers,
+    search.trim().length >= 2 ? { query: search.trim() } : "skip"
+  );
+  const sendFriend = useMutation(api.friends.sendFriendRequest);
+
+  const onHide = (id: string) => {
+    setHidden((prev) => new Set([...prev, id]));
+  };
+
+  const visibleSuggestions = useMemo(() => {
+    const list = search.trim().length >= 2 ? (searchResults || []) : (suggestions || []);
+    return list.filter((u) => !hidden.has(u._id as unknown as string));
+  }, [search, searchResults, suggestions, hidden]);
+
+  const handleAddFriend = async (id: string) => {
+    try {
+      await sendFriend({ userId: id as any });
+      toast.success("Friend request sent");
+      onHide(id);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to send request");
+    }
+  };
+
+  // Mock mutual friends count (stable-ish hash)
+  const mutualCount = (id: string) => {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    return (h % 4) + 1; // 1..4
+  };
+
+  // Skeleton card
+  const SuggestionSkeleton = () => (
+    <div className="rounded-lg border bg-card p-4">
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-12 w-12 rounded-full" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-3 w-1/3" />
+        </div>
+      </div>
+      <div className="mt-3 flex gap-2">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-20" />
+      </div>
+    </div>
+  );
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-background">
-      {/* Mobile/Tablet sheet container for Sidebar */}
-      <Sheet open={showMobileNav} onOpenChange={setShowMobileNav}>
-        <SheetContent side="left" className="p-0 w-[85vw] sm:w-[380px]">
-          <Sidebar />
-        </SheetContent>
-      </Sheet>
-
-      <div className="flex">
-        {/* Left app navigation (desktop) */}
-        <aside className="hidden lg:block w-64 border-r bg-card/50">
-          <Sidebar />
-        </aside>
-
-        <main className="flex-1 mx-auto px-0 lg:px-4 py-0 lg:py-6 h-screen lg:h-[calc(100vh)]" key={selectedConversationId ? "chat" : "list"}>
-          {/* Mobile & Tablet Top Navigation (Facebook-like) */}
-          <MobileTopNav />
-
-          {/* Top action bar with hamburger + Add Friend + User ID search (moved here) */}
-          <div className="px-2 py-2 lg:px-0 lg:py-0">
-            <div className="flex items-center justify-between gap-2">
-              <button
-                className="md:hidden inline-flex items-center justify-center h-10 w-10 rounded-md hover:bg-muted"
-                aria-label="Open navigation"
-                onClick={() => setShowMobileNav(true)}
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-
-              <div className="ml-auto flex items-center gap-2 w-full max-w-[720px]">
-                {/* Moved friend search to sidebar (desktop & mobile sections) */}
-                {/* User ID quick search moved from top bar to sidebar */}
-                <div className="hidden" />
-              </div>
-            </div>
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6">
+        {/* Top bar */}
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-bold">Friends</h1>
+          <div className="w-full sm:w-80">
+            <Input
+              placeholder="Search for people"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
+        </div>
 
-          {/* Mobile view: show either list or chat with a top bar */}
-          <div className="lg:hidden h-full flex flex-col">
-            {/* Top bar when in chat view */}
-            {selectedConversationId && (
-              <div className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
-                <div className="h-14 flex items-center px-2">
-                  <Button variant="ghost" size="icon" onClick={() => setSelectedConversationId(null)}>
-                    <ArrowLeft className="w-5 h-5" />
-                  </Button>
-                  <div className="ml-2 font-semibold">Chat</div>
+        {/* Tabs */}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
+          <TabsList className="bg-muted/50">
+            <TabsTrigger value="friends">Your Friends</TabsTrigger>
+            <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
+          </TabsList>
+
+          {/* Your Friends */}
+          <TabsContent value="friends" className="mt-4">
+            <div className="space-y-3">
+              {!friends ? (
+                // Loading skeletons for friend rows
+                Array.from({ length: 5 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-lg border bg-card p-3">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <Skeleton className="h-9 w-24" />
+                  </div>
+                ))
+              ) : friends.length === 0 ? (
+                <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
+                  You don't have any friends yet.
                 </div>
+              ) : (
+                friends.map((friend) => {
+                  if (!friend) return null;
+                  return (
+                    <div
+                      key={friend._id}
+                      className="flex items-center gap-3 rounded-lg border bg-card p-3"
+                    >
+                      <button
+                        className="shrink-0"
+                        onClick={() => navigate(`/profile?id=${friend._id}`)}
+                        aria-label="View profile"
+                      >
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={friend.image} />
+                          <AvatarFallback className="bg-muted">
+                            {friend.name?.charAt(0) || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="truncate font-medium hover:underline cursor-pointer"
+                          onClick={() => navigate(`/profile?id=${friend._id}`)}
+                        >
+                          {friend.name || "Anonymous"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">Friend</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => navigate(`/messages?user=${friend._id}`)}
+                        className="gap-2"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        Message
+                      </Button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Suggestions */}
+          <TabsContent value="suggestions" className="mt-4">
+            {!suggestions && search.trim().length < 2 ? (
+              // Grid skeleton while initial suggestions load
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <SuggestionSkeleton key={i} />
+                ))}
+              </div>
+            ) : visibleSuggestions.length === 0 ? (
+              <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
+                {search.trim().length >= 2
+                  ? "No people found."
+                  : "No suggestions right now. Try searching for people."}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {visibleSuggestions.map((u) => {
+                  const id = u._id as unknown as string;
+                  return (
+                    <div key={id} className="rounded-lg border bg-card p-4">
+                      <div className="flex items-center gap-3">
+                        <button
+                          className="shrink-0"
+                          onClick={() => navigate(`/profile?id=${id}`)}
+                          aria-label="View profile"
+                        >
+                          <Avatar className="h-12 w-12">
+                            <AvatarImage src={u.image} />
+                            <AvatarFallback className="bg-muted">
+                              {u.name?.charAt(0) || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                        </button>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className="truncate font-medium hover:underline cursor-pointer"
+                            onClick={() => navigate(`/profile?id=${id}`)}
+                          >
+                            {u.name || "Anonymous"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {mutualCount(id)} mutual friends
+                          </p>
+                        </div>
+                        <button
+                          aria-label="Hide suggestion"
+                          className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+                          onClick={() => onHide(id)}
+                          title="Hide"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          className="flex-1 bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                          onClick={() => handleAddFriend(id)}
+                        >
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          Add Friend
+                        </Button>
+                        <Button variant="outline" onClick={() => onHide(id)}>
+                          Hide
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
-
-            <div className="flex-1 overflow-hidden">
-              {!selectedConversationId ? (
-                <div className="h-full" key="mobile-list">
-                  <ConversationsList
-                    selectedConversationId={selectedConversationId}
-                    onSelectConversation={(id) => setSelectedConversationId(id)}
-                  />
-                </div>
-              ) : (
-                <div className="h-[calc(100vh-56px)]" key="mobile-chat">
-                  <ChatWindow conversationId={selectedConversationId} />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Desktop view: split layout */}
-          <div className="hidden lg:flex h-[calc(100vh)] gap-0 lg:gap-4">
-            {/* Conversations list pane */}
-            <aside className="w-[360px] border-r">
-              <ConversationsList
-                selectedConversationId={selectedConversationId}
-                onSelectConversation={(id) => setSelectedConversationId(id)}
-              />
-            </aside>
-
-            {/* Chat pane */}
-            <section className="flex-1 min-w-0">
-              {selectedConversationId ? (
-                <div className="h-full" key="desktop-chat">
-                  <ChatWindow conversationId={selectedConversationId} />
-                </div>
-              ) : (
-                <div className="h-full flex items-center justify-center text-muted-foreground px-4" key="desktop-empty">
-                  <div className="text-center">
-                    <h3 className="font-semibold mb-2">Select a conversation</h3>
-                    <p className="text-sm">Choose a chat from the left to start messaging</p>
-                  </div>
-                </div>
-              )}
-            </section>
-          </div>
-        </main>
+          </TabsContent>
+        </Tabs>
       </div>
-    </motion.div>
+    </div>
   );
 }

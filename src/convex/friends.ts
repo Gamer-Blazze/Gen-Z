@@ -383,3 +383,47 @@ export const searchUsers = query({
     return dedup;
   },
 });
+
+export const getSuggestions = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const me = await getCurrentUser(ctx);
+    if (!me) return [];
+
+    // Collect friend ids (accepted)
+    const asUser1 = await ctx.db
+      .query("friendships")
+      .withIndex("by_user1_and_status", (q) =>
+        q.eq("userId1", me._id).eq("status", "accepted")
+      )
+      .collect();
+
+    const asUser2 = await ctx.db
+      .query("friendships")
+      .withIndex("by_user2_and_status", (q) =>
+        q.eq("userId2", me._id).eq("status", "accepted")
+      )
+      .collect();
+
+    const friendIds = new Set<string>(
+      [...asUser1, ...asUser2].map((f) =>
+        (f.userId1 === me._id ? f.userId2 : f.userId1) as unknown as string
+      )
+    );
+
+    // Pull a batch of users by a known index and filter locally (mocked suggestions)
+    // Note: Using by_name as a stable index; adjust if needed.
+    const batch = await ctx.db
+      .query("users")
+      .withIndex("by_name", (q) => q.gt("name", ""))
+      .take(100);
+
+    const filtered = batch
+      .filter((u) => u._id !== me._id && !friendIds.has(u._id as unknown as string))
+      .slice(0, Math.max(1, Math.min(args.limit ?? 12, 50)));
+
+    return filtered;
+  },
+});
