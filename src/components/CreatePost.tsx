@@ -72,14 +72,17 @@ const [feeling, setFeeling] = useState("");
 
   useEffect(() => {
     // If any upload shows 100% but still marked as "uploading", mark it "done"
-    setUploads((prev) =>
-      prev.map((u) => {
-        if (u.status === "uploading" && u.progress >= 100) {
-          return { ...u, status: "done" };
-        }
-        return u;
-      }),
-    );
+    let changed = false;
+    const next: UploadState[] = uploads.map((u) => {
+      if (u.status === "uploading" && u.progress >= 100) {
+        changed = true;
+        return { ...u, status: "done" as const };
+      }
+      return u;
+    });
+    if (changed) {
+      setUploads(next);
+    }
   }, [uploads]);
 
   useEffect(() => {
