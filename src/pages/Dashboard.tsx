@@ -150,6 +150,9 @@ export default function Dashboard() {
       {/* Background notifications watcher */}
       <NotificationWatcher />
 
+      {/* Insert Top Navigation */}
+      <TopNav />
+
       {/* Removed Profile Quick Switch Bar */}
       <div className="flex flex-col lg:flex-row">
         {/* Desktop Sidebar */}
