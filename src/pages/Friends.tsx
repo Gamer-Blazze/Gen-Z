@@ -53,28 +53,28 @@ export default function Friends() {
 
   const visibleSuggestions = useMemo(() => {
     const list = search.trim().length >= 2 ? (searchResults || []) : (suggestions || []);
-    return list.filter((u) => !hidden.has(u._id as unknown as string));
+    return list.filter((u: any) => !hidden.has(u._id as unknown as string));
   }, [search, searchResults, suggestions, hidden]);
 
   const filteredFriends = useMemo(() => {
     const list = friends || [];
     const q = friendsSearch.trim().toLowerCase();
     if (!q) return list;
-    return list.filter((f) => (f?.name || "").toLowerCase().includes(q));
+    return list.filter((f: any) => (f?.name || "").toLowerCase().includes(q));
   }, [friends, friendsSearch]);
 
   const filteredRequests = useMemo(() => {
     const list = friendRequests || [];
     const q = requestSearch.trim().toLowerCase();
     if (!q) return list;
-    return list.filter((r) => (r.requester?.name || "anonymous").toLowerCase().includes(q));
+    return list.filter((r: any) => (r.requester?.name || "anonymous").toLowerCase().includes(q));
   }, [friendRequests, requestSearch]);
 
   const requestsForSuggestions = useMemo(() => {
     const list = friendRequests || [];
     const q = search.trim().toLowerCase();
     if (!q) return list;
-    return list.filter((r) => (r.requester?.name || "anonymous").toLowerCase().includes(q));
+    return list.filter((r: any) => (r.requester?.name || "anonymous").toLowerCase().includes(q));
   }, [friendRequests, search]);
 
   const handleAddFriend = async (id: string) => {
@@ -197,7 +197,7 @@ export default function Friends() {
                       No incoming requests.
                     </div>
                   ) : (
-                    filteredRequests.map((req) => {
+                    filteredRequests.map((req: any) => {
                       const requester = req.requester;
                       if (!requester) return null;
                       const id = requester._id as unknown as string;
@@ -305,7 +305,7 @@ export default function Friends() {
                         : "You don't have any friends yet."}
                     </div>
                   ) : (
-                    filteredFriends.map((friend) => {
+                    filteredFriends.map((friend: any) => {
                       if (!friend) return null;
                       return (
                         <div
@@ -381,7 +381,7 @@ export default function Friends() {
                       <div>
                         <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Friend Requests</h3>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          {requestsForSuggestions.map((req) => {
+                          {requestsForSuggestions.map((req: any) => {
                             const requester = req.requester;
                             if (!requester) return null;
                             const id = requester._id as unknown as string;
@@ -454,7 +454,7 @@ export default function Friends() {
                       <div>
                         <h3 className="mb-2 text-sm font-semibold text-muted-foreground">People You May Know</h3>
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          {visibleSuggestions.map((u) => {
+                          {visibleSuggestions.map((u: any) => {
                             const id = u._id as unknown as string;
                             return (
                               <div key={id} className="rounded-lg border bg-card p-4">

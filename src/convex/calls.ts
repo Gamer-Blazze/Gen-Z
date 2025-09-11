@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getCurrentUser } from "./users";
 import { Id } from "./_generated/dataModel";
+import { withErrorLogging } from "./utils/errors";
 
 // Start a call (voice or video) between two participants in a direct conversation.
 export const startCall = mutation({
@@ -9,7 +10,7 @@ export const startCall = mutation({
     conversationId: v.id("conversations"),
     type: v.union(v.literal("voice"), v.literal("video")),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("calls.startCall", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
@@ -22,14 +23,14 @@ export const startCall = mutation({
     }
 
     // Determine callee (other participant)
-    const others = conversation.participants.filter((u) => u !== user._id);
+    const others = conversation.participants.filter((u: any) => u !== user._id);
     if (others.length !== 1) throw new Error("Call requires exactly two participants");
     const calleeId = others[0];
 
     // End any existing active calls in this conversation for safety
     const existing = await ctx.db
       .query("calls")
-      .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId))
+      .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
       .collect();
     for (const c of existing) {
       if (c.status !== "ended") {
@@ -47,7 +48,7 @@ export const startCall = mutation({
     });
 
     return callId;
-  },
+  }),
 });
 
 // Callee accepts the call
@@ -116,7 +117,7 @@ export const acceptCall = mutation({
 // Either party ends the call
 export const endCall = mutation({
   args: { callId: v.id("calls") },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("calls.endCall", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
@@ -141,19 +142,19 @@ export const endCall = mutation({
       });
     }
     return true;
-  },
+  }),
 });
 
 // Active call for current user in a conversation (to show incoming/ongoing call)
 export const getActiveCallForUser = query({
   args: { conversationId: v.id("conversations") },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("calls.getActiveCallForUser", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) return null;
 
     const call = await ctx.db
       .query("calls")
-      .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId))
+      .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
       .order("desc")
       .first();
     if (!call) return null;
@@ -166,7 +167,7 @@ export const getActiveCallForUser = query({
       return call;
     }
     return null;
-  },
+  }),
 });
 
 // Send a signaling message to the other user
@@ -183,7 +184,7 @@ export const sendSignal = mutation({
     ),
     payload: v.string(), // JSON stringified
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("calls.sendSignal", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
@@ -204,24 +205,23 @@ export const sendSignal = mutation({
     });
 
     return true;
-  },
+  }),
 });
 
 // Get signals for current user for a call (auto-updates via Convex subscription)
 export const getSignalsForUser = query({
   args: { callId: v.id("calls") },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("calls.getSignalsForUser", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) return [];
 
     const signals = await ctx.db
       .query("call_signals")
-      .withIndex("by_call_and_to", (q) =>
+      .withIndex("by_call_and_to", (q: any) =>
         q.eq("callId", args.callId).eq("toUserId", user._id)
       )
       .order("desc")
       .take(100);
-    // Return newest first is fine; client can process accordingly
     return signals;
-  },
+  }),
 });

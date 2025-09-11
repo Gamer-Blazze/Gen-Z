@@ -44,7 +44,7 @@ export function Feed() {
 
   return (
     <div className="space-y-6">
-      {posts.map((post, index) => (
+      {posts.map((post: any, index: number) => (
         <motion.div
           key={post._id}
           initial={{ y: 50, opacity: 0 }}

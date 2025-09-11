@@ -42,7 +42,7 @@ export function FriendsSidebar() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {friendRequests.slice(0, 3).map((request) => (
+            {friendRequests.slice(0, 3).map((request: any) => (
               <div key={request._id} className="flex items-center gap-3">
                 <button
                   onClick={() => request.requester?._id && navigate(`/profile?id=${request.requester._id}`)}
@@ -103,7 +103,7 @@ export function FriendsSidebar() {
         </CardHeader>
         <CardContent className="space-y-3">
           {friends && friends.length > 0 ? (
-            friends.slice(0, 8).map((friend) => {
+            friends.slice(0, 8).map((friend: any) => {
               if (!friend) return null;
               return (
                 <div
@@ -155,7 +155,7 @@ export function FriendsSidebar() {
             <>
               {searchResults && searchResults.length > 0 ? (
                 <div className="space-y-3">
-                  {searchResults.map((u) => (
+                  {searchResults.map((u: any) => (
                     <div key={u._id} className="flex items-center gap-3">
                       <button
                         onClick={() => navigate(`/profile?id=${u._id}`)}

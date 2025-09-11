@@ -420,7 +420,7 @@ export function PostCard({ post }: PostCardProps) {
             {/* Comments List */}
             {comments && comments.length > 0 && (
               <div className="space-y-3">
-                {comments.map((comment) => (
+                {comments.map((comment: any) => (
                   <div key={comment._id} className="flex gap-2">
                     <Avatar className="w-8 h-8">
                       <AvatarImage src={comment.user?.image} />

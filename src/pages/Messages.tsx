@@ -34,7 +34,7 @@ export default function Messages() {
       : "bg-[radial-gradient(80rem_80rem_at_100%_0%,theme(colors.muted/15),transparent)]";
 
   const conversations = useQuery(api.messages.getUserConversations, {});
-  const conversation = conversations?.find((c) => c._id === selectedConversationId);
+  const conversation = conversations?.find((c: any) => c._id === selectedConversationId);
   const otherUser = conversation?.otherParticipants?.[0];
   const displayName =
     conversation?.isGroup

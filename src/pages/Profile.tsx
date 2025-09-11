@@ -635,7 +635,7 @@ function FriendsSection({
         ) : friends && friends.length > 0 ? (
           variant === "carousel" ? (
             <div className="flex gap-3 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none]">
-              {friends.slice(0, 12).map((f) =>
+              {friends.slice(0, 12).map((f: any) =>
                 f ? (
                   <button
                     key={f._id}
@@ -654,7 +654,7 @@ function FriendsSection({
             </div>
           ) : (
             <div className="grid grid-cols-3 gap-3">
-              {friends.slice(0, 9).map((f) =>
+              {friends.slice(0, 9).map((f: any) =>
                 f ? (
                   <button
                     key={f._id}

@@ -17,7 +17,7 @@ export default function ChatInfoSidebar({ conversationId }: ChatInfoSidebarProps
   const { user } = useAuth();
   const navigate = useNavigate();
   const conversations = useQuery(api.messages.getUserConversations, {});
-  const conversation = conversations?.find((c) => c._id === conversationId) || null;
+  const conversation = conversations?.find((c: any) => c._id === conversationId) || null;
   const otherUser = !conversation?.isGroup ? conversation?.otherParticipants?.[0] : null;
 
   if (!conversationId) {

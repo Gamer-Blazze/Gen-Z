@@ -92,7 +92,7 @@ export function ConversationsList({ selectedConversationId, onSelectConversation
                   {search.trim().length >= 2 ? (
                     <>
                       {searchResults && searchResults.length > 0 ? (
-                        searchResults.map((u) => (
+                        searchResults.map((u: any) => (
                           <button
                             key={u._id}
                             className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 text-left"

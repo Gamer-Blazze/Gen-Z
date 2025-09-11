@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getCurrentUser } from "./users";
+import { withErrorLogging } from "./utils/errors";
 
 // Create or get conversation between users
 export const getOrCreateConversation = mutation({
@@ -9,7 +10,7 @@ export const getOrCreateConversation = mutation({
     isGroup: v.optional(v.boolean()),
     groupName: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("messages.getOrCreateConversation", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
@@ -21,7 +22,7 @@ export const getOrCreateConversation = mutation({
       // Check if conversation already exists
       const existingConversation = await ctx.db
         .query("conversations")
-        .filter((q) => 
+        .filter((q: any) => 
           q.and(
             q.eq(q.field("isGroup"), false),
             q.eq(q.field("participants"), participants)
@@ -43,7 +44,7 @@ export const getOrCreateConversation = mutation({
     });
 
     return conversationId;
-  },
+  }),
 });
 
 // Send message
@@ -58,7 +59,7 @@ export const sendMessage = mutation({
     audioUrl: v.optional(v.string()),
     audioDuration: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("messages.sendMessage", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
@@ -98,7 +99,7 @@ export const sendMessage = mutation({
     });
 
     // Create notifications for other participants
-    const otherParticipants = conversation.participants.filter(id => id !== user._id);
+    const otherParticipants = conversation.participants.filter((id: any) => id !== user._id);
     for (const participantId of otherParticipants) {
       await ctx.db.insert("notifications", {
         userId: participantId,
@@ -111,13 +112,13 @@ export const sendMessage = mutation({
     }
 
     return messageId;
-  },
+  }),
 });
 
 // Get user's conversations
 export const getUserConversations = query({
   args: {},
-  handler: async (ctx) => {
+  handler: withErrorLogging("messages.getUserConversations", async (ctx) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       return [];
@@ -128,18 +129,18 @@ export const getUserConversations = query({
       .collect();
 
     // Filter conversations where user is a participant
-    const conversations = allConversations.filter(conv => 
+    const conversations = allConversations.filter((conv: any) => 
       conv.participants.includes(user._id)
     );
 
     const conversationsWithDetails = await Promise.all(
-      conversations.map(async (conversation) => {
+      conversations.map(async (conversation: any) => {
         let otherParticipants: any[] = [];
         
         if (!conversation.isGroup) {
-          const otherParticipantIds = conversation.participants.filter(id => id !== user._id);
+          const otherParticipantIds = conversation.participants.filter((id: any) => id !== user._id);
           otherParticipants = await Promise.all(
-            otherParticipantIds.map(id => ctx.db.get(id))
+            otherParticipantIds.map((id: any) => ctx.db.get(id))
           );
         }
 
@@ -161,7 +162,7 @@ export const getUserConversations = query({
     );
 
     return conversationsWithDetails;
-  },
+  }),
 });
 
 // Get messages for conversation
@@ -170,7 +171,7 @@ export const getConversationMessages = query({
     conversationId: v.id("conversations"),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("messages.getConversationMessages", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       return [];
@@ -183,12 +184,12 @@ export const getConversationMessages = query({
 
     const messages = await ctx.db
       .query("messages")
-      .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId))
+      .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
       .order("desc")
       .take(args.limit || 50);
 
     const messagesWithSenders = await Promise.all(
-      messages.map(async (message) => {
+      messages.map(async (message: any) => {
         const sender = await ctx.db.get(message.senderId);
         return {
           ...message,
@@ -198,7 +199,7 @@ export const getConversationMessages = query({
     );
 
     return messagesWithSenders.reverse();
-  },
+  }),
 });
 
 // Mark messages as read
@@ -206,7 +207,7 @@ export const markMessagesAsRead = mutation({
   args: {
     conversationId: v.id("conversations"),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("messages.markMessagesAsRead", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
@@ -214,11 +215,11 @@ export const markMessagesAsRead = mutation({
 
     const messages = await ctx.db
       .query("messages")
-      .withIndex("by_conversation", (q) => q.eq("conversationId", args.conversationId))
+      .withIndex("by_conversation", (q: any) => q.eq("conversationId", args.conversationId))
       .collect();
 
     for (const message of messages) {
-      const hasRead = message.readBy.some(read => read.userId === user._id);
+      const hasRead = message.readBy.some((read: any) => read.userId === user._id);
       if (!hasRead) {
         await ctx.db.patch(message._id, {
           readBy: [...message.readBy, {
@@ -228,5 +229,5 @@ export const markMessagesAsRead = mutation({
         });
       }
     }
-  },
+  }),
 });

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getCurrentUser } from "./users";
+import { withErrorLogging } from "./utils/errors";
 
 // Create a new post
 export const createPost = mutation({
@@ -18,7 +19,7 @@ export const createPost = mutation({
     location: v.optional(v.string()),
     feeling: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("posts.createPost", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
@@ -59,7 +60,7 @@ export const createPost = mutation({
     });
 
     return postId;
-  },
+  }),
 });
 
 // Get posts for feed
@@ -67,7 +68,7 @@ export const getFeedPosts = query({
   args: {
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("posts.getFeedPosts", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       return [];
@@ -75,25 +76,25 @@ export const getFeedPosts = query({
 
     const posts = await ctx.db
       .query("posts")
-      .filter((q) => q.eq(q.field("isPublic"), true))
-      .filter((q) => q.or(q.eq(q.field("isDraft"), undefined), q.eq(q.field("isDraft"), false)))
+      .filter((q: any) => q.eq(q.field("isPublic"), true))
+      .filter((q: any) => q.or(q.eq(q.field("isDraft"), undefined), q.eq(q.field("isDraft"), false)))
       .order("desc")
       .take(args.limit || 20);
 
     // Get user info for each post
     const postsWithUsers = await Promise.all(
-      posts.map(async (post) => {
+      posts.map(async (post: any) => {
         const postUser = await ctx.db.get(post.userId);
 
         const imageUrls = post.images
           ? (await Promise.all(
-              post.images.map(async (fid) => (await ctx.storage.getUrl(fid)) || "")
+              post.images.map(async (fid: any) => (await ctx.storage.getUrl(fid)) || "")
             )).filter(Boolean)
           : [];
 
         const videoUrls = post.videos
           ? (await Promise.all(
-              post.videos.map(async (fid) => (await ctx.storage.getUrl(fid)) || "")
+              post.videos.map(async (fid: any) => (await ctx.storage.getUrl(fid)) || "")
             )).filter(Boolean)
           : [];
 
@@ -107,7 +108,7 @@ export const getFeedPosts = query({
     );
 
     return postsWithUsers;
-  },
+  }),
 });
 
 // Get user's posts
@@ -119,23 +120,23 @@ export const getUserPosts = query({
   handler: async (ctx, args) => {
     const posts = await ctx.db
       .query("posts")
-      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .withIndex("by_user", (q: any) => q.eq("userId", args.userId))
       .order("desc")
       .take(args.limit || 20);
 
     const user = await ctx.db.get(args.userId);
 
     const mapped = await Promise.all(
-      posts.map(async (post) => {
+      posts.map(async (post: any) => {
         const imageUrls = post.images
           ? (await Promise.all(
-              post.images.map(async (fid) => (await ctx.storage.getUrl(fid)) || "")
+              post.images.map(async (fid: any) => (await ctx.storage.getUrl(fid)) || "")
             )).filter(Boolean)
           : [];
 
         const videoUrls = post.videos
           ? (await Promise.all(
-              post.videos.map(async (fid) => (await ctx.storage.getUrl(fid)) || "")
+              post.videos.map(async (fid: any) => (await ctx.storage.getUrl(fid)) || "")
             )).filter(Boolean)
           : [];
 
@@ -157,7 +158,7 @@ export const toggleLike = mutation({
   args: {
     postId: v.id("posts"),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("posts.toggleLike", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
@@ -173,7 +174,7 @@ export const toggleLike = mutation({
     if (hasLiked) {
       // Unlike
       await ctx.db.patch(args.postId, {
-        likes: post.likes.filter(id => id !== user._id),
+        likes: post.likes.filter((id: any) => id !== user._id),
         likesCount: post.likesCount - 1,
       });
     } else {
@@ -197,7 +198,7 @@ export const toggleLike = mutation({
     }
 
     return !hasLiked;
-  },
+  }),
 });
 
 // Add comment to post
@@ -207,7 +208,7 @@ export const addComment = mutation({
     content: v.string(),
     parentCommentId: v.optional(v.id("comments")),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("posts.addComment", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
@@ -246,7 +247,7 @@ export const addComment = mutation({
     }
 
     return commentId;
-  },
+  }),
 });
 
 // Get comments for a post
@@ -254,26 +255,26 @@ export const getPostComments = query({
   args: {
     postId: v.id("posts"),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("posts.getPostComments", async (ctx, args) => {
     const comments = await ctx.db
       .query("comments")
-      .withIndex("by_post", (q) => q.eq("postId", args.postId))
-      .filter((q) => q.eq(q.field("parentCommentId"), undefined))
+      .withIndex("by_post", (q: any) => q.eq("postId", args.postId))
+      .withIndex("by_parent", (q: any) => q.eq("parentCommentId", undefined))
       .order("desc")
       .collect();
 
     const commentsWithUsers = await Promise.all(
-      comments.map(async (comment) => {
+      comments.map(async (comment: any) => {
         const user = await ctx.db.get(comment.userId);
         
         // Get replies
         const replies = await ctx.db
           .query("comments")
-          .withIndex("by_parent", (q) => q.eq("parentCommentId", comment._id))
+          .withIndex("by_parent", (q: any) => q.eq("parentCommentId", comment._id))
           .collect();
 
         const repliesWithUsers = await Promise.all(
-          replies.map(async (reply) => {
+          replies.map(async (reply: any) => {
             const replyUser = await ctx.db.get(reply.userId);
             return {
               ...reply,
@@ -291,7 +292,7 @@ export const getPostComments = query({
     );
 
     return commentsWithUsers;
-  },
+  }),
 });
 
 // Add: delete a post (owner only) and its comments
@@ -378,7 +379,7 @@ export const getMyUnpublishedCount = query({
     const now = Date.now();
     const posts = await ctx.db
       .query("posts")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q: any) => q.eq("userId", user._id))
       .collect();
 
     const count = posts.reduce((acc, p) => (isUnpublished(p, now) ? acc + 1 : acc), 0);
@@ -400,7 +401,7 @@ export const publishAllMyUnpublished = mutation({
 
     const posts = await ctx.db
       .query("posts")
-      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .withIndex("by_user", (q: any) => q.eq("userId", user._id))
       .collect();
 
     for (const p of posts) {
