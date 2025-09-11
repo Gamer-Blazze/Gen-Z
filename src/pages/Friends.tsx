@@ -112,267 +112,277 @@ export default function Friends() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6">
-        {/* Top bar */}
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-bold">Friends</h1>
-          <div className="w-full sm:w-80">
-            <Input
-              placeholder="Search for people"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+      <div className="mx-auto max-w-7xl flex">
+        {/* Left Navigation Panel (Sidebar) */}
+        <div className="hidden md:block sticky top-0 h-screen">
+          <Sidebar />
         </div>
 
-        {/* Tabs */}
-        <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
-          <TabsList className="bg-muted/50">
-            <TabsTrigger
-              value="requests"
-              className="data-[state=active]:text-[#1877F2] data-[state=active]:border-b-2 data-[state=active]:border-[#1877F2] rounded-none"
-            >
-              Friend Requests
-            </TabsTrigger>
-            <TabsTrigger
-              value="friends"
-              className="data-[state=active]:text-[#1877F2] data-[state=active]:border-b-2 data-[state=active]:border-[#1877F2] rounded-none"
-            >
-              Your Friends
-            </TabsTrigger>
-            <TabsTrigger
-              value="suggestions"
-              className="data-[state=active]:text-[#1877F2] data-[state=active]:border-b-2 data-[state=active]:border-[#1877F2] rounded-none"
-            >
-              Suggestions
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Friend Requests */}
-          <TabsContent value="requests" className="mt-4">
-            <div className="space-y-3">
-              {!friendRequests ? (
-                Array.from({ length: 4 }).map((_, i) => <RequestSkeleton key={i} />)
-              ) : friendRequests.length === 0 ? (
-                <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
-                  No incoming requests.
-                </div>
-              ) : (
-                friendRequests.map((req) => {
-                  const requester = req.requester;
-                  if (!requester) return null;
-                  const id = requester._id as unknown as string;
-                  return (
-                    <div
-                      key={req._id}
-                      className="flex items-center gap-3 rounded-lg border bg-card p-3"
-                    >
-                      <button
-                        className="shrink-0"
-                        onClick={() => navigate(`/profile?id=${id}`)}
-                        aria-label="View profile"
-                      >
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={requester.image} />
-                          <AvatarFallback className="bg-muted">
-                            {requester.name?.charAt(0) || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className="truncate font-medium hover:underline cursor-pointer"
-                          onClick={() => navigate(`/profile?id=${id}`)}
-                        >
-                          {requester.name || "Anonymous"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {mutualCount(id)} mutual friends
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
-                          onClick={async () => {
-                            try {
-                              await acceptFriend({ friendshipId: req._id });
-                              toast.success("Request confirmed");
-                              setTab("friends");
-                            } catch {
-                              toast.error("Failed to confirm");
-                            }
-                          }}
-                        >
-                          Confirm
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={async () => {
-                            try {
-                              await declineFriend({ friendshipId: req._id });
-                              toast.message("Request deleted");
-                            } catch {
-                              toast.error("Failed to delete");
-                            }
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Your Friends */}
-          <TabsContent value="friends" className="mt-4">
-            {/* Add a search specifically for friends list */}
-            <div className="mb-3">
-              <Input
-                placeholder="Search your friends"
-                value={friendsSearch}
-                onChange={(e) => setFriendsSearch(e.target.value)}
-              />
-            </div>
-            <div className="space-y-3">
-              {!friends ? (
-                // Loading skeletons for friend rows
-                Array.from({ length: 5 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-lg border bg-card p-3">
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                    <Skeleton className="h-9 w-24" />
-                  </div>
-                ))
-              ) : filteredFriends.length === 0 ? (
-                <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
-                  {friendsSearch.trim()
-                    ? "No friends match your search."
-                    : "You don't have any friends yet."}
-                </div>
-              ) : (
-                filteredFriends.map((friend) => {
-                  if (!friend) return null;
-                  return (
-                    <div
-                      key={friend._id}
-                      className="flex items-center gap-3 rounded-lg border bg-card p-3"
-                    >
-                      <button
-                        className="shrink-0"
-                        onClick={() => navigate(`/profile?id=${friend._id}`)}
-                        aria-label="View profile"
-                      >
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={friend.image} />
-                          <AvatarFallback className="bg-muted">
-                            {friend.name?.charAt(0) || "U"}
-                          </AvatarFallback>
-                        </Avatar>
-                      </button>
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className="truncate font-medium hover:underline cursor-pointer"
-                          onClick={() => navigate(`/profile?id=${friend._id}`)}
-                        >
-                          {friend.name || "Anonymous"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">Friend</p>
-                      </div>
-                      <Button
-                        variant="outline"
-                        onClick={() => navigate(`/messages?user=${friend._id}`)}
-                        className="gap-2"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                        Message
-                      </Button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Suggestions */}
-          <TabsContent value="suggestions" className="mt-4">
-            {!suggestions && search.trim().length < 2 ? (
-              // Grid skeleton while initial suggestions load
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <SuggestionSkeleton key={i} />
-                ))}
+        {/* Main Friends Content */}
+        <div className="flex-1">
+          <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6">
+            {/* Top bar */}
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <h1 className="text-2xl font-bold">Friends</h1>
+              <div className="w-full sm:w-80">
+                <Input
+                  placeholder="Search for people"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
               </div>
-            ) : visibleSuggestions.length === 0 ? (
-              <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
-                {search.trim().length >= 2
-                  ? "No people found."
-                  : "No suggestions right now. Try searching for people."}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {visibleSuggestions.map((u) => {
-                  const id = u._id as unknown as string;
-                  return (
-                    <div key={id} className="rounded-lg border bg-card p-4">
-                      <div className="flex items-center gap-3">
-                        <button
-                          className="shrink-0"
-                          onClick={() => navigate(`/profile?id=${id}`)}
-                          aria-label="View profile"
+            </div>
+
+            {/* Tabs */}
+            <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
+              <TabsList className="bg-muted/50">
+                <TabsTrigger
+                  value="requests"
+                  className="data-[state=active]:text-[#1877F2] data-[state=active]:border-b-2 data-[state=active]:border-[#1877F2] rounded-none"
+                >
+                  Friend Requests
+                </TabsTrigger>
+                <TabsTrigger
+                  value="friends"
+                  className="data-[state=active]:text-[#1877F2] data-[state=active]:border-b-2 data-[state=active]:border-[#1877F2] rounded-none"
+                >
+                  Your Friends
+                </TabsTrigger>
+                <TabsTrigger
+                  value="suggestions"
+                  className="data-[state=active]:text-[#1877F2] data-[state=active]:border-b-2 data-[state=active]:border-[#1877F2] rounded-none"
+                >
+                  Suggestions
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Friend Requests */}
+              <TabsContent value="requests" className="mt-4">
+                <div className="space-y-3">
+                  {!friendRequests ? (
+                    Array.from({ length: 4 }).map((_, i) => <RequestSkeleton key={i} />)
+                  ) : friendRequests.length === 0 ? (
+                    <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
+                      No incoming requests.
+                    </div>
+                  ) : (
+                    friendRequests.map((req) => {
+                      const requester = req.requester;
+                      if (!requester) return null;
+                      const id = requester._id as unknown as string;
+                      return (
+                        <div
+                          key={req._id}
+                          className="flex items-center gap-3 rounded-lg border bg-card p-3"
                         >
-                          <Avatar className="h-12 w-12">
-                            <AvatarImage src={u.image} />
-                            <AvatarFallback className="bg-muted">
-                              {u.name?.charAt(0) || "U"}
-                            </AvatarFallback>
-                          </Avatar>
-                        </button>
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className="truncate font-medium hover:underline cursor-pointer"
+                          <button
+                            className="shrink-0"
                             onClick={() => navigate(`/profile?id=${id}`)}
+                            aria-label="View profile"
                           >
-                            {u.name || "Anonymous"}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {mutualCount(id)} mutual friends
-                          </p>
+                            <Avatar className="h-12 w-12">
+                              <AvatarImage src={requester.image} />
+                              <AvatarFallback className="bg-muted">
+                                {requester.name?.charAt(0) || "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className="truncate font-medium hover:underline cursor-pointer"
+                              onClick={() => navigate(`/profile?id=${id}`)}
+                            >
+                              {requester.name || "Anonymous"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {mutualCount(id)} mutual friends
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                              onClick={async () => {
+                                try {
+                                  await acceptFriend({ friendshipId: req._id });
+                                  toast.success("Request confirmed");
+                                  setTab("friends");
+                                } catch {
+                                  toast.error("Failed to confirm");
+                                }
+                              }}
+                            >
+                              Confirm
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  await declineFriend({ friendshipId: req._id });
+                                  toast.message("Request deleted");
+                                } catch {
+                                  toast.error("Failed to delete");
+                                }
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          </div>
                         </div>
-                        <button
-                          aria-label="Hide suggestion"
-                          className="rounded-md p-1 text-muted-foreground hover:bg-muted"
-                          onClick={() => onHide(id)}
-                          title="Hide"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
+                      );
+                    })
+                  )}
+                </div>
+              </TabsContent>
 
-                      <div className="mt-3 flex gap-2">
-                        <Button
-                          className="flex-1 bg-[#1877F2] hover:bg-[#166FE5] text-white"
-                          onClick={() => handleAddFriend(id)}
-                        >
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          Add Friend
-                        </Button>
-                        <Button variant="outline" onClick={() => onHide(id)}>
-                          Hide
-                        </Button>
+              {/* Your Friends */}
+              <TabsContent value="friends" className="mt-4">
+                {/* Add a search specifically for friends list */}
+                <div className="mb-3">
+                  <Input
+                    placeholder="Search your friends"
+                    value={friendsSearch}
+                    onChange={(e) => setFriendsSearch(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-3">
+                  {!friends ? (
+                    // Loading skeletons for friend rows
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 rounded-lg border bg-card p-3">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="flex-1 space-y-2">
+                          <Skeleton className="h-4 w-40" />
+                          <Skeleton className="h-3 w-24" />
+                        </div>
+                        <Skeleton className="h-9 w-24" />
                       </div>
+                    ))
+                  ) : filteredFriends.length === 0 ? (
+                    <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
+                      {friendsSearch.trim()
+                        ? "No friends match your search."
+                        : "You don't have any friends yet."}
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
+                  ) : (
+                    filteredFriends.map((friend) => {
+                      if (!friend) return null;
+                      return (
+                        <div
+                          key={friend._id}
+                          className="flex items-center gap-3 rounded-lg border bg-card p-3"
+                        >
+                          <button
+                            className="shrink-0"
+                            onClick={() => navigate(`/profile?id=${friend._id}`)}
+                            aria-label="View profile"
+                          >
+                            <Avatar className="h-12 w-12">
+                              <AvatarImage src={friend.image} />
+                              <AvatarFallback className="bg-muted">
+                                {friend.name?.charAt(0) || "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                          </button>
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className="truncate font-medium hover:underline cursor-pointer"
+                              onClick={() => navigate(`/profile?id=${friend._id}`)}
+                            >
+                              {friend.name || "Anonymous"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Friend</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            onClick={() => navigate(`/messages?user=${friend._id}`)}
+                            className="gap-2"
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            Message
+                          </Button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* Suggestions */}
+              <TabsContent value="suggestions" className="mt-4">
+                {!suggestions && search.trim().length < 2 ? (
+                  // Grid skeleton while initial suggestions load
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <SuggestionSkeleton key={i} />
+                    ))}
+                  </div>
+                ) : visibleSuggestions.length === 0 ? (
+                  <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
+                    {search.trim().length >= 2
+                      ? "No people found."
+                      : "No suggestions right now. Try searching for people."}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {visibleSuggestions.map((u) => {
+                      const id = u._id as unknown as string;
+                      return (
+                        <div key={id} className="rounded-lg border bg-card p-4">
+                          <div className="flex items-center gap-3">
+                            <button
+                              className="shrink-0"
+                              onClick={() => navigate(`/profile?id=${id}`)}
+                              aria-label="View profile"
+                            >
+                              <Avatar className="h-12 w-12">
+                                <AvatarImage src={u.image} />
+                                <AvatarFallback className="bg-muted">
+                                  {u.name?.charAt(0) || "U"}
+                                </AvatarFallback>
+                              </Avatar>
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className="truncate font-medium hover:underline cursor-pointer"
+                                onClick={() => navigate(`/profile?id=${id}`)}
+                              >
+                                {u.name || "Anonymous"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {mutualCount(id)} mutual friends
+                              </p>
+                            </div>
+                            <button
+                              aria-label="Hide suggestion"
+                              className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+                              onClick={() => onHide(id)}
+                              title="Hide"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          <div className="mt-3 flex gap-2">
+                            <Button
+                              className="flex-1 bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                              onClick={() => handleAddFriend(id)}
+                            >
+                              <UserPlus className="mr-2 h-4 w-4" />
+                              Add Friend
+                            </Button>
+                            <Button variant="outline" onClick={() => onHide(id)}>
+                              Hide
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
       </div>
     </div>
   );
