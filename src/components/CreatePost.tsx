@@ -502,7 +502,7 @@ export function CreatePost() {
 
                 <Textarea
                   ref={textareaRef}
-                  placeholder="What's on your mind?"
+                  placeholder="Share your thoughts…"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   className="min-h-[100px] resize-none border-0 p-0 text-base placeholder:text-muted-foreground focus-visible:ring-0"
@@ -836,7 +836,7 @@ export function CreatePost() {
                     size="sm"
                     className="text-primary ml-1"
                     onClick={() => {
-                      const el = document.getElementById("create-post-file-input");
+                      const el = document.getElementById("create-post-file-input-images");
                       (el as HTMLInputElement)?.click();
                     }}
                   >
@@ -851,7 +851,7 @@ export function CreatePost() {
                       type="button"
                       variant="outline"
                       onClick={() => {
-                        const el = document.getElementById("create-post-file-input");
+                        const el = document.getElementById("create-post-file-input-images");
                         (el as HTMLInputElement)?.click();
                       }}
                       title="Add photo or video"
