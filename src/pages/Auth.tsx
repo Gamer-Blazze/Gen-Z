@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { ArrowRight, Loader2, Mail } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
+import { toast } from "sonner";
 
 interface AuthProps {
   redirectAfterAuth?: string;
@@ -231,25 +232,30 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                       <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-px bg-border" />
                     </div>
                     <div className="flex gap-2">
+                      {/* Google button (placeholder with brand styling) */}
                       <Button
                         type="button"
                         variant="outline"
-                        className="flex-1"
-                        disabled
-                        aria-disabled="true"
-                        title="Coming soon"
+                        className="flex-1 bg-white text-black border hover:bg-white/90 dark:bg-white dark:text-black dark:hover:bg-white/90"
+                        onClick={() => toast("Google sign-in is coming soon")}
                       >
-                        Continue with Google (Coming soon)
+                        <span className="mr-2 inline-flex items-center">
+                          {/* Google G icon */}
+                          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                            <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.1-1.7 3.2-5.5 3.2-3.3 0-6-2.7-6-6s2.7-6 6-6c1.9 0 3.2.8 4 1.5l2.7-2.7C16.9 2.3 14.7 1.4 12 1.4 6.8 1.4 2.6 5.6 2.6 10.8S6.8 20.2 12 20.2c7.1 0 9.3-5 9.3-7.5 0-.5-.1-.9-.1-1.3H12z"/>
+                          </svg>
+                        </span>
+                        Continue with Google
                       </Button>
+
+                      {/* Facebook button (placeholder) */}
                       <Button
                         type="button"
                         variant="outline"
-                        className="flex-1"
-                        disabled
-                        aria-disabled="true"
-                        title="Coming soon"
+                        className="flex-1 bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                        onClick={() => toast("Facebook sign-in is coming soon")}
                       >
-                        Continue with Facebook (Coming soon)
+                        Continue with Facebook
                       </Button>
                     </div>
                     <p className="mt-2 text-xs text-muted-foreground text-center">
