@@ -145,7 +145,7 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                   />
                 </div>
                 <CardTitle className="text-xl">
-                  Sign in securely
+                  Use your email to continue
                 </CardTitle>
                 <CardDescription>
                   Enter your email to receive a 6‑digit verification code
@@ -203,21 +203,21 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                         type="button"
                         variant="outline"
                         className="flex-1"
-                        onClick={() =>
-                          setError("Social logins will be available soon. Use email to continue.")
-                        }
+                        disabled
+                        aria-disabled="true"
+                        title="Coming soon"
                       >
-                        Google
+                        Continue with Google (Coming soon)
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
                         className="flex-1"
-                        onClick={() =>
-                          setError("Social logins will be available soon. Use email to continue.")
-                        }
+                        disabled
+                        aria-disabled="true"
+                        title="Coming soon"
                       >
-                        Facebook
+                        Continue with Facebook (Coming soon)
                       </Button>
                     </div>
                     <p className="mt-2 text-xs text-muted-foreground text-center">
