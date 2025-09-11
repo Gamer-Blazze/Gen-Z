@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { useLocation } from "react-router";
 import { Home, MessageCircle, Users, Bell, Settings as SettingsIcon, User as UserIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { MobileTopNav } from "@/components/MobileTopNav";
 
 export default function Settings() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
@@ -140,8 +141,6 @@ export default function Settings() {
   // Filter helper for section headings
   const matches = useMemo(() => (title: string) => title.toLowerCase().includes(search.toLowerCase()), [search]);
 
-  // Search state moved above `matches` to avoid TDZ
-
   // Apply compact mode class when density changes
   useEffect(() => {
     const root = document.documentElement;
@@ -221,6 +220,9 @@ export default function Settings() {
 
         {/* Content area */}
         <main className="flex-1 mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-6">
+          {/* Top navigation bar */}
+          <MobileTopNav showOnDesktop />
+
           {/* Search bar */}
           <div className="mb-2">
             <Input
@@ -554,34 +556,7 @@ export default function Settings() {
           </div>
 
           {/* Mobile/Tablet top navigation (Facebook-like) */}
-          <div className="lg:hidden sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
-            <div className="px-2 py-2 flex items-center justify-around">
-              {[
-                { icon: Home, path: "/dashboard", label: "Home" },
-                { icon: MessageCircle, path: "/messages", label: "Messages" },
-                { icon: Users, path: "/friends", label: "Friends" },
-                { icon: Bell, path: "/notifications", label: "Notifications" },
-                { icon: UserIcon, path: "/profile", label: "Profile" },
-                { icon: SettingsIcon, path: "/settings", label: "Settings" },
-              ].map((item) => {
-                const isActive = location.pathname === item.path;
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.path}
-                    onClick={() => navigate(item.path)}
-                    aria-label={item.label}
-                    className={`inline-flex flex-col items-center justify-center px-3 py-1.5 rounded-md text-xs ${
-                      isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Icon className={`w-5 h-5 mb-0.5 ${isActive ? "text-primary" : ""}`} />
-                    <span className="hidden sm:inline">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+          {/* Removed duplicate inline nav (now using shared <MobileTopNav /> at the top) */}
 
           <h1 className="text-2xl font-bold">Settings</h1>
           <Card>
