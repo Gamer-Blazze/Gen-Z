@@ -105,25 +105,8 @@ export function ProfileHeader({
             className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary/50"
             aria-label={`Open profile of ${displayName || username}`}
           >
-            <div
-              className="md:hidden"
-              style={mobileSizeStyle}
-              aria-hidden
-            />
-            <div
-              className="hidden md:block"
-              style={desktopSizeStyle}
-              aria-hidden
-            />
             <Avatar
-              className="absolute md:static -mt-[calc(var(--mob-size)/2)] md:mt-0"
-              style={{
-                // lock avatar size per breakpoint
-                // we overlay a block with same dimensions to keep layout flow clean
-                ...(window.matchMedia && window.matchMedia("(min-width: 768px)").matches
-                  ? desktopSizeStyle
-                  : mobileSizeStyle),
-              }}
+              className="w-[56px] h-[56px] md:w-[72px] md:h-[72px]"
             >
               <AvatarImage src={avatarUrl || undefined} alt={`${displayName || username} avatar`} />
               <AvatarFallback className="bg-primary/10 text-primary font-semibold">
