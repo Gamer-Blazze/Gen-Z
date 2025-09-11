@@ -1,6 +1,13 @@
 import { useMemo, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { ChevronDown } from "lucide-react";
 
 type RequestStatus = "none" | "pending" | "friends";
 
@@ -14,6 +21,8 @@ type Props = {
   sendFriendRequest?: (userId: string) => Promise<void> | void;
   cancelFriendRequest?: (userId: string) => Promise<void> | void;
   onOpenProfile?: (username: string) => void;
+  // Add: unfriend handler
+  unfriendUser?: (userId: string) => Promise<void> | void;
 };
 
 function initialsFromName(name?: string | null) {
@@ -33,6 +42,8 @@ export function UserProfileCard({
   sendFriendRequest,
   cancelFriendRequest,
   onOpenProfile,
+  // Add prop
+  unfriendUser,
 }: Props) {
   const [status, setStatus] = useState<RequestStatus>(requestStatus);
   const [working, setWorking] = useState(false);
@@ -61,6 +72,21 @@ export function UserProfileCard({
       } else {
         await new Promise((r) => setTimeout(r, 400));
         // console.log("Mock: cancelFriendRequest", userId);
+      }
+      setStatus("none");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const onUnfriend = async () => {
+    setWorking(true);
+    try {
+      if (unfriendUser) {
+        await unfriendUser(userId);
+      } else {
+        await new Promise((r) => setTimeout(r, 400));
+        // console.log("Mock: unfriendUser", userId);
       }
       setStatus("none");
     } finally {
@@ -143,14 +169,28 @@ export function UserProfileCard({
               </Button>
             )}
             {status === "friends" && (
-              <Button
-                disabled
-                variant="secondary"
-                className="w-full sm:w-auto"
-                aria-label="Already friends"
-              >
-                Friends
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    disabled={working}
+                    variant="secondary"
+                    className="w-full sm:w-auto inline-flex items-center gap-1.5"
+                    aria-label="Friends actions"
+                  >
+                    Friends
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    onClick={onUnfriend}
+                    disabled={working}
+                  >
+                    {working ? "Working..." : "Unfriend"}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>
@@ -162,13 +202,16 @@ export function UserProfileCard({
 /* Example usage (mock) */
 export function UserProfileCardExample() {
   const mockSend = async (id: string) => {
-    // simulate API
     await new Promise((r) => setTimeout(r, 400));
     console.log("sendFriendRequest", id);
   };
   const mockCancel = async (id: string) => {
     await new Promise((r) => setTimeout(r, 400));
     console.log("cancelFriendRequest", id);
+  };
+  const mockUnfriend = async (id: string) => {
+    await new Promise((r) => setTimeout(r, 400));
+    console.log("unfriendUser", id);
   };
 
   return (
@@ -181,6 +224,7 @@ export function UserProfileCardExample() {
         requestStatus="none"
         sendFriendRequest={mockSend}
         cancelFriendRequest={mockCancel}
+        unfriendUser={mockUnfriend}
       />
 
       <UserProfileCard
@@ -191,6 +235,7 @@ export function UserProfileCardExample() {
         requestStatus="pending"
         sendFriendRequest={mockSend}
         cancelFriendRequest={mockCancel}
+        unfriendUser={mockUnfriend}
       />
 
       <UserProfileCard
@@ -199,6 +244,7 @@ export function UserProfileCardExample() {
         username="jordan"
         avatarUrl=""
         requestStatus="friends"
+        unfriendUser={mockUnfriend}
       />
     </div>
   );
