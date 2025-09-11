@@ -5,7 +5,6 @@ import { useNavigate } from "react-router";
 import { Sidebar } from "@/components/Sidebar";
 import { Feed } from "@/components/Feed";
 import { FriendsSidebar } from "@/components/FriendsSidebar";
-import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -128,12 +127,6 @@ export default function Dashboard() {
     return null;
   }
 
-  const unpublished = useQuery(
-    api.posts.getMyUnpublishedCount,
-    isAuthenticated && user ? {} : "skip"
-  );
-  const publishAll = useMutation(api.posts.publishAllMyUnpublished);
-
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate("/auth");
@@ -235,36 +228,6 @@ export default function Dashboard() {
 
       {/* Mobile Top Navigation */}
       <MobileTopNav />
-
-      {/* Unpublished items banner */}
-      {unpublished && unpublished.count > 0 && (
-        <div className="sticky top-[var(--top-nav,0px)] z-20 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
-          <div className="mx-auto max-w-2xl px-4 py-2 flex items-center justify-between gap-3">
-            <div className="text-sm">
-              You have {unpublished.count} unpublished item{unpublished.count > 1 ? "s" : ""}.
-            </div>
-            <Button
-              size="sm"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={async () => {
-                try {
-                  const res = await publishAll({ targetStatus: "active" });
-                  const n = res?.updated ?? 0;
-                  if (n > 0) {
-                    toast.success(`Moved ${n} to Active`);
-                  } else {
-                    toast("Nothing to update");
-                  }
-                } catch (e) {
-                  toast.error("Failed to update items");
-                }
-              }}
-            >
-              Move to Active
-            </Button>
-          </div>
-        </div>
-      )}
 
       <div className="flex flex-col lg:flex-row">
         {/* Desktop Sidebar */}
