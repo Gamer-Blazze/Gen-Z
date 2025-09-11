@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/input-otp";
 
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight, Loader2, Mail, UserX } from "lucide-react";
+import { ArrowRight, Loader2, Mail, Eye, EyeOff } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 
@@ -35,6 +35,12 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [emailInput, setEmailInput] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -47,16 +53,37 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
     setIsLoading(true);
     setError(null);
     try {
-      const formData = new FormData(event.currentTarget);
+      const email = emailInput.trim();
+      const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      if (!isValidEmail) {
+        setError("Please enter a valid email address.");
+        setIsLoading(false);
+        return;
+      }
+      if (authMode === "signup") {
+        if (passwordInput.length < 6) {
+          setError("Password must be at least 6 characters.");
+          setIsLoading(false);
+          return;
+        }
+        if (passwordInput !== confirmPasswordInput) {
+          setError("Passwords do not match.");
+          setIsLoading(false);
+          return;
+        }
+      }
+      // Email/password UI funnels into passwordless email-otp sign in (your auth provider)
+      const formData = new FormData();
+      formData.set("email", email);
       await signIn("email-otp", formData);
-      setStep({ email: formData.get("email") as string });
+      setStep({ email });
       setIsLoading(false);
     } catch (error) {
       console.error("Email sign-in error:", error);
       setError(
         error instanceof Error
           ? error.message
-          : "Failed to send verification code. Please try again.",
+          : "Failed to send verification code. Please try again."
       );
       setIsLoading(false);
     }
@@ -110,58 +137,235 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
           {step === "signIn" ? (
             <>
               <CardHeader className="text-center">
-              <div className="flex justify-center">
-                    <img
-                      src="https://harmless-tapir-303.convex.cloud/api/storage/727632b6-864f-4391-bc86-06526cee36c6"
-                      alt="Lock Icon"
-                      width={64}
-                      height={64}
-                      className="rounded-lg mb-4 mt-4 cursor-pointer"
-                      onClick={() => navigate("/")}
-                    />
-                  </div>
-                <CardTitle className="text-xl">Gen-Z</CardTitle>
+                <div className="flex justify-center">
+                  <img
+                    src="https://harmless-tapir-303.convex.cloud/api/storage/727632b6-864f-4391-bc86-06526cee36c6"
+                    alt="Lock Icon"
+                    width={64}
+                    height={64}
+                    className="rounded-lg mb-4 mt-4 cursor-pointer"
+                    onClick={() => navigate("/")}
+                  />
+                </div>
+                <CardTitle className="text-xl">
+                  {authMode === "login" ? "Welcome back" : "Create your account"}
+                </CardTitle>
                 <CardDescription>
-                  Enter your email to log in or sign up
+                  {authMode === "login"
+                    ? "Login with your email and password"
+                    : "Sign up with your name, email, and password"}
                 </CardDescription>
               </CardHeader>
+
               <form onSubmit={handleEmailSubmit}>
-                <CardContent>
-                  <div className="relative flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-1 rounded-lg p-1 bg-muted">
+                    <button
+                      type="button"
+                      className={`py-2 rounded-md text-sm transition ${
+                        authMode === "login"
+                          ? "bg-background shadow font-medium"
+                          : "text-muted-foreground"
+                      }`}
+                      onClick={() => {
+                        setAuthMode("login");
+                        setError(null);
+                      }}
+                      aria-pressed={authMode === "login"}
+                    >
+                      Login
+                    </button>
+                    <button
+                      type="button"
+                      className={`py-2 rounded-md text-sm transition ${
+                        authMode === "signup"
+                          ? "bg-background shadow font-medium"
+                          : "text-muted-foreground"
+                      }`}
+                      onClick={() => {
+                        setAuthMode("signup");
+                        setError(null);
+                      }}
+                      aria-pressed={authMode === "signup"}
+                    >
+                      Sign Up
+                    </button>
+                  </div>
+
+                  {/* Email */}
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      name="email"
+                      placeholder="name@example.com"
+                      type="email"
+                      className="pl-9"
+                      disabled={isLoading}
+                      required
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Password (shown for both modes for consistent UI) */}
+                  <div className="relative">
+                    <Input
+                      placeholder="Password"
+                      type={showPassword ? "text" : "password"}
+                      disabled={isLoading}
+                      required
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      minLength={6}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+
+                  {/* Confirm Password (signup only) */}
+                  {authMode === "signup" && (
+                    <div className="relative">
                       <Input
-                        name="email"
-                        placeholder="name@example.com"
-                        type="email"
-                        className="pl-9"
+                        placeholder="Confirm password"
+                        type={showConfirmPassword ? "text" : "password"}
                         disabled={isLoading}
                         required
+                        value={confirmPasswordInput}
+                        onChange={(e) => setConfirmPasswordInput(e.target.value)}
+                        minLength={6}
+                        className="pr-10"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword((s) => !s)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                        tabIndex={-1}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
                     </div>
-                    <Button
-                      type="submit"
-                      variant="default"
-                      disabled={isLoading}
-                      className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Joining...
-                        </>
-                      ) : (
-                        <>
-                          Join With Gen-Z
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  {error && (
-                    <p className="mt-2 text-sm text-red-500">{error}</p>
                   )}
+
+                  {/* Forgot password (info only since passwordless auth) */}
+                  {authMode === "login" && (
+                    <div className="text-right">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setError(
+                            "Password reset is not required. We use secure passwordless login via email code."
+                          )
+                        }
+                        className="text-sm underline text-muted-foreground hover:text-foreground"
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Error */}
+                  {error && <p className="text-sm text-red-500">{error}</p>}
                 </CardContent>
+
+                <CardFooter className="flex-col gap-2">
+                  <Button
+                    type="submit"
+                    variant="default"
+                    disabled={isLoading}
+                    className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {authMode === "login" ? "Logging in..." : "Creating account..."}
+                      </>
+                    ) : (
+                      <>
+                        {authMode === "login" ? "Login" : "Sign Up"}
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Toggle between modes */}
+                  <div className="text-sm text-muted-foreground">
+                    {authMode === "login" ? (
+                      <>
+                        Don&apos;t have an account?{" "}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAuthMode("signup");
+                            setError(null);
+                          }}
+                          className="underline hover:text-primary"
+                        >
+                          Sign Up
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        Already have an account?{" "}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAuthMode("login");
+                            setError(null);
+                          }}
+                          className="underline hover:text-primary"
+                        >
+                          Login
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Social placeholder area */}
+                  <div className="w-full pt-2">
+                    <div className="relative text-center my-2 text-xs text-muted-foreground">
+                      <span className="px-2 bg-card relative z-10">Or continue with</span>
+                      <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-px bg-border" />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() =>
+                          setError("Social logins will be available soon. Use email to continue.")
+                        }
+                      >
+                        Google
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() =>
+                          setError("Social logins will be available soon. Use email to continue.")
+                        }
+                      >
+                        Facebook
+                      </Button>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground text-center">
+                      We use secure passwordless login. You&apos;ll receive a 6‑digit code by email.
+                    </p>
+                  </div>
+                </CardFooter>
               </form>
             </>
           ) : (
