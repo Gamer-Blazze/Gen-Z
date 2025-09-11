@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { TopNav } from "@/components/TopNav";
 
 export default function NotFound() {
   return (
@@ -8,8 +9,9 @@ export default function NotFound() {
       transition={{ duration: 0.5 }}
       className="min-h-screen flex flex-col"
     >
+      {/* Global Top Navigation */}
+      <TopNav />
 
-      
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center">
         <div className="max-w-5xl mx-auto relative px-4">

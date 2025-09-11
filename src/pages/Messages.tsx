@@ -16,6 +16,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Phone, Video } from "lucide-react";
 import { toast } from "sonner";
+import { TopNav } from "@/components/TopNav";
 
 export default function Messages() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -81,6 +82,8 @@ export default function Messages() {
       animate={{ opacity: 1 }}
       className={`h-screen overflow-hidden ${pageBg}`}
     >
+      {/* Add global Top Navigation */}
+      <TopNav />
       {/* Top navigation bar */}
       <div className="flex">
         {/* Left Sidebar remains desktop-only; mobile/tablet use the sheet */}

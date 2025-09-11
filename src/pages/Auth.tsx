@@ -19,6 +19,7 @@ import { ArrowRight, Loader2, Mail } from "lucide-react";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { toast } from "sonner";
+import { TopNav } from "@/components/TopNav";
 
 interface AuthProps {
   redirectAfterAuth?: string;
@@ -164,6 +165,8 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f0f2f5] dark:bg-background">
+      {/* Global Top Navigation */}
+      <TopNav />
       {/* Auth Content */}
       <div className="flex-1 flex items-center justify-center">
         <div className="flex items-center justify-center h-full flex-col">
