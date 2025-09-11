@@ -8,9 +8,6 @@ export const createPost = mutation({
     content: v.string(),
     images: v.optional(v.array(v.id("_storage"))),
     videos: v.optional(v.array(v.id("_storage"))),
-    // ADD: direct URL media support
-    imagesUrls: v.optional(v.array(v.string())),
-    videosUrls: v.optional(v.array(v.string())),
     isPublic: v.optional(v.boolean()),
     // ADD: new fields
     audience: v.optional(v.union(v.literal("public"), v.literal("friends"), v.literal("private"))),
@@ -44,11 +41,7 @@ export const createPost = mutation({
       userId: user._id,
       content: args.content,
       images: args.images || [],
-      // ADD: store direct URLs
-      imagesUrls: args.imagesUrls || [],
       videos: args.videos || [],
-      // ADD: store direct URLs
-      videosUrls: args.videosUrls || [],
       likes: [],
       likesCount: 0,
       commentsCount: 0,
@@ -92,28 +85,22 @@ export const getFeedPosts = query({
       posts.map(async (post) => {
         const postUser = await ctx.db.get(post.userId);
 
-        // Map storage ids -> signed URLs for images/videos
         const imageUrls = post.images
           ? (await Promise.all(
               post.images.map(async (fid) => (await ctx.storage.getUrl(fid)) || "")
             )).filter(Boolean)
           : [];
-        // ADD: merge direct URL images
-        const mergedImages = [...imageUrls, ...((post as any).imagesUrls ?? [])];
 
         const videoUrls = post.videos
           ? (await Promise.all(
               post.videos.map(async (fid) => (await ctx.storage.getUrl(fid)) || "")
             )).filter(Boolean)
           : [];
-        // ADD: merge direct URL videos
-        const mergedVideos = [...videoUrls, ...((post as any).videosUrls ?? [])];
 
         return {
           ...post,
-          // override to URLs for frontend consumption
-          images: mergedImages,
-          videos: mergedVideos,
+          images: imageUrls,
+          videos: videoUrls,
           user: postUser,
         };
       })
@@ -145,21 +132,17 @@ export const getUserPosts = query({
               post.images.map(async (fid) => (await ctx.storage.getUrl(fid)) || "")
             )).filter(Boolean)
           : [];
-        // ADD: merge direct URL images
-        const mergedImages = [...imageUrls, ...((post as any).imagesUrls ?? [])];
 
         const videoUrls = post.videos
           ? (await Promise.all(
               post.videos.map(async (fid) => (await ctx.storage.getUrl(fid)) || "")
             )).filter(Boolean)
           : [];
-        // ADD: merge direct URL videos
-        const mergedVideos = [...videoUrls, ...((post as any).videosUrls ?? [])];
 
         return {
           ...post,
-          images: mergedImages,
-          videos: mergedVideos,
+          images: imageUrls,
+          videos: videoUrls,
           user,
         };
       })

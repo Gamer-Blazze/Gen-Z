@@ -89,8 +89,6 @@ const schema = defineSchema(
       content: v.string(),
       // CHANGED: store Convex storage file ids for images/videos
       images: v.optional(v.array(v.id("_storage"))),
-      // ADD: direct URL media (no upload)
-      imagesUrls: v.optional(v.array(v.string())),
       likes: v.array(v.id("users")),
       likesCount: v.number(),
       commentsCount: v.number(),
@@ -98,8 +96,6 @@ const schema = defineSchema(
       isPublic: v.boolean(),
       // ADD: videos support
       videos: v.optional(v.array(v.id("_storage"))),
-      // ADD: direct URL media (no upload)
-      videosUrls: v.optional(v.array(v.string())),
       // ADD: audience control & metadata
       audience: v.optional(v.union(v.literal("public"), v.literal("friends"), v.literal("private"))),
       tags: v.optional(v.array(v.id("users"))),
