@@ -70,6 +70,13 @@ export default function Friends() {
     return list.filter((r) => (r.requester?.name || "anonymous").toLowerCase().includes(q));
   }, [friendRequests, requestSearch]);
 
+  const requestsForSuggestions = useMemo(() => {
+    const list = friendRequests || [];
+    const q = search.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((r) => (r.requester?.name || "anonymous").toLowerCase().includes(q));
+  }, [friendRequests, search]);
+
   const handleAddFriend = async (id: string) => {
     try {
       await sendFriend({ userId: id as any });
@@ -361,74 +368,157 @@ export default function Friends() {
                   )}
                 </div>
 
-                {!suggestions && search.trim().length < 2 ? (
-                  // Grid skeleton while initial suggestions load
+                {!suggestions && !friendRequests && search.trim().length < 2 ? (
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {Array.from({ length: 6 }).map((_, i) => (
                       <SuggestionSkeleton key={i} />
                     ))}
                   </div>
-                ) : visibleSuggestions.length === 0 ? (
-                  <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
-                    {search.trim().length >= 2
-                      ? "No people found."
-                      : "No suggestions right now. Try searching for people."}
-                  </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {visibleSuggestions.map((u) => {
-                      const id = u._id as unknown as string;
-                      return (
-                        <div key={id} className="rounded-lg border bg-card p-4">
-                          <div className="flex items-center gap-3">
-                            <button
-                              className="shrink-0"
-                              onClick={() => navigate(`/profile?id=${id}`)}
-                              aria-label="View profile"
-                            >
-                              <Avatar className="h-12 w-12">
-                                <AvatarImage src={u.image} />
-                                <AvatarFallback className="bg-muted">
-                                  {u.name?.charAt(0) || "U"}
-                                </AvatarFallback>
-                              </Avatar>
-                            </button>
-                            <div className="min-w-0 flex-1">
-                              <p
-                                className="truncate font-medium hover:underline cursor-pointer"
-                                onClick={() => navigate(`/profile?id=${id}`)}
-                              >
-                                {u.name || "Anonymous"}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {mutualCount(id)} mutual friends
-                              </p>
-                            </div>
-                            <button
-                              aria-label="Hide suggestion"
-                              className="rounded-md p-1 text-muted-foreground hover:bg-muted"
-                              onClick={() => onHide(id)}
-                              title="Hide"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
+                  <div className="space-y-6">
+                    {/* Friend Requests (combined into Suggestions tab) */}
+                    {requestsForSuggestions && requestsForSuggestions.length > 0 && (
+                      <div>
+                        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Friend Requests</h3>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {requestsForSuggestions.map((req) => {
+                            const requester = req.requester;
+                            if (!requester) return null;
+                            const id = requester._id as unknown as string;
+                            return (
+                              <div key={req._id} className="rounded-lg border bg-card p-4">
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    className="shrink-0"
+                                    onClick={() => navigate(`/profile?id=${id}`)}
+                                    aria-label="View profile"
+                                  >
+                                    <Avatar className="h-12 w-12">
+                                      <AvatarImage src={requester.image} />
+                                      <AvatarFallback className="bg-muted">
+                                        {requester.name?.charAt(0) || "U"}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  </button>
+                                  <div className="min-w-0 flex-1">
+                                    <p
+                                      className="truncate font-medium hover:underline cursor-pointer"
+                                      onClick={() => navigate(`/profile?id=${id}`)}
+                                    >
+                                      {requester.name || "Anonymous"}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {mutualCount(id)} mutual friends
+                                    </p>
+                                  </div>
+                                </div>
 
-                          <div className="mt-3 flex gap-2">
-                            <Button
-                              className="flex-1 bg-[#1877F2] hover:bg-[#166FE5] text-white"
-                              onClick={() => handleAddFriend(id)}
-                            >
-                              <UserPlus className="mr-2 h-4 w-4" />
-                              Add Friend
-                            </Button>
-                            <Button variant="outline" onClick={() => onHide(id)}>
-                              Hide
-                            </Button>
-                          </div>
+                                <div className="mt-3 flex gap-2">
+                                  <Button
+                                    className="flex-1 bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                                    onClick={async () => {
+                                      try {
+                                        await acceptFriend({ friendshipId: req._id });
+                                        toast.success("Request confirmed");
+                                        setTab("friends");
+                                      } catch {
+                                        toast.error("Failed to confirm");
+                                      }
+                                    }}
+                                  >
+                                    Confirm
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    onClick={async () => {
+                                      try {
+                                        await declineFriend({ friendshipId: req._id });
+                                        toast.message("Request deleted");
+                                      } catch {
+                                        toast.error("Failed to delete");
+                                      }
+                                    }}
+                                  >
+                                    Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
+                      </div>
+                    )}
+
+                    {/* Suggestions */}
+                    {visibleSuggestions.length > 0 ? (
+                      <div>
+                        <h3 className="mb-2 text-sm font-semibold text-muted-foreground">People You May Know</h3>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {visibleSuggestions.map((u) => {
+                            const id = u._id as unknown as string;
+                            return (
+                              <div key={id} className="rounded-lg border bg-card p-4">
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    className="shrink-0"
+                                    onClick={() => navigate(`/profile?id=${id}`)}
+                                    aria-label="View profile"
+                                  >
+                                    <Avatar className="h-12 w-12">
+                                      <AvatarImage src={u.image} />
+                                      <AvatarFallback className="bg-muted">
+                                        {u.name?.charAt(0) || "U"}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  </button>
+                                  <div className="min-w-0 flex-1">
+                                    <p
+                                      className="truncate font-medium hover:underline cursor-pointer"
+                                      onClick={() => navigate(`/profile?id=${id}`)}
+                                    >
+                                      {u.name || "Anonymous"}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {mutualCount(id)} mutual friends
+                                    </p>
+                                  </div>
+                                  <button
+                                    aria-label="Hide suggestion"
+                                    className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+                                    onClick={() => onHide(id)}
+                                    title="Hide"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+
+                                <div className="mt-3 flex gap-2">
+                                  <Button
+                                    className="flex-1 bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                                    onClick={() => handleAddFriend(id)}
+                                  >
+                                    <UserPlus className="mr-2 h-4 w-4" />
+                                    Add Friend
+                                  </Button>
+                                  <Button variant="outline" onClick={() => onHide(id)}>
+                                    Hide
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      // Show empty message only if no requests and no suggestions
+                      (requestsForSuggestions?.length ?? 0) === 0 && (
+                        <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
+                          {search.trim().length >= 2
+                            ? "No people found."
+                            : "No suggestions right now. Try searching for people."}
+                        </div>
+                      )
+                    )}
                   </div>
                 )}
               </TabsContent>
