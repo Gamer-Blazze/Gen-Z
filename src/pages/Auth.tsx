@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/input-otp";
 
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight, Loader2, Mail, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Loader2, Mail } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 
@@ -35,12 +35,22 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [emailInput, setEmailInput] = useState("");
-  const [passwordInput, setPasswordInput] = useState("");
-  const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const resendCode = async (email: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.set("email", email);
+      await signIn("email-otp", formData);
+    } catch (e) {
+      console.error("Resend code error:", e);
+      setError("Failed to resend code. Please try again in a moment.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -60,19 +70,6 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
         setIsLoading(false);
         return;
       }
-      if (authMode === "signup") {
-        if (passwordInput.length < 6) {
-          setError("Password must be at least 6 characters.");
-          setIsLoading(false);
-          return;
-        }
-        if (passwordInput !== confirmPasswordInput) {
-          setError("Passwords do not match.");
-          setIsLoading(false);
-          return;
-        }
-      }
-      // Email/password UI funnels into passwordless email-otp sign in (your auth provider)
       const formData = new FormData();
       formData.set("email", email);
       await signIn("email-otp", formData);
@@ -148,51 +145,15 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                   />
                 </div>
                 <CardTitle className="text-xl">
-                  {authMode === "login" ? "Welcome back" : "Create your account"}
+                  Sign in securely
                 </CardTitle>
                 <CardDescription>
-                  {authMode === "login"
-                    ? "Login with your email and password"
-                    : "Sign up with your name, email, and password"}
+                  Enter your email to receive a 6‑digit verification code
                 </CardDescription>
               </CardHeader>
 
               <form onSubmit={handleEmailSubmit}>
                 <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-1 rounded-lg p-1 bg-muted">
-                    <button
-                      type="button"
-                      className={`py-2 rounded-md text-sm transition ${
-                        authMode === "login"
-                          ? "bg-background shadow font-medium"
-                          : "text-muted-foreground"
-                      }`}
-                      onClick={() => {
-                        setAuthMode("login");
-                        setError(null);
-                      }}
-                      aria-pressed={authMode === "login"}
-                    >
-                      Login
-                    </button>
-                    <button
-                      type="button"
-                      className={`py-2 rounded-md text-sm transition ${
-                        authMode === "signup"
-                          ? "bg-background shadow font-medium"
-                          : "text-muted-foreground"
-                      }`}
-                      onClick={() => {
-                        setAuthMode("signup");
-                        setError(null);
-                      }}
-                      aria-pressed={authMode === "signup"}
-                    >
-                      Sign Up
-                    </button>
-                  </div>
-
-                  {/* Email */}
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -206,75 +167,6 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                       onChange={(e) => setEmailInput(e.target.value)}
                     />
                   </div>
-
-                  {/* Password (shown for both modes for consistent UI) */}
-                  <div className="relative">
-                    <Input
-                      placeholder="Password"
-                      type={showPassword ? "text" : "password"}
-                      disabled={isLoading}
-                      required
-                      value={passwordInput}
-                      onChange={(e) => setPasswordInput(e.target.value)}
-                      minLength={6}
-                      className="pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((s) => !s)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                      tabIndex={-1}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-
-                  {/* Confirm Password (signup only) */}
-                  {authMode === "signup" && (
-                    <div className="relative">
-                      <Input
-                        placeholder="Confirm password"
-                        type={showConfirmPassword ? "text" : "password"}
-                        disabled={isLoading}
-                        required
-                        value={confirmPasswordInput}
-                        onChange={(e) => setConfirmPasswordInput(e.target.value)}
-                        minLength={6}
-                        className="pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword((s) => !s)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                        tabIndex={-1}
-                      >
-                        {showConfirmPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Forgot password (info only since passwordless auth) */}
-                  {authMode === "login" && (
-                    <div className="text-right">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setError(
-                            "Password reset is not required. We use secure passwordless login via email code."
-                          )
-                        }
-                        className="text-sm underline text-muted-foreground hover:text-foreground"
-                      >
-                        Forgot Password?
-                      </button>
-                    </div>
-                  )}
 
                   {/* Error */}
                   {error && <p className="text-sm text-red-500">{error}</p>}
@@ -290,48 +182,15 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                     {isLoading ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {authMode === "login" ? "Logging in..." : "Creating account..."}
+                        Sending...
                       </>
                     ) : (
                       <>
-                        {authMode === "login" ? "Login" : "Sign Up"}
+                        Send code
                         <ArrowRight className="ml-2 h-4 w-4" />
                       </>
                     )}
                   </Button>
-
-                  {/* Toggle between modes */}
-                  <div className="text-sm text-muted-foreground">
-                    {authMode === "login" ? (
-                      <>
-                        Don&apos;t have an account?{" "}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAuthMode("signup");
-                            setError(null);
-                          }}
-                          className="underline hover:text-primary"
-                        >
-                          Sign Up
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        Already have an account?{" "}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAuthMode("login");
-                            setError(null);
-                          }}
-                          className="underline hover:text-primary"
-                        >
-                          Login
-                        </button>
-                      </>
-                    )}
-                  </div>
 
                   {/* Social placeholder area */}
                   <div className="w-full pt-2">
@@ -362,7 +221,7 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                       </Button>
                     </div>
                     <p className="mt-2 text-xs text-muted-foreground text-center">
-                      We use secure passwordless login. You&apos;ll receive a 6‑digit code by email.
+                      You'll receive a 6‑digit code by email.
                     </p>
                   </div>
                 </CardFooter>
@@ -373,7 +232,7 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
               <CardHeader className="text-center mt-4">
                 <CardTitle>Check your email</CardTitle>
                 <CardDescription>
-                  We've sent a code to {step.email}
+                  We've sent a 6‑digit code to {step.email}
                 </CardDescription>
               </CardHeader>
               <form onSubmit={handleOtpSubmit}>
@@ -389,7 +248,6 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                       disabled={isLoading}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && otp.length === 6 && !isLoading) {
-                          // Find the closest form and submit it
                           const form = (e.target as HTMLElement).closest("form");
                           if (form) {
                             form.requestSubmit();
@@ -414,9 +272,10 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                     <Button
                       variant="link"
                       className="p-0 h-auto"
-                      onClick={() => setStep("signIn")}
+                      onClick={() => resendCode(step.email)}
+                      disabled={isLoading}
                     >
-                      Try again
+                      Resend code
                     </Button>
                   </p>
                 </CardContent>
