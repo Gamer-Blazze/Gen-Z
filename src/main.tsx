@@ -17,6 +17,7 @@ import Profile from "@/pages/Profile.tsx";
 import Messages from "@/pages/Messages.tsx";
 import { useAuth } from "@/hooks/use-auth";
 import Settings from "@/pages/Settings.tsx";
+import Dashboard from "@/pages/Dashboard.tsx";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
@@ -188,6 +189,14 @@ createRoot(document.getElementById("root")!).render(
               element={
                 <ProtectedRoute>
                   <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
                 </ProtectedRoute>
               }
             />

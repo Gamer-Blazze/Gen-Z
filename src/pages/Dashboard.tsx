@@ -18,9 +18,11 @@ import { Search, Bell, MessageCircle, Moon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { LogoDropdown } from "@/components/LogoDropdown";
 import { Stories } from "@/components/Stories";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { UserPlus } from "lucide-react";
 
 export default function Dashboard() {
-  const { isLoading, isAuthenticated, user } = useAuth();
+  const { isLoading, isAuthenticated, user, signOut } = useAuth();
   const navigate = useNavigate();
 
   // Background watcher for notifications: plays tones + toasts for calls/messages
@@ -173,17 +175,57 @@ export default function Dashboard() {
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             </div>
           </div>
-          {/* Right: Icons */}
+          {/* Right: Icons + Profile */}
           <div className="flex items-center gap-2">
-            <button className="h-9 w-9 rounded-full bg-muted grid place-items-center">
-              <Moon className="h-4 w-4" />
+            {/* Friend Requests */}
+            <button className="h-9 w-9 rounded-full bg-muted grid place-items-center" title="Friend requests">
+              <UserPlus className="h-4 w-4" />
             </button>
-            <button className="h-9 w-9 rounded-full bg-muted grid place-items-center">
-              <Bell className="h-4 w-4" />
-            </button>
-            <button className="h-9 w-9 rounded-full bg-muted grid place-items-center">
+            {/* Messages */}
+            <button className="h-9 w-9 rounded-full bg-muted grid place-items-center" title="Messages">
               <MessageCircle className="h-4 w-4" />
             </button>
+            {/* Notifications */}
+            <button className="h-9 w-9 rounded-full bg-muted grid place-items-center" title="Notifications">
+              <Bell className="h-4 w-4" />
+            </button>
+            {/* Dark/Light */}
+            <button className="h-9 w-9 rounded-full bg-muted grid place-items-center" title="Theme">
+              <Moon className="h-4 w-4" />
+            </button>
+            {/* Profile Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="ml-1 rounded-full focus:outline-none ring-0">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={user?.image} />
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {user?.name?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem onClick={() => window.location.assign("/profile")}>
+                  Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => window.location.assign("/settings")}>
+                  Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={async () => {
+                    try {
+                      await signOut();
+                      window.location.assign("/auth");
+                    } catch {
+                      // no-op
+                    }
+                  }}
+                >
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
