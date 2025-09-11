@@ -165,10 +165,14 @@ const schema = defineSchema(
       conversationId: v.id("conversations"),
       senderId: v.id("users"),
       content: v.string(),
-      messageType: v.union(v.literal("text"), v.literal("image"), v.literal("file")),
+      // Extend messageType to support audio
+      messageType: v.union(v.literal("text"), v.literal("image"), v.literal("file"), v.literal("audio")),
       imageUrl: v.optional(v.string()),
       fileUrl: v.optional(v.string()),
       fileName: v.optional(v.string()),
+      // Add: audio fields
+      audioUrl: v.optional(v.string()),
+      audioDuration: v.optional(v.number()),
       readBy: v.array(v.object({
         userId: v.id("users"),
         readAt: v.number(),

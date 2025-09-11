@@ -51,10 +51,12 @@ export const sendMessage = mutation({
   args: {
     conversationId: v.id("conversations"),
     content: v.string(),
-    messageType: v.optional(v.union(v.literal("text"), v.literal("image"), v.literal("file"))),
+    messageType: v.optional(v.union(v.literal("text"), v.literal("image"), v.literal("file"), v.literal("audio"))),
     imageUrl: v.optional(v.string()),
     fileUrl: v.optional(v.string()),
     fileName: v.optional(v.string()),
+    audioUrl: v.optional(v.string()),
+    audioDuration: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
@@ -80,6 +82,8 @@ export const sendMessage = mutation({
       imageUrl: args.imageUrl,
       fileUrl: args.fileUrl,
       fileName: args.fileName,
+      audioUrl: args.audioUrl,
+      audioDuration: args.audioDuration,
       readBy: [{
         userId: user._id,
         readAt: Date.now(),

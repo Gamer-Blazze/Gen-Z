@@ -15,6 +15,7 @@ import { Paperclip } from "lucide-react";
 import { useNavigate } from "react-router";
 import CallDialog from "./CallDialog";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Mic, Square } from "lucide-react";
 
 interface ChatWindowProps {
   conversationId: Id<"conversations">;
@@ -31,7 +32,12 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const [callRole, setCallRole] = useState<"caller" | "callee">("caller");
   const [incomingOpen, setIncomingOpen] = useState(false);
   const [message, setMessage] = useState("");
+  // Add: submission state for sending messages
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [inputFocused, setInputFocused] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -181,6 +187,102 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const startRecording = async () => {
+    try {
+      // Request mic
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Prefer webm/opus; browser picks best available
+      const mimeType =
+        MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : MediaRecorder.isTypeSupported("audio/webm")
+          ? "audio/webm"
+          : "";
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      audioChunksRef.current = [];
+      mr.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+      mr.onstop = async () => {
+        try {
+          const blob = new Blob(audioChunksRef.current, { type: mr.mimeType || "audio/webm" });
+          if (blob.size === 0) {
+            setIsRecording(false);
+            return;
+          }
+          // Determine duration by decoding
+          const audio = document.createElement("audio");
+          const url = URL.createObjectURL(blob);
+          const getDuration = () =>
+            new Promise<number>((resolve) => {
+              audio.onloadedmetadata = () => {
+                resolve(isFinite(audio.duration) ? audio.duration : 0);
+                URL.revokeObjectURL(url);
+              };
+              audio.src = url;
+            });
+          const duration = await getDuration();
+
+          // Upload blob
+          setIsUploading(true);
+          const uploadUrl = await generateUploadUrl({});
+          const buf = await blob.arrayBuffer();
+          const res = await fetch(uploadUrl, {
+            method: "POST",
+            headers: { "Content-Type": blob.type || "application/octet-stream" },
+            body: buf,
+          });
+          if (!res.ok) throw new Error("Upload failed");
+          const { storageId } = await res.json();
+          const signedUrl = await getFileUrl({ fileId: storageId });
+
+          // Send audio message
+          await sendMessage({
+            conversationId,
+            content: "",
+            messageType: "audio",
+            audioUrl: signedUrl,
+            audioDuration: Math.round(duration || 0),
+          });
+        } catch (err) {
+          toast.error("Failed to send voice message");
+          console.error(err);
+        } finally {
+          setIsUploading(false);
+          setIsRecording(false);
+        }
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setIsRecording(true);
+    } catch (err) {
+      toast.error("Microphone permission denied");
+      console.error(err);
+    }
+  };
+
+  const stopRecording = () => {
+    try {
+      const mr = mediaRecorderRef.current;
+      if (mr && mr.state !== "inactive") {
+        mr.stop();
+      }
+      // Stop tracks
+      mr?.stream.getTracks().forEach((t) => t.stop());
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const onAudioPlay = async () => {
+    try {
+      // reinforce seen when the receiver plays audio
+      await markAsRead({ conversationId });
+    } catch {}
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -365,6 +467,22 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                         <div className="text-xs text-muted-foreground mt-1 truncate max-w-xs">{msg.fileName}</div>
                       )}
                     </div>
+                  ) : msg.messageType === "audio" && msg.audioUrl ? (
+                    <div className={`px-3 py-2 rounded-2xl border ${isOwn ? "bg-primary/10" : "bg-muted"} max-w-xs`}>
+                      <audio
+                        src={msg.audioUrl}
+                        controls
+                        preload="metadata"
+                        onPlay={onAudioPlay}
+                        className="w-56"
+                      />
+                      {typeof msg.audioDuration === "number" && msg.audioDuration > 0 && (
+                        <div className="text-[11px] text-muted-foreground mt-1">
+                          {Math.floor(msg.audioDuration / 60)}:
+                          {(msg.audioDuration % 60).toString().padStart(2, "0")}
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <div
                       className={`px-4 py-2 rounded-2xl shadow-sm ${
@@ -452,7 +570,34 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             className="flex-1 rounded-full bg-muted border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
           />
+          {inputFocused && (
+            isRecording ? (
+              <Button
+                type="button"
+                variant="destructive"
+                className="h-10 w-10 p-0 rounded-full"
+                title="Stop recording"
+                onClick={stopRecording}
+                disabled={isUploading}
+              >
+                <Square className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-10 w-10 p-0 rounded-full"
+                title="Record voice message"
+                onClick={startRecording}
+                disabled={isUploading}
+              >
+                <Mic className="w-4 h-4" />
+              </Button>
+            )
+          )}
           <Button
             type="submit"
             disabled={!message.trim() || isSubmitting}
