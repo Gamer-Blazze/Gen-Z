@@ -29,18 +29,22 @@ export default function Friends() {
 
   const [showMobileNav, setShowMobileNav] = useState(false);
 
-  const [tab, setTab] = useState<"friends" | "suggestions">("friends");
+  const [tab, setTab] = useState<"friends" | "suggestions" | "requests">("friends");
   const [search, setSearch] = useState("");
   const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [friendsSearch, setFriendsSearch] = useState("");
 
   // Data
   const friends = useQuery(api.friends.getUserFriends, {});
   const suggestions = useQuery(api.friends.getSuggestions, { limit: 12 });
+  const friendRequests = useQuery(api.friends.getPendingFriendRequests, {});
   const searchResults = useQuery(
     api.friends.searchUsers,
     search.trim().length >= 2 ? { query: search.trim() } : "skip"
   );
   const sendFriend = useMutation(api.friends.sendFriendRequest);
+  const acceptFriend = useMutation(api.friends.acceptFriendRequest);
+  const declineFriend = useMutation(api.friends.declineFriendRequest);
 
   const onHide = (id: string) => {
     setHidden((prev) => new Set([...prev, id]));
@@ -50,6 +54,13 @@ export default function Friends() {
     const list = search.trim().length >= 2 ? (searchResults || []) : (suggestions || []);
     return list.filter((u) => !hidden.has(u._id as unknown as string));
   }, [search, searchResults, suggestions, hidden]);
+
+  const filteredFriends = useMemo(() => {
+    const list = friends || [];
+    const q = friendsSearch.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((f) => (f?.name || "").toLowerCase().includes(q));
+  }, [friends, friendsSearch]);
 
   const handleAddFriend = async (id: string) => {
     try {
@@ -85,6 +96,20 @@ export default function Friends() {
     </div>
   );
 
+  const RequestSkeleton = () => (
+    <div className="flex items-center gap-3 rounded-lg border bg-card p-3">
+      <Skeleton className="h-10 w-10 rounded-full" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+      <div className="flex gap-2">
+        <Skeleton className="h-9 w-20" />
+        <Skeleton className="h-9 w-20" />
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6">
@@ -103,12 +128,114 @@ export default function Friends() {
         {/* Tabs */}
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
           <TabsList className="bg-muted/50">
-            <TabsTrigger value="friends">Your Friends</TabsTrigger>
-            <TabsTrigger value="suggestions">Suggestions</TabsTrigger>
+            <TabsTrigger
+              value="requests"
+              className="data-[state=active]:text-[#1877F2] data-[state=active]:border-b-2 data-[state=active]:border-[#1877F2] rounded-none"
+            >
+              Friend Requests
+            </TabsTrigger>
+            <TabsTrigger
+              value="friends"
+              className="data-[state=active]:text-[#1877F2] data-[state=active]:border-b-2 data-[state=active]:border-[#1877F2] rounded-none"
+            >
+              Your Friends
+            </TabsTrigger>
+            <TabsTrigger
+              value="suggestions"
+              className="data-[state=active]:text-[#1877F2] data-[state=active]:border-b-2 data-[state=active]:border-[#1877F2] rounded-none"
+            >
+              Suggestions
+            </TabsTrigger>
           </TabsList>
+
+          {/* Friend Requests */}
+          <TabsContent value="requests" className="mt-4">
+            <div className="space-y-3">
+              {!friendRequests ? (
+                Array.from({ length: 4 }).map((_, i) => <RequestSkeleton key={i} />)
+              ) : friendRequests.length === 0 ? (
+                <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
+                  No incoming requests.
+                </div>
+              ) : (
+                friendRequests.map((req) => {
+                  const requester = req.requester;
+                  if (!requester) return null;
+                  const id = requester._id as unknown as string;
+                  return (
+                    <div
+                      key={req._id}
+                      className="flex items-center gap-3 rounded-lg border bg-card p-3"
+                    >
+                      <button
+                        className="shrink-0"
+                        onClick={() => navigate(`/profile?id=${id}`)}
+                        aria-label="View profile"
+                      >
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={requester.image} />
+                          <AvatarFallback className="bg-muted">
+                            {requester.name?.charAt(0) || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="truncate font-medium hover:underline cursor-pointer"
+                          onClick={() => navigate(`/profile?id=${id}`)}
+                        >
+                          {requester.name || "Anonymous"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {mutualCount(id)} mutual friends
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                          onClick={async () => {
+                            try {
+                              await acceptFriend({ friendshipId: req._id });
+                              toast.success("Request confirmed");
+                              setTab("friends");
+                            } catch {
+                              toast.error("Failed to confirm");
+                            }
+                          }}
+                        >
+                          Confirm
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={async () => {
+                            try {
+                              await declineFriend({ friendshipId: req._id });
+                              toast.message("Request deleted");
+                            } catch {
+                              toast.error("Failed to delete");
+                            }
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </TabsContent>
 
           {/* Your Friends */}
           <TabsContent value="friends" className="mt-4">
+            {/* Add a search specifically for friends list */}
+            <div className="mb-3">
+              <Input
+                placeholder="Search your friends"
+                value={friendsSearch}
+                onChange={(e) => setFriendsSearch(e.target.value)}
+              />
+            </div>
             <div className="space-y-3">
               {!friends ? (
                 // Loading skeletons for friend rows
@@ -122,12 +249,14 @@ export default function Friends() {
                     <Skeleton className="h-9 w-24" />
                   </div>
                 ))
-              ) : friends.length === 0 ? (
+              ) : filteredFriends.length === 0 ? (
                 <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
-                  You don't have any friends yet.
+                  {friendsSearch.trim()
+                    ? "No friends match your search."
+                    : "You don't have any friends yet."}
                 </div>
               ) : (
-                friends.map((friend) => {
+                filteredFriends.map((friend) => {
                   if (!friend) return null;
                   return (
                     <div
