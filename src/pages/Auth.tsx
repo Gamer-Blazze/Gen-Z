@@ -33,6 +33,8 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
 
   const [step, setStep] = useState<"signIn" | { email: string }>("signIn");
   const [otp, setOtp] = useState("");
+  const [otpTouched, setOtpTouched] = useState(false);
+  const otpIsValid = /^\d{6}$/.test(otp);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [emailInput, setEmailInput] = useState("");
@@ -93,13 +95,17 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
 
   const handleOtpSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // Validate OTP before attempting sign-in
+    if (!otpIsValid) {
+      setOtpTouched(true);
+      setError("Enter the 6-digit code sent to your email.");
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
       const formData = new FormData(event.currentTarget);
       await signIn("email-otp", formData);
-
-      console.log("signed in");
 
       const redirect = redirectTarget;
       navigate(redirect, { replace: true });
@@ -110,6 +116,7 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
       setIsLoading(false);
 
       setOtp("");
+      setOtpTouched(false);
     }
   };
 
@@ -268,7 +275,13 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                   <div className="flex justify-center">
                     <InputOTP
                       value={otp}
-                      onChange={setOtp}
+                      onChange={(val) => {
+                        const digitsOnly = val.replace(/\D/g, "").slice(0, 6);
+                        setOtp(digitsOnly);
+                        if (!otpTouched && digitsOnly.length > 0) setOtpTouched(true);
+                        // Clear top-level error as user edits
+                        if (error) setError(null);
+                      }}
                       maxLength={6}
                       disabled={isLoading}
                       onKeyDown={(e) => {
@@ -287,6 +300,14 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                       </InputOTPGroup>
                     </InputOTP>
                   </div>
+
+                  {/* Inline OTP validation message */}
+                  {!otpIsValid && otpTouched && (
+                    <p className="mt-2 text-xs text-red-500 text-center">
+                      Enter a valid 6-digit code.
+                    </p>
+                  )}
+
                   {error && (
                     <p className="mt-2 text-sm text-red-500 text-center">
                       {error}
@@ -308,7 +329,7 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                   <Button
                     type="submit"
                     className="w-full bg-[#1877F2] hover:bg-[#166FE5] text-white"
-                    disabled={isLoading || otp.length !== 6}
+                    disabled={isLoading || !otpIsValid}
                   >
                     {isLoading ? (
                       <>
@@ -325,7 +346,12 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => setStep("signIn")}
+                    onClick={() => {
+                      setStep("signIn");
+                      setOtp("");
+                      setOtpTouched(false);
+                      setError(null);
+                    }}
                     disabled={isLoading}
                     className="w-full"
                   >
