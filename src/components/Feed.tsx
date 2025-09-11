@@ -3,9 +3,23 @@ import { api } from "@/convex/_generated/api";
 import { PostCard } from "./PostCard";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export function Feed() {
-  const posts = useQuery(api.posts.getFeedPosts, { limit: 20 });
+  const [limit, setLimit] = useState(20);
+  const posts = useQuery(api.posts.getFeedPosts, { limit });
+
+  useEffect(() => {
+    const onScroll = () => {
+      const nearBottom =
+        window.innerHeight + window.scrollY >= document.body.offsetHeight - 600;
+      if (nearBottom) {
+        setLimit((n) => (n < 200 ? n + 10 : n)); // soft cap
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   if (posts === undefined) {
     return (
@@ -40,6 +54,8 @@ export function Feed() {
           <PostCard post={post} />
         </motion.div>
       ))}
+      {/* Sentinel for spacing */}
+      <div className="h-12" />
     </div>
   );
 }

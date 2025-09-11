@@ -14,6 +14,10 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { MobileTopNav } from "@/components/MobileTopNav";
+import { Search, Bell, MessageCircle, Moon } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { LogoDropdown } from "@/components/LogoDropdown";
+import { Stories } from "@/components/Stories";
 
 export default function Dashboard() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -152,6 +156,38 @@ export default function Dashboard() {
       {/* Background notifications watcher */}
       <NotificationWatcher />
 
+      {/* Desktop Top Navigation (sticky) */}
+      <div className="hidden md:block sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="mx-auto max-w-7xl px-4 h-14 flex items-center gap-4">
+          {/* Left: Logo */}
+          <div className="flex items-center">
+            <LogoDropdown />
+          </div>
+          {/* Center: Search */}
+          <div className="flex-1 max-w-xl">
+            <div className="relative">
+              <Input
+                placeholder="Search Gen-Z"
+                className="pl-9"
+              />
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            </div>
+          </div>
+          {/* Right: Icons */}
+          <div className="flex items-center gap-2">
+            <button className="h-9 w-9 rounded-full bg-muted grid place-items-center">
+              <Moon className="h-4 w-4" />
+            </button>
+            <button className="h-9 w-9 rounded-full bg-muted grid place-items-center">
+              <Bell className="h-4 w-4" />
+            </button>
+            <button className="h-9 w-9 rounded-full bg-muted grid place-items-center">
+              <MessageCircle className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Mobile Top Navigation */}
       <MobileTopNav />
 
@@ -193,6 +229,8 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6">
+          {/* Stories row */}
+          <Stories />
           <CreatePost />
           <Feed />
         </main>
