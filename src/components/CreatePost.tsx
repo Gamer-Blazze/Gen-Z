@@ -55,6 +55,17 @@ export function CreatePost() {
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const [isChecking, setIsChecking] = useState(false); // disable post while background checks (validation / uploads)
 
+  // Add: clear a completed upload (remove its preview) by storageId
+  const clearCompletedUploadByStorageId = (storageId: Id<"_storage">) => {
+    setUploads((prev) => {
+      const idx = prev.findIndex((u) => u.storageId === storageId);
+      if (idx === -1) return prev;
+      // Remove matching preview item at same index from files
+      setFiles((filesPrev) => filesPrev.filter((_, i) => i !== idx));
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
+
   // Validation limits
   const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
   const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500MB
@@ -112,6 +123,9 @@ export function CreatePost() {
               } else if (file.type.startsWith("video/")) {
                 setVideoIds((prev) => [...prev, storageId]);
               }
+              // Auto "cancel" (reset/clear preview) after completion
+              // Note: This does not abort the upload; it only clears the UI tile
+              setTimeout(() => clearCompletedUploadByStorageId(storageId), 0);
               resolve();
             } catch (err) {
               reject(new Error("Invalid upload response"));
@@ -138,12 +152,25 @@ export function CreatePost() {
 
   const cancelUpload = (index: number) => {
     const u = uploads[index];
-    try {
-      u?.xhr?.abort();
-    } catch {}
-    setUploads((prev) =>
-      prev.map((uu, i) => (i === index ? { ...uu, status: "canceled", error: "Canceled" } : uu))
-    );
+    if (!u) return;
+
+    if (u.status === "uploading") {
+      try {
+        u?.xhr?.abort();
+      } catch {}
+      setUploads((prev) =>
+        prev.map((uu, i) => (i === index ? { ...uu, status: "canceled", error: "Canceled" } : uu))
+      );
+    } else if (u.status === "done") {
+      // For completed uploads, treat cancel as a clear/reset of the preview tile
+      setUploads((prev) => prev.filter((_, i) => i !== index));
+      setFiles((prev) => prev.filter((_, i) => i !== index));
+      // Note: We intentionally keep storageId in imageIds/videoIds so the post can use it
+    } else {
+      // For other states (idle/error/canceled), just clear the tile
+      setUploads((prev) => prev.filter((_, i) => i !== index));
+      setFiles((prev) => prev.filter((_, i) => i !== index));
+    }
   };
 
   const handleFilesPicked = async (picked: FileList | null) => {
