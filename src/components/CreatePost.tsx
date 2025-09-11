@@ -470,17 +470,11 @@ export function CreatePost() {
                           {u?.status === "uploading" && (
                             <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white">
                               <div className="h-1 bg-primary" style={{ width: `${Math.min(u?.progress ?? 0, 100)}%` }} />
-                              <div className="flex items-center justify-between px-2 py-1">
+                              {/* Removed Cancel option */}
+                              <div className="flex items-center justify-start px-2 py-1">
                                 <span className="text-[10px]">
                                   {`Uploading ${u?.progress ?? 0}%`}
                                 </span>
-                                <button
-                                  type="button"
-                                  className="text-xs underline"
-                                  onClick={() => cancelUpload(i)}
-                                >
-                                  Cancel
-                                </button>
                               </div>
                             </div>
                           )}
