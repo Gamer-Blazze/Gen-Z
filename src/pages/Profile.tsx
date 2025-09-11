@@ -256,7 +256,7 @@ export default function Profile() {
           </div>
 
           {/* Constrain content width for all devices and adjust paddings */}
-          <main className="w-full max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-6 space-y-6">
+          <main className="w-full max-w-none md:max-w-5xl lg:max-w-6xl mx-auto px-3 md:px-6 lg:px-8 py-6 space-y-6">
             {/* Header card */}
             <div className="flex flex-col sm:flex-row sm:items-start gap-4">
               {isOwnProfile && (
