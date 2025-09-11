@@ -12,6 +12,7 @@ import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
 import { Id } from "@/convex/_generated/dataModel";
 import { useNavigate } from "react-router";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface PostCardProps {
   post: {
@@ -36,6 +37,15 @@ export function PostCard({ post }: PostCardProps) {
   const [commentContent, setCommentContent] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const navigate = useNavigate();
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerSrc, setViewerSrc] = useState<string | null>(null);
+  const [viewerKind, setViewerKind] = useState<"image" | "video">("image");
+
+  const openViewer = (src: string, kind: "image" | "video") => {
+    setViewerSrc(src);
+    setViewerKind(kind);
+    setViewerOpen(true);
+  };
 
   const toggleLike = useMutation(api.posts.toggleLike);
   const addComment = useMutation(api.posts.addComment);
@@ -110,10 +120,10 @@ export function PostCard({ post }: PostCardProps) {
                 key={index}
                 src={image}
                 alt="Post image"
-                className="w-full h-auto rounded-xl object-cover"
+                className="w-full h-auto rounded-xl object-contain bg-black/5 cursor-zoom-in"
                 loading="lazy"
                 decoding="async"
-                sizes="(max-width: 768px) 100vw, 640px"
+                onClick={() => openViewer(image, "image")}
               />
             ))}
           </div>
@@ -126,9 +136,15 @@ export function PostCard({ post }: PostCardProps) {
                 key={index}
                 src={video}
                 controls
-                className="w-full h-auto rounded-md"
+                className="w-full h-auto rounded-md bg-black cursor-zoom-in"
                 preload="metadata"
                 playsInline
+                onClick={(e) => {
+                  // Prevent immediate play/pause toggling when opening viewer
+                  e.preventDefault();
+                  e.stopPropagation();
+                  openViewer(video, "video");
+                }}
               />
             ))}
           </div>
@@ -235,6 +251,31 @@ export function PostCard({ post }: PostCardProps) {
           </motion.div>
         )}
       </CardContent>
+
+      {/* Add: Full-screen media viewer */}
+      <Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
+        <DialogContent className="p-0 max-w-[95vw] md:max-w-[90vw] bg-black">
+          <div className="w-full h-full flex items-center justify-center p-0 md:p-2">
+            {viewerSrc && viewerKind === "image" && (
+              <img
+                src={viewerSrc}
+                alt="Full view"
+                className="max-h-[85vh] w-auto h-auto object-contain select-none"
+                draggable={false}
+              />
+            )}
+            {viewerSrc && viewerKind === "video" && (
+              <video
+                src={viewerSrc}
+                controls
+                autoPlay
+                className="max-h-[85vh] w-auto h-auto object-contain"
+                playsInline
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
