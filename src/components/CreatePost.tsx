@@ -70,6 +70,33 @@ const [feeling, setFeeling] = useState("");
     }
   }, [uploads, hadUploading]);
 
+  useEffect(() => {
+    // If any upload shows 100% but still marked as "uploading", mark it "done"
+    setUploads((prev) =>
+      prev.map((u) => {
+        if (u.status === "uploading" && u.progress >= 100) {
+          return { ...u, status: "done" };
+        }
+        return u;
+      }),
+    );
+  }, [uploads]);
+
+  useEffect(() => {
+    // Abort any in-flight XHRs when component unmounts or dependencies change
+    return () => {
+      try {
+        uploads.forEach((u) => {
+          if (u.status === "uploading") {
+            u.xhr?.abort();
+          }
+        });
+      } catch {
+        // ignore
+      }
+    };
+  }, [uploads]);
+
   const clearCompletedUploadByStorageId = (storageId: Id<"_storage">) => {
     setUploads((prev) => {
       const idx = prev.findIndex((u) => u.storageId === storageId);
