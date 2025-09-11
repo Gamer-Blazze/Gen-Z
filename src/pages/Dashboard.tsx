@@ -9,7 +9,7 @@ import { FriendsSidebar } from "@/components/FriendsSidebar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
-import { MobileTopNav } from "@/components/MobileTopNav";
+import { TopNav } from "@/components/TopNav";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -147,7 +147,7 @@ export default function Dashboard() {
     >
       {/* Global mobile nav bar removed on Dashboard */}
       {/* Add top navigation bar */}
-      <MobileTopNav showOnDesktop />
+      <TopNav />
 
       {/* Background notifications watcher */}
       <NotificationWatcher />
