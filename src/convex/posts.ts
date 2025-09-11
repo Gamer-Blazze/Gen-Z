@@ -9,12 +9,21 @@ export const createPost = mutation({
     images: v.optional(v.array(v.id("_storage"))),
     videos: v.optional(v.array(v.id("_storage"))),
     isPublic: v.optional(v.boolean()),
+    // ADD: new fields
+    audience: v.optional(v.union(v.literal("public"), v.literal("friends"), v.literal("private"))),
+    tags: v.optional(v.array(v.id("users"))),
+    scheduledAt: v.optional(v.number()),
+    isDraft: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
     }
+
+    // derive isPublic from audience if provided
+    const audience = args.audience ?? (args.isPublic ? "public" : "public");
+    const isPublic = args.isPublic ?? (audience === "public");
 
     const postId = await ctx.db.insert("posts", {
       userId: user._id,
@@ -25,7 +34,11 @@ export const createPost = mutation({
       likesCount: 0,
       commentsCount: 0,
       sharesCount: 0,
-      isPublic: args.isPublic ?? true,
+      isPublic,
+      audience,
+      tags: args.tags || [],
+      scheduledAt: args.scheduledAt,
+      isDraft: args.isDraft ?? false,
     });
 
     return postId;
@@ -46,6 +59,7 @@ export const getFeedPosts = query({
     const posts = await ctx.db
       .query("posts")
       .filter((q) => q.eq(q.field("isPublic"), true))
+      .filter((q) => q.or(q.eq(q.field("isDraft"), undefined), q.eq(q.field("isDraft"), false)))
       .order("desc")
       .take(args.limit || 20);
 

@@ -10,6 +10,12 @@ import { Image, Send } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Id } from "@/convex/_generated/dataModel";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { X, Users, Globe, Lock, CalendarClock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useQuery } from "convex/react";
 
 function readFileAsArrayBuffer(file: File) {
   return new Promise<ArrayBuffer>((resolve, reject) => {
@@ -19,6 +25,15 @@ function readFileAsArrayBuffer(file: File) {
     reader.readAsArrayBuffer(file);
   });
 }
+
+type UploadState = {
+  file: File;
+  progress: number; // 0 - 100
+  status: "idle" | "uploading" | "done" | "error" | "canceled";
+  xhr?: XMLHttpRequest;
+  storageId?: Id<"_storage">;
+  error?: string;
+};
 
 export function CreatePost() {
   const { user } = useAuth();
@@ -31,22 +46,162 @@ export function CreatePost() {
   // Use Convex action hook to request an upload URL
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
 
+  // ADD: audience, tags, scheduling, upload states
+  const [audience, setAudience] = useState<"public" | "friends" | "private">("public");
+  const friends = useQuery(api.friends.getUserFriends, {});
+  const [tagged, setTagged] = useState<Array<{ _id: Id<"users">; name?: string; image?: string }>>([]);
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState<string>(""); // datetime-local string
+  const [uploads, setUploads] = useState<UploadState[]>([]);
+  const [isChecking, setIsChecking] = useState(false); // disable post while background checks (validation / uploads)
+
+  // Validation limits
+  const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
+  const MAX_VIDEO_BYTES = 500 * 1024 * 1024; // 500MB
+  const ACCEPTED_IMAGE = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  const ACCEPTED_VIDEO = ["video/mp4", "video/webm", "video/quicktime"];
+
+  const validateFile = (file: File): string | null => {
+    if (file.type.startsWith("image/")) {
+      if (!ACCEPTED_IMAGE.includes(file.type)) return "Unsupported image format";
+      if (file.size > MAX_IMAGE_BYTES) return "Image exceeds 10MB limit";
+    } else if (file.type.startsWith("video/")) {
+      if (!ACCEPTED_VIDEO.includes(file.type)) return "Unsupported video format";
+      if (file.size > MAX_VIDEO_BYTES) return "Video exceeds 500MB limit";
+    } else {
+      return "Only images and videos are allowed";
+    }
+    return null;
+  };
+
+  const startUpload = async (file: File) => {
+    const error = validateFile(file);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+
+    const upload: UploadState = { file, progress: 0, status: "uploading" };
+    setUploads((prev) => [...prev, upload]);
+
+    try {
+      const uploadUrl = await generateUploadUrl({});
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        upload.xhr = xhr;
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            setUploads((prev) =>
+              prev.map((u) => (u === upload ? { ...u, progress: pct } : u))
+            );
+          }
+        };
+
+        xhr.onload = async () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const json = JSON.parse(xhr.responseText);
+              const storageId: Id<"_storage"> = json.storageId;
+              setUploads((prev) =>
+                prev.map((u) => (u === upload ? { ...u, progress: 100, status: "done", storageId } : u))
+              );
+              if (file.type.startsWith("image/")) {
+                setImageIds((prev) => [...prev, storageId]);
+              } else if (file.type.startsWith("video/")) {
+                setVideoIds((prev) => [...prev, storageId]);
+              }
+              resolve();
+            } catch (err) {
+              reject(new Error("Invalid upload response"));
+            }
+          } else {
+            reject(new Error(`Upload failed (${xhr.status})`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error("Network error during upload"));
+        xhr.onabort = () => reject(new Error("Upload canceled"));
+
+        xhr.open("POST", uploadUrl);
+        xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+        xhr.send(file);
+      });
+    } catch (e: any) {
+      setUploads((prev) =>
+        prev.map((u) => (u === upload ? { ...u, status: "error", error: e?.message || "Upload failed" } : u))
+      );
+      toast.error(e?.message || "Failed to upload");
+    }
+  };
+
+  const cancelUpload = (index: number) => {
+    const u = uploads[index];
+    try {
+      u?.xhr?.abort();
+    } catch {}
+    setUploads((prev) =>
+      prev.map((uu, i) => (i === index ? { ...uu, status: "canceled", error: "Canceled" } : uu))
+    );
+  };
+
+  const handleFilesPicked = async (picked: FileList | null) => {
+    if (!picked || picked.length === 0) return;
+    const selected = Array.from(picked);
+    setFiles((prev) => [...prev, ...selected]);
+    setIsChecking(true);
+    for (const file of selected) {
+      await startUpload(file);
+    }
+    setIsChecking(false);
+    toast.success("Files queued for upload");
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const dt = e.dataTransfer;
+    if (dt?.files && dt.files.length > 0) {
+      await handleFilesPicked(dt.files);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!content.trim() && imageIds.length === 0 && videoIds.length === 0) return;
 
+    // prevent submitting while some uploads in progress
+    if (uploads.some((u) => u.status === "uploading")) {
+      toast.error("Please wait for uploads to finish or cancel them");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
+      const scheduledNumber = scheduleEnabled && scheduledAt ? new Date(scheduledAt).getTime() : undefined;
+
       await createPost({
         content: content.trim(),
-        isPublic: true,
+        // map audience to isPublic for compatibility
+        isPublic: audience === "public",
+        audience,
         images: imageIds,
         videos: videoIds,
+        tags: tagged.map((t) => t._id),
+        scheduledAt: scheduledNumber,
+        isDraft: false,
       });
+
       setContent("");
       setFiles([]);
       setImageIds([]);
       setVideoIds([]);
+      setUploads([]);
+      setTagged([]);
+      setScheduleEnabled(false);
+      setScheduledAt("");
+
       toast.success("Post created successfully!");
     } catch (error) {
       toast.error("Failed to create post");
@@ -56,42 +211,51 @@ export function CreatePost() {
     }
   };
 
-  const onPickFiles = async (picked: FileList | null) => {
-    if (!picked || picked.length === 0) return;
-
-    try {
-      const selected = Array.from(picked);
-      setFiles((prev) => [...prev, ...selected]);
-
-      const uploadOne = async (file: File) => {
-        // Request an upload URL from Convex
-        const uploadUrl = await generateUploadUrl({});
-
-        const res = await fetch(uploadUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": file.type || "application/octet-stream",
-          },
-          body: await readFileAsArrayBuffer(file),
-        });
-        if (!res.ok) {
-          throw new Error("Upload failed");
-        }
-        const { storageId } = await res.json();
-
-        if (file.type.startsWith("image")) {
-          setImageIds((prev) => [...prev, storageId]);
-        } else if (file.type.startsWith("video")) {
-          setVideoIds((prev) => [...prev, storageId]);
-        }
-      };
-
-      await Promise.all(selected.map(uploadOne));
-      toast.success("Files uploaded");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to upload files");
+  const handleSaveDraft = async () => {
+    if (!content.trim() && imageIds.length === 0 && videoIds.length === 0) {
+      toast.error("Draft must have some content or media");
+      return;
     }
+    if (uploads.some((u) => u.status === "uploading")) {
+      toast.error("Please wait for uploads to finish or cancel them");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const scheduledNumber = scheduleEnabled && scheduledAt ? new Date(scheduledAt).getTime() : undefined;
+
+      await createPost({
+        content: content.trim(),
+        isPublic: audience === "public",
+        audience,
+        images: imageIds,
+        videos: videoIds,
+        tags: tagged.map((t) => t._id),
+        scheduledAt: scheduledNumber,
+        isDraft: true,
+      });
+
+      toast.success("Draft saved");
+    } catch (e) {
+      toast.error("Failed to save draft");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Tag selection helpers
+  const toggleTag = (u: any) => {
+    const id = u?._id;
+    if (!id) return;
+    setTagged((prev) => {
+      const exists = prev.find((p) => (p._id as unknown as string) === (id as unknown as string));
+      if (exists) return prev.filter((p) => (p._id as unknown as string) !== (id as unknown as string));
+      return [...prev, { _id: id, name: u?.name, image: u?.image }];
+    });
+  };
+
+  const onPickFiles = async (picked: FileList | null) => {
+    await handleFilesPicked(picked);
   };
 
   return (
@@ -119,36 +283,193 @@ export function CreatePost() {
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
+                {/* Header controls: audience + schedule */}
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <Select value={audience} onValueChange={(v) => setAudience(v as any)}>
+                    <SelectTrigger className="h-8 w-[150px]">
+                      <SelectValue placeholder="Audience" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="public">
+                        <div className="flex items-center gap-2">
+                          <Globe className="h-4 w-4" /> Public
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="friends">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4" /> Friends
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="private">
+                        <div className="flex items-center gap-2">
+                          <Lock className="h-4 w-4" /> Only Me
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className={`inline-flex items-center gap-1 text-sm px-2 py-1 rounded-md border ${scheduleEnabled ? "border-primary text-primary" : "border-muted-foreground/30 text-muted-foreground"}`}
+                      onClick={() => setScheduleEnabled((s) => !s)}
+                      title="Schedule post"
+                    >
+                      <CalendarClock className="h-4 w-4" />
+                      Schedule
+                    </button>
+                    {scheduleEnabled && (
+                      <Input
+                        type="datetime-local"
+                        value={scheduledAt}
+                        onChange={(e) => setScheduledAt(e.target.value)}
+                        className="h-8 w-[220px]"
+                      />
+                    )}
+                  </div>
+
+                  {/* Tag friends */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" size="sm">
+                        Tag friends
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-72 p-0">
+                      <div className="p-2 border-b font-medium text-sm">Tag people</div>
+                      <ScrollArea className="h-56">
+                        <div className="p-2 space-y-1">
+                          {Array.isArray(friends) && friends.length > 0 ? (
+                            friends.map((f: any) => {
+                              const id = f._id;
+                              const active = tagged.find((t) => (t._id as unknown as string) === (id as unknown as string));
+                              return (
+                                <button
+                                  key={(id as unknown as string)}
+                                  type="button"
+                                  onClick={() => toggleTag(f)}
+                                  className={`w-full flex items-center gap-2 rounded-md p-2 text-left hover:bg-muted ${active ? "bg-muted" : ""}`}
+                                >
+                                  <Avatar className="h-7 w-7">
+                                    <AvatarImage src={f.image} />
+                                    <AvatarFallback className="bg-muted text-xs">
+                                      {f.name?.charAt(0) || "U"}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="truncate text-sm">{f.name || "Anonymous"}</div>
+                                  </div>
+                                  {active && <span className="text-xs text-primary">Tagged</span>}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <div className="p-3 text-xs text-muted-foreground">No friends to tag.</div>
+                          )}
+                        </div>
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Tagged chips */}
+                  {tagged.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {tagged.map((t) => (
+                        <span key={(t._id as unknown as string)} className="inline-flex items-center gap-1 bg-muted text-xs rounded-full px-2 py-1">
+                          {t.name || "User"}
+                          <button type="button" onClick={() => toggleTag({ _id: t._id })} aria-label="Remove tag">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <Textarea
-                  placeholder="What's happening in Nepal today?"
+                  placeholder="What's on your mind?"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   className="min-h-[100px] resize-none border-0 p-0 text-base placeholder:text-muted-foreground focus-visible:ring-0"
                 />
 
+                {/* Drag & drop area */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={handleDrop}
+                  className="mt-3 rounded-lg border border-dashed p-3 text-sm text-muted-foreground"
+                >
+                  Drag & drop photos/videos here, or
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-primary ml-1"
+                    onClick={() => {
+                      const el = document.getElementById("create-post-file-input");
+                      (el as HTMLInputElement)?.click();
+                    }}
+                  >
+                    browse
+                  </Button>
+                </div>
+
                 {(files.length > 0) && (
                   <div className="mt-3 grid grid-cols-3 gap-2">
-                    {files.map((f, i) => (
-                      <div key={i} className="relative rounded-lg overflow-hidden border">
-                        {f.type.startsWith("image") ? (
-                          <img
-                            src={URL.createObjectURL(f)}
-                            alt={f.name}
-                            className="w-full h-24 object-cover"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        ) : (
-                          <video
-                            src={URL.createObjectURL(f)}
-                            className="w-full h-24 object-cover"
-                            controls
-                            preload="metadata"
-                            playsInline
-                          />
-                        )}
-                      </div>
-                    ))}
+                    {files.map((f, i) => {
+                      const u = uploads[i];
+                      const isImage = f.type.startsWith("image");
+                      return (
+                        <div key={i} className="relative rounded-lg overflow-hidden border">
+                          {isImage ? (
+                            <img
+                              src={URL.createObjectURL(f)}
+                              alt={f.name}
+                              className="w-full h-24 object-cover"
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          ) : (
+                            <video
+                              src={URL.createObjectURL(f)}
+                              className="w-full h-24 object-cover"
+                              controls
+                              preload="metadata"
+                              playsInline
+                            />
+                          )}
+                          {/* Progress bar and cancel */}
+                          <div className="absolute bottom-0 left-0 right-0 bg-black/40 text-white">
+                            <div className="h-1 bg-primary" style={{ width: `${Math.min(u?.progress ?? 0, 100)}%` }} />
+                            <div className="flex items-center justify-between px-2 py-1">
+                              <span className="text-[10px]">
+                                {u?.status === "uploading"
+                                  ? `Uploading ${u?.progress ?? 0}%`
+                                  : u?.status === "done"
+                                  ? "Uploaded"
+                                  : u?.status === "error"
+                                  ? "Error"
+                                  : u?.status === "canceled"
+                                  ? "Canceled"
+                                  : ""}
+                              </span>
+                              {u?.status === "uploading" && (
+                                <button
+                                  type="button"
+                                  className="text-xs underline"
+                                  onClick={() => cancelUpload(i)}
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -170,9 +491,17 @@ export function CreatePost() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isSubmitting || isChecking}
+                      onClick={handleSaveDraft}
+                    >
+                      Save Draft
+                    </Button>
+                    <Button
                       type="submit"
-                      disabled={(!content.trim() && imageIds.length === 0 && videoIds.length === 0) || isSubmitting}
-                      className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                      disabled={(!content.trim() && imageIds.length === 0 && videoIds.length === 0) || isSubmitting || isChecking}
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-full"
                     >
                       {isSubmitting ? (
                         <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent" />

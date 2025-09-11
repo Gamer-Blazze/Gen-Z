@@ -14,6 +14,37 @@ import { Id } from "@/convex/_generated/dataModel";
 import { useNavigate } from "react-router";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
+function linkify(text: string) {
+  // very lightweight linkifier for URLs, #hashtags, and @mentions
+  const parts = text.split(/(\s+)/);
+  return parts.map((part, i) => {
+    if (/^https?:\/\/\S+$/i.test(part)) {
+      return (
+        <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+          {part}
+        </a>
+      );
+    }
+    if (/^#\w+$/i.test(part)) {
+      const tag = part.slice(1);
+      return (
+        <a key={i} href={`#/hashtag/${encodeURIComponent(tag)}`} className="text-blue-600 hover:underline">
+          {part}
+        </a>
+      );
+    }
+    if (/^@\w+$/i.test(part)) {
+      const handle = part.slice(1);
+      return (
+        <a key={i} href={`#/user/${encodeURIComponent(handle)}`} className="text-blue-600 hover:underline">
+          {part}
+        </a>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
 interface PostCardProps {
   post: {
     _id: Id<"posts">;
@@ -111,16 +142,22 @@ export function PostCard({ post }: PostCardProps) {
       </CardHeader>
 
       <CardContent className="pt-0">
-        <p className="text-sm leading-relaxed mb-4 whitespace-pre-wrap">{post.content}</p>
+        <p className="text-sm leading-relaxed mb-4 whitespace-pre-wrap">
+          {linkify(post.content || "")}
+        </p>
 
-        {post.images && post.images.length > 0 && (
-          <div className="mb-4 rounded-lg overflow-hidden grid grid-cols-1 gap-2">
-            {post.images.map((image, index) => (
+        {(post.images?.length ?? 0) > 0 && (
+          <div className={`mb-4 rounded-lg overflow-hidden grid gap-2 ${
+            (post.images?.length ?? 0) === 1 ? "grid-cols-1" :
+            (post.images?.length ?? 0) === 2 ? "grid-cols-2" :
+            "grid-cols-2"
+          }`}>
+            {(post.images ?? []).slice(0, 4).map((image, index) => (
               <img
                 key={index}
                 src={image}
                 alt="Post image"
-                className="w-full h-auto rounded-xl object-contain bg-black/5 cursor-zoom-in"
+                className={`w-full h-auto ${((post.images?.length ?? 0) > 1 ? "aspect-video object-cover" : "object-contain")} rounded-xl bg-black/5 cursor-zoom-in`}
                 loading="lazy"
                 decoding="async"
                 onClick={() => openViewer(image, "image")}

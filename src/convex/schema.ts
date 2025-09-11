@@ -96,6 +96,11 @@ const schema = defineSchema(
       isPublic: v.boolean(),
       // ADD: videos support
       videos: v.optional(v.array(v.id("_storage"))),
+      // ADD: audience control & metadata
+      audience: v.optional(v.union(v.literal("public"), v.literal("friends"), v.literal("private"))),
+      tags: v.optional(v.array(v.id("users"))),
+      scheduledAt: v.optional(v.number()),
+      isDraft: v.optional(v.boolean()),
     }).index("by_user", ["userId"]),
 
     // Comments table
