@@ -25,7 +25,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { isLoading, isAuthenticated } = useAuth();
 
-  if (isLoading) return null;
+  // Show a simple centered spinner during auth check
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     const search = new URLSearchParams();
@@ -41,7 +48,14 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { isLoading, isAuthenticated } = useAuth();
 
-  if (isLoading) return null;
+  // Show a simple centered spinner during auth check
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   if (isAuthenticated) {
     const redirectParam = new URLSearchParams(location.search).get("redirect");
@@ -82,6 +96,20 @@ function RouteSyncer() {
   return null;
 }
 
+function HomeGate() {
+  const { isLoading, isAuthenticated } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  return <Navigate to={isAuthenticated ? "/dashboard" : "/auth"} replace />;
+}
+
 createRoot(document.getElementById("root")!).render(
   <>
     <VlyToolbar />
@@ -90,9 +118,29 @@ createRoot(document.getElementById("root")!).render(
         <BrowserRouter>
           <RouteSyncer />
           <Routes>
-            <Route path="/" element={<Landing />} />
+            {/* Redirect home based on auth state */}
+            <Route path="/" element={<HomeGate />} />
+            {/* Keep landing page accessible if needed */}
+            <Route path="/landing" element={<Landing />} />
+            {/* Auth routes: support /auth, /login, /signup with same public gate */}
             <Route
               path="/auth"
+              element={
+                <PublicOnlyRoute>
+                  <AuthPage redirectAfterAuth="/dashboard" />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                <PublicOnlyRoute>
+                  <AuthPage redirectAfterAuth="/dashboard" />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/signup"
               element={
                 <PublicOnlyRoute>
                   <AuthPage redirectAfterAuth="/dashboard" />
