@@ -105,6 +105,9 @@ const schema = defineSchema(
       status: v.optional(v.union(v.literal("working"), v.literal("active"), v.literal("archived"))),
       publishedAt: v.optional(v.number()),
       updatedBy: v.optional(v.id("users")),
+      // ADD: optional location & feeling/activity
+      location: v.optional(v.string()),
+      feeling: v.optional(v.string()),
     }).index("by_user", ["userId"]),
 
     // Comments table

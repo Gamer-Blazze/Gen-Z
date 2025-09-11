@@ -100,7 +100,16 @@ export function PostCard({ post }: PostCardProps) {
 
   const toggleLike = useMutation(api.posts.toggleLike);
   const addComment = useMutation(api.posts.addComment);
+  const sharePost = useMutation(api.posts.sharePost);
   const comments = useQuery(api.posts.getPostComments, { postId: post._id });
+
+  // NEW: See more / See less for long text
+  const [collapsed, setCollapsed] = useState(true);
+  const isLong = (post.content?.length || 0) > 220;
+  const displayedContent = collapsed && isLong ? `${post.content.slice(0, 220)}…` : post.content || "";
+
+  // NEW: Quick emoji bar for comments
+  const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "😡", "🎉", "🙏"];
 
   const isLiked = user ? post.likes.includes(user._id) : false;
 
@@ -109,6 +118,15 @@ export function PostCard({ post }: PostCardProps) {
       await toggleLike({ postId: post._id });
     } catch (error) {
       toast.error("Failed to like post");
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await sharePost({ postId: post._id });
+      toast("Post shared");
+    } catch {
+      toast.error("Failed to share");
     }
   };
 
@@ -167,9 +185,28 @@ export function PostCard({ post }: PostCardProps) {
       </CardHeader>
 
       <CardContent className="pt-0">
-        <p className="text-sm leading-relaxed mb-4 whitespace-pre-wrap">
-          {linkify(post.content || "")}
+        {/* Content with See more/less */}
+        <p className="text-sm leading-relaxed mb-2 whitespace-pre-wrap">
+          {linkify(displayedContent)}
         </p>
+        {isLong && (
+          <button
+            type="button"
+            className="text-xs text-[#1877F2] hover:underline mb-2"
+            onClick={() => setCollapsed((s) => !s)}
+          >
+            {collapsed ? "See more" : "See less"}
+          </button>
+        )}
+
+        {/* Optional: small meta line for location/feeling if available */}
+        {(post as any).location || (post as any).feeling ? (
+          <div className="text-xs text-muted-foreground mb-3">
+            {(post as any).feeling ? `Feeling ${(post as any).feeling}` : ""}
+            {(post as any).feeling && (post as any).location ? " · " : ""}
+            {(post as any).location ? `At ${(post as any).location}` : ""}
+          </div>
+        ) : null}
 
         {(post.images?.length ?? 0) > 0 && (
           <div
@@ -237,7 +274,7 @@ export function PostCard({ post }: PostCardProps) {
             {post.commentsCount}
           </Button>
 
-          <Button variant="ghost" size="sm" className="gap-2">
+          <Button variant="ghost" size="sm" className="gap-2" onClick={handleShare}>
             <Share className="w-4 h-4" />
             {post.sharesCount}
           </Button>
@@ -250,6 +287,22 @@ export function PostCard({ post }: PostCardProps) {
             animate={{ height: "auto", opacity: 1 }}
             className="mt-4 pt-4 border-t border-border/50"
           >
+            {/* NEW: Quick emoji bar */}
+            <div className="mb-2 flex flex-wrap gap-1">
+              {quickEmojis.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  className="px-2 py-1 text-base rounded-md hover:bg-muted"
+                  onClick={() => setCommentContent((c) => `${c}${e}`)}
+                  aria-label={`Insert ${e}`}
+                  title={`Insert ${e}`}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+
             {/* Add Comment */}
             <form onSubmit={handleComment} className="mb-4">
               <div className="flex gap-2">

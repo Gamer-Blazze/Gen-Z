@@ -13,7 +13,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { X, Users, Globe, Lock, CalendarClock } from "lucide-react";
+import { X, Users, Globe, Lock, CalendarClock, MapPin, Smile } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "convex/react";
 import { useRef, useEffect } from "react";
@@ -56,6 +56,8 @@ export function CreatePost() {
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const [isChecking, setIsChecking] = useState(false); // disable post while background checks (validation / uploads)
   const autoPostedRef = useRef(false); // Add: ensure auto-post triggers only once
+  const [location, setLocation] = useState<string>(""); // NEW
+  const [feeling, setFeeling] = useState<string>(""); // NEW
 
   // Add: clear a completed upload (remove its preview) by storageId
   const clearCompletedUploadByStorageId = (storageId: Id<"_storage">) => {
@@ -200,6 +202,9 @@ export function CreatePost() {
         tags: tagged.map((t) => t._id),
         scheduledAt: scheduledNumber,
         isDraft: asDraft,
+        // NEW fields
+        location: location.trim() || undefined,
+        feeling: feeling.trim() || undefined,
       });
 
       setContent("");
@@ -210,6 +215,8 @@ export function CreatePost() {
       setTagged([]);
       setScheduleEnabled(false);
       setScheduledAt("");
+      setLocation(""); // NEW
+      setFeeling(""); // NEW
       toast.success(asDraft ? "Draft saved" : "Post created successfully!");
     } catch (error) {
       toast.error(asDraft ? "Failed to save draft" : "Failed to create post");
@@ -352,6 +359,28 @@ export function CreatePost() {
                       </SelectItem>
                     </SelectContent>
                   </Select>
+
+                  {/* NEW: Location & Feeling quick inputs */}
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <MapPin className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Add location"
+                        value={location}
+                        onChange={(e) => setLocation(e.target.value)}
+                        className="h-8 pl-7 w-[180px]"
+                      />
+                    </div>
+                    <div className="relative">
+                      <Smile className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Feeling/activity"
+                        value={feeling}
+                        onChange={(e) => setFeeling(e.target.value)}
+                        className="h-8 pl-7 w-[180px]"
+                      />
+                    </div>
+                  </div>
 
                   <div className="flex items-center gap-2">
                     <button

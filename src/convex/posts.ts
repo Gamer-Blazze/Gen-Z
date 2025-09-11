@@ -14,6 +14,9 @@ export const createPost = mutation({
     tags: v.optional(v.array(v.id("users"))),
     scheduledAt: v.optional(v.number()),
     isDraft: v.optional(v.boolean()),
+    // ADD: optional location and feeling/activity
+    location: v.optional(v.string()),
+    feeling: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await getCurrentUser(ctx);
@@ -51,6 +54,9 @@ export const createPost = mutation({
       status,
       publishedAt,
       updatedBy: user._id,
+      // NEW
+      location: args.location,
+      feeling: args.feeling,
     });
 
     return postId;
@@ -414,5 +420,35 @@ export const publishAllMyUnpublished = mutation({
     }
 
     return { updated, message: `Moved ${updated} item(s) to ${args.targetStatus ?? "active"}.` };
+  },
+});
+
+// ADD: Share a post (increments counter and notifies author)
+export const sharePost = mutation({
+  args: { postId: v.id("posts") },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const post = await ctx.db.get(args.postId);
+    if (!post) throw new Error("Post not found");
+
+    await ctx.db.patch(args.postId, {
+      sharesCount: (post.sharesCount ?? 0) + 1,
+    });
+
+    // notify post owner if not self
+    if (post.userId !== user._id) {
+      await ctx.db.insert("notifications", {
+        userId: post.userId,
+        type: "mention", // reuse a safe type; customize if needed
+        fromUserId: user._id,
+        postId: args.postId,
+        isRead: false,
+        content: `${user.name || "Someone"} shared your post`,
+      });
+    }
+
+    return true;
   },
 });
