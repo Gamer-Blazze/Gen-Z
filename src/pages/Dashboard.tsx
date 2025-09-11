@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { Sidebar } from "@/components/Sidebar";
 import { Feed } from "@/components/Feed";
-import { CreatePost } from "@/components/CreatePost";
 import { FriendsSidebar } from "@/components/FriendsSidebar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -273,7 +272,6 @@ export default function Dashboard() {
         <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6">
           {/* Stories row */}
           <Stories />
-          <CreatePost />
           <Feed />
         </main>
 
