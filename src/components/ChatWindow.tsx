@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Phone, Video, MoreVertical, Info, Smile, Images } from "lucide-react";
+import { Send, Phone, Video, MoreVertical, Info, Smile, Images, Bell, BellOff } from "lucide-react";
 import { Check, CheckCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
@@ -44,7 +44,6 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const [atBottom, setAtBottom] = useState(true);
   const lastMessageIdRef = useRef<string | null>(null);
-  const lastNotifyAtRef = useRef<number>(0);
 
   const endCall = useMutation(api.calls.endCall);
 
@@ -112,57 +111,22 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Add: throttle for notification chime
   const playNotify = async () => {
-    // Respect user preference if sound notifications are disabled
-    if (user?.settings?.notifications?.sound === false) return;
-    // Skip if currently recording to avoid feedback
-    if (isRecording) return;
-    // Skip if tab is hidden
-    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-    // Throttle to prevent overlapping chimes
-    const now = performance.now();
-    if (now - (lastNotifyAtRef.current || 0) < 600) return;
-    lastNotifyAtRef.current = now;
-
     try {
-      const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-
-      const master = ctx.createGain();
-      master.gain.value = 0.08; // gentle volume
-      master.connect(ctx.destination);
-
-      // Helper to play a short tone with ADSR
-      const tone = (freq: number, type: OscillatorType, start: number, duration: number, peak = 0.8) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = type;
-        osc.frequency.value = freq;
-
-        gain.gain.setValueAtTime(0.0001, start);
-        // Attack
-        gain.gain.exponentialRampToValueAtTime(peak, start + 0.02);
-        // Decay to sustain
-        gain.gain.exponentialRampToValueAtTime(peak * 0.4, start + 0.08);
-        // Release
-        gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-
-        osc.connect(gain);
-        gain.connect(master);
-        osc.start(start);
-        osc.stop(start + duration);
-      };
-
-      const t0 = ctx.currentTime;
-
-      // Two-note chime: gentle triangle then soft sine an octave above
-      tone(660, "triangle", t0, 0.14, 0.7);     // E5
-      tone(990, "sine", t0 + 0.08, 0.16, 0.6);   // B5-ish
-
-      // Auto close context shortly after to release resources
-      setTimeout(() => ctx.close().catch(() => {}), 250);
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.value = 880; // gentle high beep
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.14);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start();
+      o.stop(ctx.currentTime + 0.15);
+      // Auto-close context shortly after to free resources
+      setTimeout(() => ctx.close().catch(() => {}), 200);
     } catch {
       // ignore audio errors
     }
