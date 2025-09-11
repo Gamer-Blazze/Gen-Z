@@ -19,6 +19,7 @@ import { LogoDropdown } from "@/components/LogoDropdown";
 import { Stories } from "@/components/Stories";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { UserPlus } from "lucide-react";
+import FriendsOnlineSidebar from "@/components/FriendsOnlineSidebar";
 
 export default function Dashboard() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
@@ -277,7 +278,11 @@ export default function Dashboard() {
 
         {/* Right Sidebar (only on xl and up) */}
         <div className="hidden xl:block">
-          <FriendsSidebar />
+          {/* Stack friend requests and contacts similar to Facebook */}
+          <div className="w-80 space-y-4 pr-2">
+            <FriendsSidebar />
+            <FriendsOnlineSidebar />
+          </div>
         </div>
       </div>
     </motion.div>
