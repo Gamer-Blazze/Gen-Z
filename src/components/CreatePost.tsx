@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { X, Users, Globe, Lock, CalendarClock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "convex/react";
+import { useRef, useEffect } from "react";
 
 function readFileAsArrayBuffer(file: File) {
   return new Promise<ArrayBuffer>((resolve, reject) => {
@@ -54,6 +55,7 @@ export function CreatePost() {
   const [scheduledAt, setScheduledAt] = useState<string>(""); // datetime-local string
   const [uploads, setUploads] = useState<UploadState[]>([]);
   const [isChecking, setIsChecking] = useState(false); // disable post while background checks (validation / uploads)
+  const autoPostedRef = useRef(false); // Add: ensure auto-post triggers only once
 
   // Add: clear a completed upload (remove its preview) by storageId
   const clearCompletedUploadByStorageId = (storageId: Id<"_storage">) => {
@@ -173,10 +175,47 @@ export function CreatePost() {
     }
   };
 
+  // Programmatic submit helper (reuse createPost logic)
+  const submitNow = async (asDraft: boolean) => {
+    if (!content.trim() && imageIds.length === 0 && videoIds.length === 0) return;
+    if (uploads.some((u) => u.status === "uploading")) return;
+
+    setIsSubmitting(true);
+    try {
+      const scheduledNumber = scheduleEnabled && scheduledAt ? new Date(scheduledAt).getTime() : undefined;
+      await createPost({
+        content: content.trim(),
+        isPublic: audience === "public",
+        audience,
+        images: imageIds,
+        videos: videoIds,
+        tags: tagged.map((t) => t._id),
+        scheduledAt: scheduledNumber,
+        isDraft: asDraft,
+      });
+
+      setContent("");
+      setFiles([]);
+      setImageIds([]);
+      setVideoIds([]);
+      setUploads([]);
+      setTagged([]);
+      setScheduleEnabled(false);
+      setScheduledAt("");
+      toast.success(asDraft ? "Draft saved" : "Post created successfully!");
+    } catch (error) {
+      toast.error(asDraft ? "Failed to save draft" : "Failed to create post");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleFilesPicked = async (picked: FileList | null) => {
     if (!picked || picked.length === 0) return;
     const selected = Array.from(picked);
     setFiles((prev) => [...prev, ...selected]);
+    autoPostedRef.current = false; // reset auto-post for this batch
     setIsChecking(true);
     for (const file of selected) {
       await startUpload(file);
@@ -184,6 +223,17 @@ export function CreatePost() {
     setIsChecking(false);
     toast.success("Files queued for upload");
   };
+
+  // Auto-post when all uploads have finished and there is at least one uploaded media
+  useEffect(() => {
+    const anyMedia = imageIds.length + videoIds.length > 0;
+    const uploading = uploads.some((u) => u.status === "uploading");
+    const uploadsFinished = uploads.length === 0 || !uploading;
+    if (!isChecking && !isSubmitting && anyMedia && uploadsFinished && !autoPostedRef.current) {
+      autoPostedRef.current = true;
+      submitNow(false);
+    }
+  }, [uploads, imageIds, videoIds, isChecking, isSubmitting]);
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -196,45 +246,7 @@ export function CreatePost() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() && imageIds.length === 0 && videoIds.length === 0) return;
-
-    // prevent submitting while some uploads in progress
-    if (uploads.some((u) => u.status === "uploading")) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const scheduledNumber = scheduleEnabled && scheduledAt ? new Date(scheduledAt).getTime() : undefined;
-
-      await createPost({
-        content: content.trim(),
-        // map audience to isPublic for compatibility
-        isPublic: audience === "public",
-        audience,
-        images: imageIds,
-        videos: videoIds,
-        tags: tagged.map((t) => t._id),
-        scheduledAt: scheduledNumber,
-        isDraft: false,
-      });
-
-      setContent("");
-      setFiles([]);
-      setImageIds([]);
-      setVideoIds([]);
-      setUploads([]);
-      setTagged([]);
-      setScheduleEnabled(false);
-      setScheduledAt("");
-
-      toast.success("Post created successfully!");
-    } catch (error) {
-      toast.error("Failed to create post");
-      console.error(error);
-    } finally {
-      setIsSubmitting(false);
-    }
+    await submitNow(false); // Use programmatic submit
   };
 
   const handleSaveDraft = async () => {
