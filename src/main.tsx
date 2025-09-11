@@ -59,8 +59,8 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
 
   if (isAuthenticated) {
     const redirectParam = new URLSearchParams(location.search).get("redirect");
-    // Change default redirect from /dashboard to /messages
-    return <Navigate to={redirectParam || "/messages"} replace />;
+    // Change default redirect from /messages to /dashboard
+    return <Navigate to={redirectParam || "/dashboard"} replace />;
   }
 
   return <>{children}</>;
@@ -108,7 +108,7 @@ function HomeGate() {
     );
   }
 
-  return <Navigate to={isAuthenticated ? "/messages" : "/auth"} replace />;
+  return <Navigate to={isAuthenticated ? "/dashboard" : "/auth"} replace />;
 }
 
 createRoot(document.getElementById("root")!).render(
@@ -128,8 +128,8 @@ createRoot(document.getElementById("root")!).render(
               path="/auth"
               element={
                 <PublicOnlyRoute>
-                  {/* Change redirectAfterAuth to /messages */}
-                  <AuthPage redirectAfterAuth="/messages" />
+                  {/* Change redirectAfterAuth to /dashboard */}
+                  <AuthPage redirectAfterAuth="/dashboard" />
                 </PublicOnlyRoute>
               }
             />
@@ -137,8 +137,8 @@ createRoot(document.getElementById("root")!).render(
               path="/login"
               element={
                 <PublicOnlyRoute>
-                  {/* Change redirectAfterAuth to /messages */}
-                  <AuthPage redirectAfterAuth="/messages" />
+                  {/* Change redirectAfterAuth to /dashboard */}
+                  <AuthPage redirectAfterAuth="/dashboard" />
                 </PublicOnlyRoute>
               }
             />
@@ -146,8 +146,8 @@ createRoot(document.getElementById("root")!).render(
               path="/signup"
               element={
                 <PublicOnlyRoute>
-                  {/* Change redirectAfterAuth to /messages */}
-                  <AuthPage redirectAfterAuth="/messages" />
+                  {/* Change redirectAfterAuth to /dashboard */}
+                  <AuthPage redirectAfterAuth="/dashboard" />
                 </PublicOnlyRoute>
               }
             />
