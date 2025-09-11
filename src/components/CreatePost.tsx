@@ -6,7 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Send } from "lucide-react";
+import { Send, Image as ImageIcon, Video as VideoIcon, X } from "lucide-react";
+import { useAction } from "convex/react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -17,7 +18,57 @@ export function CreatePost() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const createPost = useMutation(api.posts.createPost);
 
-  const canPost = content.trim().length > 0 && !isSubmitting;
+  // Add: media state
+  const [files, setFiles] = useState<Array<File>>([]);
+  const fileInputId = "create-post-media-input";
+
+  // Add: upload action
+  const generateUploadUrl = useAction(api.files.generateUploadUrl);
+
+  // Add: derived state
+  const hasMedia = files.length > 0;
+
+  const canPost = (content.trim().length > 0 || hasMedia) && !isSubmitting;
+
+  // Add: handlers
+  const onPickFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files || []);
+    if (picked.length === 0) return;
+
+    // Limit to max 4 items for simplicity
+    const next = [...files, ...picked].slice(0, 4);
+    setFiles(next);
+    // reset input so same file can be picked again if removed
+    e.currentTarget.value = "";
+  };
+
+  const removeFileAt = (idx: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // Upload each file -> storageId
+  const uploadAll = async (selected: Array<File>) => {
+    const imageIds: Array<string> = [];
+    const videoIds: Array<string> = [];
+
+    for (const f of selected) {
+      const url = await generateUploadUrl({});
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": f.type || "application/octet-stream" },
+        body: f,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const { storageId } = (await res.json()) as { storageId: string };
+
+      if ((f.type || "").startsWith("video/")) {
+        videoIds.push(storageId);
+      } else {
+        imageIds.push(storageId);
+      }
+    }
+    return { imageIds, videoIds };
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,14 +76,24 @@ export function CreatePost() {
 
     setIsSubmitting(true);
     try {
+      let imageIds: Array<string> = [];
+      let videoIds: Array<string> = [];
+
+      if (files.length > 0) {
+        const uploaded = await uploadAll(files);
+        imageIds = uploaded.imageIds;
+        videoIds = uploaded.videoIds;
+      }
+
       await createPost({
         content: content.trim(),
-        // explicitly no media; audience defaults to public on backend
-        images: [],
-        videos: [],
+        images: imageIds as any,
+        videos: videoIds as any,
         isDraft: false,
       });
+
       setContent("");
+      setFiles([]);
       toast.success("Posted!");
     } catch {
       toast.error("Failed to post");
@@ -61,13 +122,66 @@ export function CreatePost() {
                   className="min-h-[100px] resize-none border-0 p-0 text-base placeholder:text-muted-foreground focus-visible:ring-0"
                 />
 
-                <div className="flex items-center justify-end mt-3 pt-3 border-t">
+                {/* Add: media previews */}
+                {hasMedia && (
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {files.map((f, idx) => {
+                      const url = URL.createObjectURL(f);
+                      const isVideo = (f.type || "").startsWith("video/");
+                      return (
+                        <div key={idx} className="relative rounded-lg overflow-hidden border bg-black/5">
+                          <button
+                            type="button"
+                            className="absolute right-1 top-1 z-10 rounded-full bg-black/60 p-1 text-white"
+                            onClick={() => removeFileAt(idx)}
+                            aria-label="Remove"
+                            title="Remove"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                          {isVideo ? (
+                            <video
+                              src={url}
+                              className="w-full h-28 object-cover"
+                              muted
+                              playsInline
+                            />
+                          ) : (
+                            <img src={url} alt="preview" className="w-full h-28 object-cover" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Add: media buttons + Post */}
+                <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor={fileInputId}
+                      className="inline-flex items-center gap-1 text-sm text-primary cursor-pointer hover:underline"
+                      title="Add Photo/Video"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                      <span>Photo/Video</span>
+                    </label>
+                    <input
+                      id={fileInputId}
+                      type="file"
+                      accept="image/*,video/*"
+                      multiple
+                      className="hidden"
+                      onChange={onPickFiles}
+                    />
+                  </div>
+
                   <Button
                     type="submit"
                     disabled={!canPost}
                     title={
-                      !content.trim()
-                        ? "Write something to post"
+                      !content.trim() && !hasMedia
+                        ? "Write something or add media to post"
                         : isSubmitting
                         ? "Posting…"
                         : undefined
