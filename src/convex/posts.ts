@@ -256,18 +256,21 @@ export const getPostComments = query({
     postId: v.id("posts"),
   },
   handler: withErrorLogging("posts.getPostComments", async (ctx, args) => {
-    const comments = await ctx.db
+    // Fetch all comments for the post using a single index (by_post)
+    const allForPost = await ctx.db
       .query("comments")
       .withIndex("by_post", (q: any) => q.eq("postId", args.postId))
-      .withIndex("by_parent", (q: any) => q.eq("parentCommentId", undefined))
       .order("desc")
       .collect();
+
+    // Only keep top-level comments (no parentCommentId)
+    const comments = allForPost.filter((c: any) => c.parentCommentId === undefined);
 
     const commentsWithUsers = await Promise.all(
       comments.map(async (comment: any) => {
         const user = await ctx.db.get(comment.userId);
         
-        // Get replies
+        // Get replies via by_parent index
         const replies = await ctx.db
           .query("comments")
           .withIndex("by_parent", (q: any) => q.eq("parentCommentId", comment._id))
