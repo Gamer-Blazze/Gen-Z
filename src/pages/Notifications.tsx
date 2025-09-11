@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bell, MessageCircle, Heart, MessageSquareText, UserPlus, CheckCircle2, Phone, Video, PhoneOff, VideoOff } from "lucide-react";
 import { toast } from "sonner";
 import { TopNav } from "@/components/TopNav";
+import { MobileTopNav } from "@/components/MobileTopNav";
 
 export default function Notifications() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -93,7 +94,8 @@ export default function Notifications() {
         <main className="flex-1 w-full mx-auto px-4 py-6 h-[calc(100vh)]">
           {/* Global Top Navigation */}
           <TopNav />
-
+          {/* Old Mobile Navigation Bar just below TopNav (mobile only) */}
+          <MobileTopNav />
           {/* Make the page header sticky at the top */}
           <div className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
             <div className="flex items-center justify-between px-0 py-3">

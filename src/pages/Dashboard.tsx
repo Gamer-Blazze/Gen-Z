@@ -14,6 +14,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { TopNav } from "@/components/TopNav";
+import { MobileTopNav } from "@/components/MobileTopNav";
 
 /* removed MobileTopNav on dashboard */
 
@@ -152,6 +153,9 @@ export default function Dashboard() {
 
       {/* Insert Top Navigation */}
       <TopNav />
+
+      {/* Add old mobile navigation bar under TopNav (mobile only) */}
+      <MobileTopNav />
 
       {/* Removed Profile Quick Switch Bar */}
       <div className="flex flex-col lg:flex-row">
