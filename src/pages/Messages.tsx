@@ -17,6 +17,7 @@ import { api } from "@/convex/_generated/api";
 import { Phone, Video } from "lucide-react";
 import { toast } from "sonner";
 import { TopNav } from "@/components/TopNav";
+import { MobileTopNav } from "@/components/MobileTopNav";
 
 export default function Messages() {
   const { isLoading, isAuthenticated, user } = useAuth();
@@ -84,6 +85,8 @@ export default function Messages() {
     >
       {/* Add global Top Navigation */}
       <TopNav />
+      {/* Old mobile navigation bar under TopNav (mobile only) */}
+      <MobileTopNav />
       {/* Top navigation bar */}
       <div className="flex">
         {/* Left Sidebar remains desktop-only; mobile/tablet use the sheet */}
