@@ -2,7 +2,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
 import { InstrumentationProvider } from "@/instrumentation.tsx";
 import AuthPage from "@/pages/Auth.tsx";
-import Dashboard from "@/pages/Dashboard.tsx";
 import Friends from "@/pages/Friends.tsx";
 import Notifications from "@/pages/Notifications.tsx";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
@@ -59,7 +58,8 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
 
   if (isAuthenticated) {
     const redirectParam = new URLSearchParams(location.search).get("redirect");
-    return <Navigate to={redirectParam || "/dashboard"} replace />;
+    // Change default redirect from /dashboard to /messages
+    return <Navigate to={redirectParam || "/messages"} replace />;
   }
 
   return <>{children}</>;
@@ -107,7 +107,7 @@ function HomeGate() {
     );
   }
 
-  return <Navigate to={isAuthenticated ? "/dashboard" : "/auth"} replace />;
+  return <Navigate to={isAuthenticated ? "/messages" : "/auth"} replace />;
 }
 
 createRoot(document.getElementById("root")!).render(
@@ -127,7 +127,8 @@ createRoot(document.getElementById("root")!).render(
               path="/auth"
               element={
                 <PublicOnlyRoute>
-                  <AuthPage redirectAfterAuth="/dashboard" />
+                  {/* Change redirectAfterAuth to /messages */}
+                  <AuthPage redirectAfterAuth="/messages" />
                 </PublicOnlyRoute>
               }
             />
@@ -135,7 +136,8 @@ createRoot(document.getElementById("root")!).render(
               path="/login"
               element={
                 <PublicOnlyRoute>
-                  <AuthPage redirectAfterAuth="/dashboard" />
+                  {/* Change redirectAfterAuth to /messages */}
+                  <AuthPage redirectAfterAuth="/messages" />
                 </PublicOnlyRoute>
               }
             />
@@ -143,16 +145,9 @@ createRoot(document.getElementById("root")!).render(
               path="/signup"
               element={
                 <PublicOnlyRoute>
-                  <AuthPage redirectAfterAuth="/dashboard" />
+                  {/* Change redirectAfterAuth to /messages */}
+                  <AuthPage redirectAfterAuth="/messages" />
                 </PublicOnlyRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
               }
             />
             <Route
@@ -179,7 +174,7 @@ createRoot(document.getElementById("root")!).render(
                 </ProtectedRoute>
               }
             />
-            <Route path="/profile/:username" element={<Redirect to="/dashboard" />} />
+            <Route path="/profile/:username" element={<Redirect to="/messages" />} />
             <Route
               path="/profile"
               element={
