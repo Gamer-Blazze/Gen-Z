@@ -101,6 +101,10 @@ const schema = defineSchema(
       tags: v.optional(v.array(v.id("users"))),
       scheduledAt: v.optional(v.number()),
       isDraft: v.optional(v.boolean()),
+      // ADD: publishing lifecycle fields
+      status: v.optional(v.union(v.literal("working"), v.literal("active"), v.literal("archived"))),
+      publishedAt: v.optional(v.number()),
+      updatedBy: v.optional(v.id("users")),
     }).index("by_user", ["userId"]),
 
     // Comments table

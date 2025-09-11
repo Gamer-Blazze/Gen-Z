@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { MobileTopNav } from "@/components/MobileTopNav";
@@ -119,6 +119,12 @@ export default function Dashboard() {
     return null;
   }
 
+  const unpublished = useQuery(
+    api.posts.getMyUnpublishedCount,
+    isAuthenticated && user ? {} : "skip"
+  );
+  const publishAll = useMutation(api.posts.publishAllMyUnpublished);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate("/auth");
@@ -143,15 +149,42 @@ export default function Dashboard() {
       animate={{ opacity: 1 }}
       className="min-h-screen bg-background"
     >
-      {/* Global mobile nav bar removed on Dashboard */}
-      {/* Add top navigation bar */}
       {/* Background notifications watcher */}
       <NotificationWatcher />
 
-      {/* Add old mobile navigation bar under TopNav (mobile only) */}
+      {/* Mobile Top Navigation */}
       <MobileTopNav />
 
-      {/* Removed Profile Quick Switch Bar */}
+      {/* Unpublished items banner */}
+      {unpublished && unpublished.count > 0 && (
+        <div className="sticky top-[var(--top-nav,0px)] z-20 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+          <div className="mx-auto max-w-2xl px-4 py-2 flex items-center justify-between gap-3">
+            <div className="text-sm">
+              You have {unpublished.count} unpublished item{unpublished.count > 1 ? "s" : ""}.
+            </div>
+            <Button
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={async () => {
+                try {
+                  const res = await publishAll({ targetStatus: "active" });
+                  const n = res?.updated ?? 0;
+                  if (n > 0) {
+                    toast.success(`Moved ${n} to Active`);
+                  } else {
+                    toast("Nothing to update");
+                  }
+                } catch (e) {
+                  toast.error("Failed to update items");
+                }
+              }}
+            >
+              Move to Active
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row">
         {/* Desktop Sidebar */}
         <div className="hidden lg:block">

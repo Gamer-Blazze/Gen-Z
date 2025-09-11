@@ -25,6 +25,15 @@ export const createPost = mutation({
     const audience = args.audience ?? (args.isPublic ? "public" : "public");
     const isPublic = args.isPublic ?? (audience === "public");
 
+    // Determine publishing lifecycle defaults
+    const now = Date.now();
+    const isDraft = args.isDraft ?? false;
+    const scheduledAt = args.scheduledAt;
+    const isScheduledInFuture = typeof scheduledAt === "number" && scheduledAt > now;
+
+    const status = (isDraft || isScheduledInFuture) ? "working" : "active";
+    const publishedAt = (status === "active") ? now : undefined;
+
     const postId = await ctx.db.insert("posts", {
       userId: user._id,
       content: args.content,
@@ -37,8 +46,11 @@ export const createPost = mutation({
       isPublic,
       audience,
       tags: args.tags || [],
-      scheduledAt: args.scheduledAt,
-      isDraft: args.isDraft ?? false,
+      scheduledAt,
+      isDraft,
+      status,
+      publishedAt,
+      updatedBy: user._id,
     });
 
     return postId;
@@ -309,5 +321,98 @@ export const deletePost = mutation({
     // Delete the post
     await ctx.db.delete(args.postId);
     return true;
+  },
+});
+
+// ADD: helper to determine unpublished
+function isUnpublished(post: any, now: number) {
+  const draft = post.isDraft === true;
+  const scheduledFuture = typeof post.scheduledAt === "number" && post.scheduledAt > now;
+  const inactiveStatus = post.status && post.status !== "active";
+  return draft || scheduledFuture || inactiveStatus;
+}
+
+// Add: publish a single post (owner only)
+export const publishPost = mutation({
+  args: {
+    postId: v.id("posts"),
+    targetStatus: v.optional(v.union(v.literal("working"), v.literal("active"))),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const post = await ctx.db.get(args.postId);
+    if (!post) throw new Error("Post not found");
+    if (post.userId !== user._id) throw new Error("Not authorized to publish this post");
+
+    const now = Date.now();
+    if (!isUnpublished(post, now)) {
+      // Already active/published
+      return { updated: false, message: "Post is already active." };
+    }
+
+    const target = args.targetStatus ?? "active";
+    await ctx.db.patch(args.postId, {
+      isDraft: false,
+      scheduledAt: undefined,
+      status: target,
+      publishedAt: now,
+      updatedBy: user._id,
+    });
+
+    return { updated: true, message: `Post moved to ${target}.` };
+  },
+});
+
+// Add: get count of current user's unpublished posts
+export const getMyUnpublishedCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return { count: 0 };
+
+    const now = Date.now();
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    const count = posts.reduce((acc, p) => (isUnpublished(p, now) ? acc + 1 : acc), 0);
+    return { count };
+  },
+});
+
+// Add: publish all of current user's unpublished posts
+export const publishAllMyUnpublished = mutation({
+  args: {
+    targetStatus: v.optional(v.union(v.literal("working"), v.literal("active"))),
+  },
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const now = Date.now();
+    let updated = 0;
+
+    const posts = await ctx.db
+      .query("posts")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .collect();
+
+    for (const p of posts) {
+      if (isUnpublished(p, now)) {
+        await ctx.db.patch(p._id, {
+          isDraft: false,
+          scheduledAt: undefined,
+          status: args.targetStatus ?? "active",
+          publishedAt: now,
+          updatedBy: user._id,
+        });
+        updated += 1;
+      }
+    }
+
+    return { updated, message: `Moved ${updated} item(s) to ${args.targetStatus ?? "active"}.` };
   },
 });
