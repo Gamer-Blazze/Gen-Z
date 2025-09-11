@@ -58,6 +58,10 @@ export function CreatePost() {
   const autoPostedRef = useRef(false); // Add: ensure auto-post triggers only once
   const [location, setLocation] = useState<string>(""); // NEW
   const [feeling, setFeeling] = useState<string>(""); // NEW
+  const [imageUrlInput, setImageUrlInput] = useState("");
+  const [videoUrlInput, setVideoUrlInput] = useState("");
+  const [imageUrlList, setImageUrlList] = useState<string[]>([]);
+  const [videoUrlList, setVideoUrlList] = useState<string[]>([]);
 
   // Add: clear a completed upload (remove its preview) by storageId
   const clearCompletedUploadByStorageId = (storageId: Id<"_storage">) => {
@@ -76,6 +80,9 @@ export function CreatePost() {
     setUploads([]);
     setImageIds([]);
     setVideoIds([]);
+    // ADD: also clear URL lists
+    setImageUrlList([]);
+    setVideoUrlList([]);
   };
 
   // Validation limits
@@ -187,7 +194,13 @@ export function CreatePost() {
 
   // Programmatic submit helper (reuse createPost logic)
   const submitNow = async (asDraft: boolean) => {
-    if (!content.trim() && imageIds.length === 0 && videoIds.length === 0) return;
+    if (
+      !content.trim() &&
+      imageIds.length === 0 &&
+      videoIds.length === 0 &&
+      imageUrlList.length === 0 &&
+      videoUrlList.length === 0
+    ) return;
     if (uploads.some((u) => u.status === "uploading")) return;
 
     setIsSubmitting(true);
@@ -199,10 +212,12 @@ export function CreatePost() {
         audience,
         images: imageIds,
         videos: videoIds,
+        // ADD: send direct URL media
+        imagesUrls: imageUrlList,
+        videosUrls: videoUrlList,
         tags: tagged.map((t) => t._id),
         scheduledAt: scheduledNumber,
         isDraft: asDraft,
-        // NEW fields
         location: location.trim() || undefined,
         feeling: feeling.trim() || undefined,
       });
@@ -215,8 +230,13 @@ export function CreatePost() {
       setTagged([]);
       setScheduleEnabled(false);
       setScheduledAt("");
-      setLocation(""); // NEW
-      setFeeling(""); // NEW
+      setLocation("");
+      setFeeling("");
+      // ADD: reset URL inputs
+      setImageUrlInput("");
+      setVideoUrlInput("");
+      setImageUrlList([]);
+      setVideoUrlList([]);
       toast.success(asDraft ? "Draft saved" : "Post created successfully!");
     } catch (error) {
       toast.error(asDraft ? "Failed to save draft" : "Failed to create post");
@@ -282,6 +302,9 @@ export function CreatePost() {
         audience,
         images: imageIds,
         videos: videoIds,
+        // ADD: direct URL media for draft too
+        imagesUrls: imageUrlList,
+        videosUrls: videoUrlList,
         tags: tagged.map((t) => t._id),
         scheduledAt: scheduledNumber,
         isDraft: true,
@@ -489,6 +512,104 @@ export function CreatePost() {
                   >
                     browse
                   </Button>
+                  {/* ADD: URL-based media input (no upload) */}
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Paste image URL (https://...)"
+                        value={imageUrlInput}
+                        onChange={(e) => setImageUrlInput(e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          const url = imageUrlInput.trim();
+                          if (!url) return;
+                          try {
+                            new URL(url);
+                            setImageUrlList((prev) => [...prev, url]);
+                            setImageUrlInput("");
+                            toast.success("Image URL added");
+                          } catch {
+                            toast.error("Invalid URL");
+                          }
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Paste video URL (https://...)"
+                        value={videoUrlInput}
+                        onChange={(e) => setVideoUrlInput(e.target.value)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          const url = videoUrlInput.trim();
+                          if (!url) return;
+                          try {
+                            new URL(url);
+                            setVideoUrlList((prev) => [...prev, url]);
+                            setVideoUrlInput("");
+                            toast.success("Video URL added");
+                          } catch {
+                            toast.error("Invalid URL");
+                          }
+                        }}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+
+                  {(imageUrlList.length > 0 || videoUrlList.length > 0) && (
+                    <div className="mt-2 text-xs text-muted-foreground">
+                      <div className="mb-1">
+                        {imageUrlList.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {imageUrlList.map((u, i) => (
+                              <span key={`${u}-${i}`} className="inline-flex items-center gap-1 bg-muted rounded-full px-2 py-1">
+                                Image URL {i + 1}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setImageUrlList((prev) => prev.filter((_, idx) => idx !== i))
+                                  }
+                                  aria-label="Remove image URL"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        {videoUrlList.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {videoUrlList.map((u, i) => (
+                              <span key={`${u}-${i}`} className="inline-flex items-center gap-1 bg-muted rounded-full px-2 py-1">
+                                Video URL {i + 1}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setVideoUrlList((prev) => prev.filter((_, idx) => idx !== i))
+                                  }
+                                  aria-label="Remove video URL"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {(files.length > 0) && (
@@ -574,7 +695,15 @@ export function CreatePost() {
                     </Button>
                     <Button
                       type="submit"
-                      disabled={(!content.trim() && imageIds.length === 0 && videoIds.length === 0) || isSubmitting || isChecking}
+                      disabled={
+                        (!content.trim() &&
+                          imageIds.length === 0 &&
+                          videoIds.length === 0 &&
+                          imageUrlList.length === 0 &&
+                          videoUrlList.length === 0) ||
+                        isSubmitting ||
+                        isChecking
+                      }
                       className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-full"
                     >
                       {isSubmitting ? (
