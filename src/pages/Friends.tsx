@@ -33,6 +33,7 @@ export default function Friends() {
   const [search, setSearch] = useState("");
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [friendsSearch, setFriendsSearch] = useState("");
+  const [requestSearch, setRequestSearch] = useState("");
 
   // Data
   const friends = useQuery(api.friends.getUserFriends, {});
@@ -61,6 +62,13 @@ export default function Friends() {
     if (!q) return list;
     return list.filter((f) => (f?.name || "").toLowerCase().includes(q));
   }, [friends, friendsSearch]);
+
+  const filteredRequests = useMemo(() => {
+    const list = friendRequests || [];
+    const q = requestSearch.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((r) => (r.requester?.name || "anonymous").toLowerCase().includes(q));
+  }, [friendRequests, requestSearch]);
 
   const handleAddFriend = async (id: string) => {
     try {
@@ -126,16 +134,9 @@ export default function Friends() {
           </div>
 
           <div className="mx-auto w-full max-w-5xl px-3 py-4 sm:px-6">
-            {/* Top bar */}
+            {/* Top bar - remove global search to scope searches per-tab */}
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h1 className="text-2xl font-bold">Friends</h1>
-              <div className="w-full sm:w-80">
-                <Input
-                  placeholder="Search for people"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
             </div>
 
             {/* Tabs */}
@@ -163,15 +164,33 @@ export default function Friends() {
 
               {/* Friend Requests */}
               <TabsContent value="requests" className="mt-4">
+                {/* Per-tab search with clear */}
+                <div className="mb-3 relative w-full sm:w-80">
+                  <Input
+                    placeholder="Search requests"
+                    value={requestSearch}
+                    onChange={(e) => setRequestSearch(e.target.value)}
+                  />
+                  {requestSearch && (
+                    <button
+                      aria-label="Clear"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setRequestSearch("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
                 <div className="space-y-3">
                   {!friendRequests ? (
                     Array.from({ length: 4 }).map((_, i) => <RequestSkeleton key={i} />)
-                  ) : friendRequests.length === 0 ? (
+                  ) : filteredRequests.length === 0 ? (
                     <div className="rounded-lg border bg-card p-6 text-center text-sm text-muted-foreground">
                       No incoming requests.
                     </div>
                   ) : (
-                    friendRequests.map((req) => {
+                    filteredRequests.map((req) => {
                       const requester = req.requester;
                       if (!requester) return null;
                       const id = requester._id as unknown as string;
@@ -241,14 +260,24 @@ export default function Friends() {
 
               {/* Your Friends */}
               <TabsContent value="friends" className="mt-4">
-                {/* Add a search specifically for friends list */}
-                <div className="mb-3">
+                {/* Per-tab search with clear */}
+                <div className="mb-3 relative w-full sm:w-80">
                   <Input
                     placeholder="Search your friends"
                     value={friendsSearch}
                     onChange={(e) => setFriendsSearch(e.target.value)}
                   />
+                  {friendsSearch && (
+                    <button
+                      aria-label="Clear"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setFriendsSearch("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
+
                 <div className="space-y-3">
                   {!friends ? (
                     // Loading skeletons for friend rows
@@ -314,6 +343,24 @@ export default function Friends() {
 
               {/* Suggestions */}
               <TabsContent value="suggestions" className="mt-4">
+                {/* Per-tab search with clear (moved from global) */}
+                <div className="mb-3 relative w-full sm:w-80">
+                  <Input
+                    placeholder="Search for people"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  {search && (
+                    <button
+                      aria-label="Clear"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setSearch("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
                 {!suggestions && search.trim().length < 2 ? (
                   // Grid skeleton while initial suggestions load
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
