@@ -13,7 +13,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
-import { TopNav } from "@/components/TopNav";
 import { MobileTopNav } from "@/components/MobileTopNav";
 
 /* removed MobileTopNav on dashboard */
@@ -150,9 +149,6 @@ export default function Dashboard() {
       {/* Add top navigation bar */}
       {/* Background notifications watcher */}
       <NotificationWatcher />
-
-      {/* Insert Top Navigation */}
-      <TopNav />
 
       {/* Add old mobile navigation bar under TopNav (mobile only) */}
       <MobileTopNav />
