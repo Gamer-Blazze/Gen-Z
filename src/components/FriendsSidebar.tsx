@@ -3,7 +3,7 @@ import { api } from "@/convex/_generated/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageCircle, UserPlus } from "lucide-react";
+import { MessageCircle, UserPlus, Clapperboard } from "lucide-react";
 import { motion } from "framer-motion";
 import { useMutation } from "convex/react";
 import { useState } from "react";
@@ -32,6 +32,20 @@ export function FriendsSidebar() {
       animate={{ x: 0, opacity: 1 }}
       className="w-80 p-4 space-y-4"
     >
+      {/* Reels quick access */}
+      <Card>
+        <CardContent className="py-3">
+          <Button
+            className="w-full justify-center gap-2"
+            onClick={() => navigate("/reels")}
+            aria-label="Open Reels"
+          >
+            <Clapperboard className="w-4 h-4" />
+            Watch Reels
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Friend Requests */}
       {friendRequests && friendRequests.length > 0 && (
         <Card>
