@@ -8,6 +8,7 @@ import { ArrowLeft, Heart, Share2, MessageCircle } from "lucide-react";
 import { prefetchToCache } from "@/lib/cacheLRU";
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
+import { MobileTopNav } from "@/components/MobileTopNav";
 
 export default function Reels() {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ export default function Reels() {
       <div className="h-screen bg-black text-white grid place-items-center">
         <div className="text-center px-6">
           <h2 className="text-2xl font-semibold mb-2">No reels yet</h2>
-          <p className="text-white/70">When people post videos, they’ll appear here.</p>
+          <p className="text-white/70">When people post videos, they'll appear here.</p>
           <div className="mt-6">
             <Button variant="outline" onClick={() => navigate("/dashboard")}>
               Back to Home
@@ -69,19 +70,8 @@ export default function Reels() {
 
   return (
     <div className="h-screen w-screen bg-black text-white overflow-y-scroll snap-y snap-mandatory">
-      {/* Top bar */}
-      <div className="fixed top-0 left-0 right-0 z-20 flex items-center justify-between p-3 pointer-events-none">
-        <Button
-          size="icon"
-          variant="secondary"
-          className="pointer-events-auto bg-white/10 hover:bg-white/20 backdrop-blur rounded-full"
-          onClick={() => navigate(-1)}
-          title="Back"
-          aria-label="Back"
-        >
-          <ArrowLeft className="h-5 w-5 text-white" />
-        </Button>
-      </div>
+      {/* Top Navigation Bar */}
+      <MobileTopNav showOnDesktop />
 
       {/* Reels list */}
       {onlyVideos.map((post: any, index: number) => (
