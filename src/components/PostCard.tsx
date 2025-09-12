@@ -447,11 +447,14 @@ function PostCardInner({ post }: PostCardProps) {
             size="sm"
             onClick={handleLike}
             aria-pressed={isLiked}
-            // Remove transitions/animations to prevent blink
+            aria-label={isLiked ? "Unlike" : "Like"}
+            title={isLiked ? "Unlike" : "Like"}
             className={`gap-2 transition-none ${isLiked ? "text-red-500" : ""}`}
+            data-state={isLiked ? "on" : "off"}
           >
             <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} />
-            {localLikesCount}
+            <span className="text-xs sm:text-sm">{isLiked ? "Unlike" : "Like"}</span>
+            <span aria-hidden="true" className="ml-1 tabular-nums">{localLikesCount}</span>
           </Button>
 
           <Button
