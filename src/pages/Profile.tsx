@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useDevice } from "@/hooks/use-device";
-import { useMemo } from "react";
+/* removed invalid import */
 import { MobileTopNav } from "@/components/MobileTopNav";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -73,6 +73,17 @@ export default function Profile() {
     api.friends.getRelationshipStatus,
     !isOwnProfile && targetUser ? { otherUserId: targetUser._id } : "skip"
   );
+
+  // Add: optimistic relationship override for instant UI feedback
+  const [relOverride, setRelOverride] = useState<
+    "none" | "outgoing_request" | "incoming_request" | "friends" | undefined
+  >(undefined);
+  const rel = relOverride ?? relationshipStatus;
+
+  // Reset override when backend status updates so UI follows source of truth
+  useEffect(() => {
+    if (relationshipStatus !== undefined) setRelOverride(undefined);
+  }, [relationshipStatus]);
 
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
   const getFileUrl = useAction(api.files.getFileUrl);
@@ -399,7 +410,7 @@ export default function Profile() {
                 ) : (
                   <>
                     {/* Dynamic Friend Button based on relationship status */}
-                    {relationshipStatus === "friends" && (
+                    {rel === "friends" && (
                       <div className="flex items-center gap-2">
                         {/* Friends button with dropdown */}
                         <DropdownMenu>
@@ -414,9 +425,12 @@ export default function Profile() {
                               className="cursor-pointer"
                               onClick={async () => {
                                 try {
+                                  // Optimistic: assume unfriend
+                                  setRelOverride("none");
                                   await doUnfriend({ otherUserId: targetUser._id });
                                   toast.success("Unfriended");
                                 } catch (e: any) {
+                                  setRelOverride(undefined);
                                   toast.error(e?.message || "Failed to unfriend");
                                 }
                               }}
@@ -427,15 +441,18 @@ export default function Profile() {
                         </DropdownMenu>
                       </div>
                     )}
-                    {relationshipStatus === "outgoing_request" && (
+                    {rel === "outgoing_request" && (
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={async () => {
                           try {
+                            // Optimistic: assume cancel
+                            setRelOverride("none");
                             await cancelOutgoing({ otherUserId: targetUser._id });
                             toast.success("Friend request canceled");
                           } catch (e: any) {
+                            setRelOverride(undefined);
                             toast.error(e?.message || "Failed to cancel request");
                           }
                         }}
@@ -443,7 +460,7 @@ export default function Profile() {
                         Cancel Request
                       </Button>
                     )}
-                    {relationshipStatus === "incoming_request" && (
+                    {rel === "incoming_request" && (
                       <Button
                         size="sm"
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
@@ -452,15 +469,18 @@ export default function Profile() {
                         Respond
                       </Button>
                     )}
-                    {(relationshipStatus === "none" || relationshipStatus === undefined) && (
+                    {(rel === "none" || rel === undefined) && (
                       <Button
                         size="sm"
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
                         onClick={async () => {
                           try {
+                            // Optimistic: assume request goes through
+                            setRelOverride("outgoing_request");
                             await sendFriend({ userId: targetUser._id });
                             toast.success("Friend request sent");
                           } catch (e: any) {
+                            setRelOverride(undefined);
                             toast.error(e?.message || "Failed to send request");
                           }
                         }}
