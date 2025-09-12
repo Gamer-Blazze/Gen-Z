@@ -182,8 +182,10 @@ export default function Dashboard() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="min-h-screen bg-background"
+      className="min-h-screen bg-background overflow-x-hidden"
     >
+      {/* Mount watcher for real-time toasts on mobile too */}
+      <NotificationWatcher />
       {/* Desktop Top Navigation (sticky) */}
       <div className="hidden md:block sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto max-w-7xl px-4 h-14 flex items-center gap-4">
@@ -341,11 +343,11 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content */}
-        <main className="flex-1 w-full max-w-2xl mx-auto px-4 py-6 space-y-4">
+        <main className="flex-1 w-full max-w-2xl mx-auto px-2 sm:px-4 py-3 sm:py-6 space-y-3 sm:space-y-4 pb-16">
           {/* New: Visual composer to match requested UI */}
           <CreatePost />
-          {/* Stories row in a subtle card background to match reference */}
-          <div className="rounded-2xl bg-card/60 border border-border/60 p-3">
+          {/* Stories row with tighter mobile padding */}
+          <div className="rounded-2xl bg-card/60 border border-border/60 p-2 sm:p-3">
             <Stories />
           </div>
           {/* Feed remains real-time and functional */}
