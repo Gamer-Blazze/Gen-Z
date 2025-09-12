@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api";
 import ProgressiveVideo from "@/components/ProgressiveVideo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Heart, Share2, MessageCircle } from "lucide-react";
+import { ArrowLeft, Heart, Share2, MessageCircle, Bookmark } from "lucide-react";
 import { prefetchToCache } from "@/lib/cacheLRU";
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
@@ -80,72 +80,158 @@ export default function Reels() {
           className="relative h-screen w-screen snap-start overflow-hidden"
           data-reel-idx={index}
         >
-          {/* Video */}
-          <div className="absolute inset-0">
-            <ProgressiveVideo
-              src={post.videos[0]}
-              className="h-full w-full object-cover bg-black"
-              // Use continuous loop mode for TikTok/IG-like behavior
-              mode="loop"
-              onLoadedData={() => {}}
-            />
+          {/* Mobile layout: full-bleed video with overlay actions and meta */}
+          <div className="md:hidden absolute inset-0">
+            <div className="absolute inset-0">
+              <ProgressiveVideo
+                src={post.videos[0]}
+                className="h-full w-full object-cover bg-black"
+                mode="loop"
+                onLoadedData={() => {}}
+              />
+            </div>
+
+            {/* Right-side actions (mobile) */}
+            <div className="absolute right-2 bottom-24 flex flex-col gap-4 items-center">
+              <button
+                className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 backdrop-blur"
+                title="Like"
+                aria-label="Like"
+              >
+                <Heart className="h-6 w-6" />
+              </button>
+              <button
+                className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 backdrop-blur"
+                title="Comment"
+                aria-label="Comment"
+              >
+                <MessageCircle className="h-6 w-6" />
+              </button>
+              <button
+                className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 backdrop-blur"
+                title="Share"
+                aria-label="Share"
+                onClick={() => {
+                  try {
+                    if (navigator.share) {
+                      navigator.share({ url: window.location.href, title: post.user?.name || "Reel" }).catch(() => {});
+                    }
+                  } catch {}
+                }}
+              >
+                <Share2 className="h-6 w-6" />
+              </button>
+              <button
+                className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 backdrop-blur"
+                title="Save"
+                aria-label="Save"
+              >
+                <Bookmark className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Bottom-left meta (mobile overlay) */}
+            <div className="absolute left-3 right-20 bottom-8">
+              <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={post.user?.image} />
+                    <AvatarFallback className="bg-white/20 text-white">
+                      {post.user?.name?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="font-semibold">{post.user?.name || "Anonymous"}</div>
+                </div>
+                {post.content && (
+                  <p className="text-sm text-white/90 max-w-[75vw] whitespace-pre-wrap">
+                    {post.content}
+                  </p>
+                )}
+              </motion.div>
+
+              <div className="mt-2 text-xs text-white/70">Tap video to play with sound</div>
+            </div>
           </div>
 
-          {/* Right-side actions */}
-          <div className="absolute right-2 bottom-24 flex flex-col gap-4 items-center">
-            <button
-              className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 backdrop-blur"
-              title="Like"
-              aria-label="Like"
-            >
-              <Heart className="h-6 w-6" />
-            </button>
-            <button
-              className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 backdrop-blur"
-              title="Comment"
-              aria-label="Comment"
-            >
-              <MessageCircle className="h-6 w-6" />
-            </button>
-            <button
-              className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 backdrop-blur"
-              title="Share"
-              aria-label="Share"
-              onClick={() => {
-                try {
-                  if (navigator.share) {
-                    navigator
-                      .share({ url: window.location.href, title: post.user?.name || "Reel" })
-                      .catch(() => {});
-                  }
-                } catch {}
-              }}
-            >
-              <Share2 className="h-6 w-6" />
-            </button>
-          </div>
+          {/* Desktop layout: centered 9:16 video, right action rail, meta below */}
+          <div className="hidden md:flex h-full w-full items-center justify-center px-6">
+            <div className="max-w-7xl w-full grid grid-cols-[minmax(0,1fr)_64px] gap-6 items-center">
+              {/* Centered video column */}
+              <div className="flex flex-col items-center justify-center w-full">
+                {/* Video container: 9:16, fit within viewport height */}
+                <div className="relative aspect-[9/16] h-[84vh] rounded-xl overflow-hidden bg-black/60 shadow-2xl">
+                  <ProgressiveVideo
+                    src={post.videos[0]}
+                    className="h-full w-full object-cover"
+                    mode="loop"
+                    onLoadedData={() => {}}
+                  />
+                </div>
 
-          {/* Bottom-left meta */}
-          <div className="absolute left-3 right-20 bottom-8">
-            <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-              <div className="flex items-center gap-2 mb-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={post.user?.image} />
-                  <AvatarFallback className="bg-white/20 text-white">
-                    {post.user?.name?.charAt(0) || "U"}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="font-semibold">{post.user?.name || "Anonymous"}</div>
+                {/* Meta under video */}
+                <div className="w-full max-w-[min(56vh,480px)] mt-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={post.user?.image} />
+                      <AvatarFallback className="bg-white/20 text-white">
+                        {post.user?.name?.charAt(0) || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold">{post.user?.name || "Anonymous"}</span>
+                      {/* Music line, fallback to Original audio */}
+                      <span className="text-xs text-white/70">
+                        {(post as any)?.musicTitle || "Original audio"}
+                      </span>
+                    </div>
+                  </div>
+                  {post.content && (
+                    <p className="text-sm text-white/90 whitespace-pre-wrap">
+                      {post.content}
+                    </p>
+                  )}
+                </div>
               </div>
-              {post.content && (
-                <p className="text-sm text-white/90 max-w-[75vw] whitespace-pre-wrap">
-                  {post.content}
-                </p>
-              )}
-            </motion.div>
 
-            {/* Hint for user action */}
-            <div className="mt-2 text-xs text-white/70">Tap video to play with sound</div>
+              {/* Action rail to the right of video */}
+              <div className="flex flex-col items-center gap-5">
+                <button
+                  className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 transition-colors"
+                  title="Like"
+                  aria-label="Like"
+                >
+                  <Heart className="h-6 w-6" />
+                </button>
+                <button
+                  className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 transition-colors"
+                  title="Comment"
+                  aria-label="Comment"
+                >
+                  <MessageCircle className="h-6 w-6" />
+                </button>
+                <button
+                  className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 transition-colors"
+                  title="Share"
+                  aria-label="Share"
+                  onClick={() => {
+                    try {
+                      if (navigator.share) {
+                        navigator.share({ url: window.location.href, title: post.user?.name || "Reel" }).catch(() => {});
+                      }
+                    } catch {}
+                  }}
+                >
+                  <Share2 className="h-6 w-6" />
+                </button>
+                <button
+                  className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 transition-colors"
+                  title="Save"
+                  aria-label="Save"
+                >
+                  <Bookmark className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
           </div>
         </section>
       ))}
