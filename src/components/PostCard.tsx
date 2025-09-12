@@ -692,6 +692,9 @@ export const PostCard = memo(PostCardInner, (prev, next) => {
   if (p.commentsCount !== n.commentsCount) return false;
   if (p.sharesCount !== n.sharesCount) return false;
 
+  // ADD: Re-render when likes count changes to sync real-time updates across clients
+  if (p.likesCount !== n.likesCount) return false;
+
   // Ownership changes
   if ((p.userId as unknown as string) !== (n.userId as unknown as string)) return false;
 
