@@ -34,7 +34,7 @@ export function Sidebar() {
     <motion.div
       initial={{ x: -100, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      className="w-64 h-screen bg-card border-r border-border p-4 flex flex-col"
+      className="fixed inset-y-0 left-0 z-40 w-64 h-screen bg-card border-r border-border p-4 flex flex-col"
     >
       {/* Logo */}
       <div className="flex items-center gap-2 mb-8 cursor-pointer" onClick={() => navigate("/")}>

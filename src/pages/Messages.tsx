@@ -129,9 +129,7 @@ export default function Messages() {
       animate={{ opacity: 1 }}
       className={`h-screen overflow-hidden ${pageBg}`}
     >
-      {/* Old mobile navigation bar under TopNav (mobile only) */}
       <MobileTopNav />
-      {/* Top navigation bar */}
       <div className="flex">
         {/* Left Sidebar remains desktop-only; mobile/tablet use the sheet */}
         <div className="hidden lg:block">
@@ -145,8 +143,8 @@ export default function Messages() {
           </SheetContent>
         </Sheet>
 
-        {/* Main container - remove outer paddings, lock to viewport */}
-        <main key={device} className="flex-1 mx-auto px-0 py-0 h-screen">
+        {/* Main container - add left margin on desktop to avoid overlap with fixed sidebar */}
+        <main key={device} className="flex-1 mx-auto px-0 py-0 h-screen lg:ml-64">
           {device === "mobile" && (
             <div key="mobile" className="h-full flex flex-col">
               {/* Top bar when in chat view */}
