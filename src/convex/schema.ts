@@ -97,7 +97,15 @@ const schema = defineSchema(
       // ADD: videos support
       videos: v.optional(v.array(v.id("_storage"))),
       // ADD: audience control & metadata
-      audience: v.optional(v.union(v.literal("public"), v.literal("friends"), v.literal("private"))),
+      // Accept both "only_me" and legacy "private" for compatibility
+      audience: v.optional(
+        v.union(
+          v.literal("public"),
+          v.literal("friends"),
+          v.literal("only_me"),
+          v.literal("private")
+        )
+      ),
       tags: v.optional(v.array(v.id("users"))),
       scheduledAt: v.optional(v.number()),
       isDraft: v.optional(v.boolean()),
@@ -108,7 +116,10 @@ const schema = defineSchema(
       // ADD: optional location & feeling/activity
       location: v.optional(v.string()),
       feeling: v.optional(v.string()),
-    }).index("by_user", ["userId"]),
+    })
+      .index("by_user", ["userId"])
+      // Add index for public feed pulls without scanning
+      .index("by_isPublic", ["isPublic"]),
 
     // Comments table
     comments: defineTable({

@@ -6,10 +6,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Send, Image as ImageIcon, Video as VideoIcon, X } from "lucide-react";
+import { Send, Image as ImageIcon, X } from "lucide-react";
 import { useAction } from "convex/react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Globe, Users, Lock } from "lucide-react";
 
 // Direct post (text-only) composer
 export function CreatePost() {
@@ -27,6 +29,9 @@ export function CreatePost() {
 
   // Add: derived state
   const hasMedia = files.length > 0;
+
+  // Add: audience state
+  const [audience, setAudience] = useState<"public" | "friends" | "only_me">("public");
 
   const canPost = (content.trim().length > 0 || hasMedia) && !isSubmitting;
 
@@ -90,10 +95,13 @@ export function CreatePost() {
         images: imageIds as any,
         videos: videoIds as any,
         isDraft: false,
+        audience,
       });
 
       setContent("");
       setFiles([]);
+      // Reset audience to default if desired
+      setAudience("public");
       toast.success("Posted!");
     } catch {
       toast.error("Failed to post");
@@ -121,6 +129,35 @@ export function CreatePost() {
                   onChange={(e) => setContent(e.target.value)}
                   className="min-h-[100px] resize-none border-0 p-0 text-base placeholder:text-muted-foreground focus-visible:ring-0"
                 />
+
+                {/* Add: privacy selector */}
+                <div className="mt-2 flex items-center gap-2">
+                  <Select
+                    value={audience}
+                    onValueChange={(val: "public" | "friends" | "only_me") => setAudience(val)}
+                  >
+                    <SelectTrigger className="w-[180px] h-8 text-xs">
+                      <SelectValue placeholder="Select privacy" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="public">
+                        <span className="inline-flex items-center gap-2 text-sm">
+                          <Globe className="h-4 w-4" /> Public
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="friends">
+                        <span className="inline-flex items-center gap-2 text-sm">
+                          <Users className="h-4 w-4" /> Friends
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="only_me">
+                        <span className="inline-flex items-center gap-2 text-sm">
+                          <Lock className="h-4 w-4" /> Only Me
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 {/* Add: media previews */}
                 {hasMedia && (

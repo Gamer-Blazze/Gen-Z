@@ -516,17 +516,21 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <main className="flex-1 w-full max-w-2xl mx-auto px-2 sm:px-4 py-3 sm:py-6 space-y-3 sm:space-y-4 pb-16">
-          {/* Stories row with tighter mobile padding */}
+          {/* Add: Create Post box above Stories, Facebook-style */}
+          <CreatePost />
+
+          {/* Stories row */}
           <div className="rounded-2xl bg-card/60 border border-border/60 p-2 sm:p-3">
             <Stories />
           </div>
+
           {/* Feed remains real-time and functional */}
           <ErrorBoundary name="Feed">
             <Feed />
           </ErrorBoundary>
         </main>
 
-        {/* Right Sidebar (only on xl and up) */}
+        {/* Right Sidebar */}
         <div className="hidden xl:block">
           <div className="w-80 space-y-4 pr-2">
             <FriendsSidebar />

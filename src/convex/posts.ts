@@ -10,12 +10,18 @@ export const createPost = mutation({
     images: v.optional(v.array(v.id("_storage"))),
     videos: v.optional(v.array(v.id("_storage"))),
     isPublic: v.optional(v.boolean()),
-    // ADD: new fields
-    audience: v.optional(v.union(v.literal("public"), v.literal("friends"), v.literal("private"))),
+    // UPDATE: include "only_me" and legacy "private"
+    audience: v.optional(
+      v.union(
+        v.literal("public"),
+        v.literal("friends"),
+        v.literal("only_me"),
+        v.literal("private")
+      )
+    ),
     tags: v.optional(v.array(v.id("users"))),
     scheduledAt: v.optional(v.number()),
     isDraft: v.optional(v.boolean()),
-    // ADD: optional location and feeling/activity
     location: v.optional(v.string()),
     feeling: v.optional(v.string()),
   },
@@ -25,18 +31,25 @@ export const createPost = mutation({
       throw new Error("Not authenticated");
     }
 
-    // derive isPublic from audience if provided
-    const audience = args.audience ?? (args.isPublic ? "public" : "public");
-    const isPublic = args.isPublic ?? (audience === "public");
+    // Normalize audience, supporting legacy "private" but prefer "only_me"
+    const audienceRaw =
+      args.audience ??
+      (args.isPublic === true ? "public" : undefined) ??
+      "public";
+    const audience = (audienceRaw === "private" ? "only_me" : audienceRaw) as
+      | "public"
+      | "friends"
+      | "only_me";
 
-    // Determine publishing lifecycle defaults
+    const isPublic = audience === "public";
+
     const now = Date.now();
     const isDraft = args.isDraft ?? false;
     const scheduledAt = args.scheduledAt;
     const isScheduledInFuture = typeof scheduledAt === "number" && scheduledAt > now;
 
-    const status = (isDraft || isScheduledInFuture) ? "working" : "active";
-    const publishedAt = (status === "active") ? now : undefined;
+    const status = isDraft || isScheduledInFuture ? "working" : "active";
+    const publishedAt = status === "active" ? now : undefined;
 
     const postId = await ctx.db.insert("posts", {
       userId: user._id,
@@ -48,7 +61,7 @@ export const createPost = mutation({
       commentsCount: 0,
       sharesCount: 0,
       isPublic,
-      audience,
+      audience, // store normalized audience
       tags: args.tags || [],
       scheduledAt,
       isDraft,
@@ -73,29 +86,97 @@ export const getFeedPosts = query({
     if (!user) {
       return [];
     }
+    const limit = Math.max(1, Math.min(args.limit ?? 20, 100));
 
-    const posts = await ctx.db
+    // Build friend set using accepted friend_requests (both directions)
+    const outgoingAccepted = await ctx.db
+      .query("friend_requests")
+      .withIndex("by_from_and_status", (q: any) => q.eq("from", user._id).eq("status", "accepted"))
+      .collect();
+
+    const incomingAccepted = await ctx.db
+      .query("friend_requests")
+      .withIndex("by_to_and_status", (q: any) => q.eq("to", user._id).eq("status", "accepted"))
+      .collect();
+
+    const friendIds = new Set<string>();
+    for (const r of outgoingAccepted) friendIds.add(r.to as unknown as string);
+    for (const r of incomingAccepted) friendIds.add(r.from as unknown as string);
+
+    // Fetch buckets with indexes:
+    // - My posts by_user
+    const myPosts = await ctx.db
       .query("posts")
-      .filter((q: any) => q.eq(q.field("isPublic"), true))
-      .filter((q: any) => q.or(q.eq(q.field("isDraft"), undefined), q.eq(q.field("isDraft"), false)))
+      .withIndex("by_user", (q: any) => q.eq("userId", user._id))
       .order("desc")
-      .take(args.limit || 20);
+      .take(limit * 2);
 
-    // Get user info for each post
+    // - Public posts via by_isPublic
+    const publicPosts = await ctx.db
+      .query("posts")
+      .withIndex("by_isPublic", (q: any) => q.eq("isPublic", true))
+      .order("desc")
+      .take(limit * 3);
+
+    // - Friends' posts by_user for each friend (cap to avoid overfetch)
+    const friendPosts: any[] = [];
+    let perFriendCap = Math.max(2, Math.ceil((limit * 2) / Math.max(1, friendIds.size)));
+    perFriendCap = Math.min(perFriendCap, 20);
+    for (const idStr of friendIds) {
+      const rows = await ctx.db
+        .query("posts")
+        .withIndex("by_user", (q: any) => q.eq("userId", idStr as any))
+        .order("desc")
+        .take(perFriendCap);
+      friendPosts.push(...rows);
+      if (friendPosts.length >= limit * 2) break;
+    }
+
+    // Merge + filter by visibility rules
+    const combined = [...myPosts, ...publicPosts, ...friendPosts];
+
+    const now = Date.now();
+    const visible = combined.filter((p: any, idx, arr) => {
+      // Dedupe by _id
+      const idStr = p._id as unknown as string;
+      const firstIdx = arr.findIndex((x: any) => (x._id as unknown as string) === idStr);
+      if (firstIdx !== idx) return false;
+
+      const isMine = (p.userId as unknown as string) === (user._id as unknown as string);
+      const aud = (p.audience as string) || (p.isPublic ? "public" : "public");
+      const normalized = aud === "private" ? "only_me" : aud;
+
+      // Publishing status filter: exclude drafts/working future
+      const draft = p.isDraft === true;
+      const scheduledFuture = typeof p.scheduledAt === "number" && p.scheduledAt > now;
+      const inactive = p.status && p.status !== "active";
+      if (draft || scheduledFuture || inactive) return false;
+
+      if (isMine) return true;
+      if (p.isPublic === true || normalized === "public") return true;
+      if (normalized === "friends") {
+        const authorId = p.userId as unknown as string;
+        return friendIds.has(authorId);
+      }
+      if (normalized === "only_me") return false;
+
+      return false;
+    });
+
+    // Sort by creation time desc and slice to limit
+    const sorted = visible.sort((a: any, b: any) => (b._creationTime || 0) - (a._creationTime || 0)).slice(0, limit);
+
+    // Map to include user and storage URLs
     const postsWithUsers = await Promise.all(
-      posts.map(async (post: any) => {
+      sorted.map(async (post: any) => {
         const postUser = await ctx.db.get(post.userId);
 
         const imageUrls = post.images
-          ? (await Promise.all(
-              post.images.map(async (fid: any) => (await ctx.storage.getUrl(fid)) || "")
-            )).filter(Boolean)
+          ? (await Promise.all(post.images.map(async (fid: any) => (await ctx.storage.getUrl(fid)) || ""))).filter(Boolean)
           : [];
 
         const videoUrls = post.videos
-          ? (await Promise.all(
-              post.videos.map(async (fid: any) => (await ctx.storage.getUrl(fid)) || "")
-            )).filter(Boolean)
+          ? (await Promise.all(post.videos.map(async (fid: any) => (await ctx.storage.getUrl(fid)) || ""))).filter(Boolean)
           : [];
 
         return {
