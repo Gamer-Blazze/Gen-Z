@@ -19,6 +19,7 @@ import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import ProgressiveVideo from "@/components/ProgressiveVideo";
 import ProgressiveImage from "@/components/ProgressiveImage";
 import { Volume2, VolumeX } from "lucide-react";
+import { useRef } from "react";
 
 function linkify(text: string) {
   // very lightweight linkifier for URLs, #hashtags, and @mentions
@@ -151,13 +152,50 @@ export function PostCard({ post }: PostCardProps) {
   // NEW: Quick emoji bar for comments
   const quickEmojis = ["👍", "❤️", "😂", "😮", "😢", "😡", "🎉", "🙏"];
 
-  const isLiked = user ? post.likes.includes(user._id) : false;
+  // Optimistic like state to avoid DOM replacement/flicker
+  const [localLiked, setLocalLiked] = useState<boolean>(() => {
+    return user ? post.likes.includes(user._id) : false;
+  });
+  const [localLikesCount, setLocalLikesCount] = useState<number>(post.likesCount);
+  const [likePending, setLikePending] = useState<boolean>(false);
+  const lastLikeTsRef = useRef<number>(0);
+
+  // Reconcile optimistic like state when backend data changes (avoid mid-flight stomping)
+  useEffect(() => {
+    if (likePending) return; // don't overwrite while a toggle is in flight
+    const serverLiked = user ? post.likes.includes(user._id) : false;
+    setLocalLiked(serverLiked);
+    setLocalLikesCount(post.likesCount);
+  }, [post.likes, post.likesCount, user, likePending]);
+
+  const isLiked = localLiked;
 
   const handleLike = async () => {
+    const now = Date.now();
+    // Debounce rapid taps/clicks (300ms)
+    if (now - lastLikeTsRef.current < 300 || likePending) return;
+    lastLikeTsRef.current = now;
+
+    // Optimistic toggle without DOM replacement/flicker
+    const prevLiked = localLiked;
+    const prevCount = localLikesCount;
+    const nextLiked = !prevLiked;
+    const nextCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
+
+    setLocalLiked(nextLiked);
+    setLocalLikesCount(nextCount);
+    setLikePending(true);
+
     try {
       await toggleLike({ postId: post._id });
+      // success: state already matches expected outcome
     } catch (error) {
+      // Revert on failure
+      setLocalLiked(prevLiked);
+      setLocalLikesCount(prevCount);
       toast.error("Failed to like post");
+    } finally {
+      setLikePending(false);
     }
   };
 
@@ -387,10 +425,13 @@ export function PostCard({ post }: PostCardProps) {
             variant="ghost"
             size="sm"
             onClick={handleLike}
-            className={`gap-2 ${isLiked ? "text-red-500 hover:text-red-600" : ""}`}
+            disabled={likePending}
+            aria-pressed={isLiked}
+            // Remove transitions/animations to prevent blink
+            className={`gap-2 transition-none ${isLiked ? "text-red-500" : ""}`}
           >
             <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} />
-            {post.likesCount}
+            {localLikesCount}
           </Button>
 
           <Button
