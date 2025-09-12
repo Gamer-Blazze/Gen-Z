@@ -8,19 +8,48 @@ type Props = {
   onLoadedData?: () => void;
   // Add: mode to control behavior (preview vs. continuous loop)
   mode?: "preview" | "loop";
+  // Add: control preload behaviour
+  preload?: "auto" | "metadata" | "none";
+  // Add: lazy attach source only when in view
+  lazy?: boolean;
 };
 
-export default function ProgressiveVideo({ src, className, onLoadedData, mode = "preview" }: Props) {
+export default function ProgressiveVideo({ src, className, onLoadedData, mode = "preview", preload = "metadata", lazy = false }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [ready, setReady] = useState(false);
   const [previewDone, setPreviewDone] = useState(false);
   const [userEngaged, setUserEngaged] = useState(false);
   const net = useNetworkMode();
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    if (!lazy) {
+      setInView(true);
+      return;
+    }
+    const el = videoRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setInView(true);
+          }
+        }
+      },
+      { rootMargin: "400px 0px", threshold: 0.1 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [lazy]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function attachSource() {
+      // Gate by lazy visibility
+      if (!inView) return;
+
       // If cached, use it (offline support)
       const cached = await cacheMatch(src);
       if (cancelled) return;
@@ -57,14 +86,14 @@ export default function ProgressiveVideo({ src, className, onLoadedData, mode = 
     attachSource();
 
     // Prefetch aggressively on Wi‑Fi; lightly on cellular
-    if (net === "wifi") {
+    if (inView && net === "wifi") {
       prefetchToCache(src).catch(() => {});
     }
 
     return () => {
       cancelled = true;
     };
-  }, [src, net]);
+  }, [src, net, inView]);
 
   // Autoplay a 3–4s muted preview then pause (only in preview mode)
   useEffect(() => {
@@ -74,15 +103,12 @@ export default function ProgressiveVideo({ src, className, onLoadedData, mode = 
     const onLoaded = () => {
       setReady(true);
       onLoadedData?.();
-      // auto-play muted
       v.muted = true;
-      // Add: loop mode enables continuous looping
       v.loop = mode === "loop";
       v.play().catch(() => {});
     };
 
     const onTime = () => {
-      // Only pause after 3.5s in preview mode
       if (mode !== "loop" && !previewDone && v.currentTime >= 3.5 && !userEngaged) {
         v.pause();
         setPreviewDone(true);
@@ -104,9 +130,9 @@ export default function ProgressiveVideo({ src, className, onLoadedData, mode = 
         className={className}
         playsInline
         controls={userEngaged}
-        preload="metadata"
-        // Add: ensure loop attribute reflects mode as well
+        preload={preload}
         loop={mode === "loop"}
+        data-pv="1"
         onClick={(e) => {
           e.stopPropagation();
           const v = videoRef.current;

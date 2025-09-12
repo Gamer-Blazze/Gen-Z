@@ -45,11 +45,58 @@ export function Feed() {
       { rootMargin: "400px 0px" }
     );
 
-    // observe each card container
     const nodes = document.querySelectorAll("[data-feed-card-idx]");
     nodes.forEach((n) => observer.observe(n));
 
     return () => observer.disconnect();
+  }, [posts]);
+
+  // Add: Manage video playback like TikTok/IG Reels: play/reset on enter, pause on leave
+  useEffect(() => {
+    const container = listRef.current;
+    if (!container) return;
+
+    const allVideos = Array.from(container.querySelectorAll<HTMLVideoElement>("video[data-pv='1']"));
+    if (allVideos.length === 0) return;
+
+    function pauseOthers(except?: HTMLVideoElement | null) {
+      for (const v of allVideos) {
+        if (v !== except) {
+          try {
+            v.pause();
+          } catch {}
+        }
+      }
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const v = entry.target as HTMLVideoElement;
+          if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+            try {
+              // Always start from the beginning when it comes into view
+              v.currentTime = 0;
+              v.muted = true;
+              v.controls = false;
+              v.play().catch(() => {});
+              pauseOthers(v);
+            } catch {}
+          } else {
+            try {
+              v.pause();
+            } catch {}
+          }
+        });
+      },
+      { root: null, threshold: [0, 0.6, 1], rootMargin: "0px 0px 200px 0px" }
+    );
+
+    allVideos.forEach((v) => io.observe(v));
+
+    return () => {
+      io.disconnect();
+    };
   }, [posts]);
 
   if (posts === undefined) {

@@ -319,6 +319,10 @@ export function PostCard({ post }: PostCardProps) {
                 src={video}
                 className="w-full h-auto rounded-md bg-black"
                 onLoadedData={markMediaLoaded}
+                // Ensure smooth feed behaviour: loop + lazy + better buffering for current/next
+                mode="loop"
+                lazy
+                preload="metadata"
               />
             ))}
           </div>
