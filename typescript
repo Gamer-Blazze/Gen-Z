@@ -1,0 +1,74 @@
+// Add to schema.ts
+friendships: defineTable({
+  userA: v.id("users"), // Always smaller ID first for normalization
+  userB: v.id("users"), // Always larger ID second
+})
+.index("by_userA_and_userB", ["userA", "userB"])
+.index("by_userA", ["userA"])
+.index("by_userB", ["userB"]),
+
+// Enhanced indexes for existing tables
+friend_requests: 
+.index("by_from_and_to", ["from", "to"])
+.index("by_from_and_status", ["from", "status"])
+.index("by_to_and_status", ["to", "status"])
+
+follows:
+.index("by_follower_and_following", ["followerId", "followingId"])
+
+earnings: defineTable({
+  userId: v.id("users"),
+  amountCents: v.number(),
+  type: v.union(v.literal("tip"), v.literal("adRevenue"), v.literal("subscription")),
+  status: v.union(v.literal("pending"), v.literal("paid")),
+  stripePaymentId: v.optional(v.string()),
+})
+
+subscriptions: defineTable({
+  userId: v.id("users"),
+  planId: v.string(),
+  stripeSubscriptionId: v.string(),
+  status: v.string(),
+})
+
+ad_placements: defineTable({
+  slot: v.string(),
+  campaignId: v.string(),
+  metadata: v.object({}),
+})
+
+// Add to users table
+isModerator: v.boolean(),
+isAdmin: v.boolean(),
+isBanned: v.boolean(),
+
+moderation_logs: defineTable({
+  adminId: v.id("users"),
+  action: v.string(),
+  targetType: v.string(),
+  targetId: v.string(),
+  reason: v.optional(v.string()),
+})
+
+// lib/safeCall.ts
+export async function safeCall<T>(
+  operation: () => Promise<T>,
+  options: {
+    successMessage?: string;
+    errorMessage?: string;
+    onSuccess?: (result: T) => void;
+  }
+): Promise<T | null> {
+  try {
+    const result = await operation();
+    if (options.successMessage) {
+      toast.success(options.successMessage);
+    }
+    options.onSuccess?.(result);
+    return result;
+  } catch (error) {
+    toast.error(options.errorMessage || "Something went wrong");
+    console.error(error);
+    return null;
+  }
+}
