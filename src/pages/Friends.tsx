@@ -150,51 +150,27 @@ export default function Friends() {
 
             {/* Tabs */}
             <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
-              <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex rounded-full bg-muted p-1 gap-1">
-                <TabsTrigger
-                  value="requests"
-                  className="rounded-full px-4 py-1.5 text-sm text-muted-foreground transition
-                             data-[state=active]:bg-background data-[state=active]:text-foreground
-                             data-[state=active]:shadow-sm"
-                >
+              <TabsList>
+                <TabsTrigger value="requests">
                   Friend Requests
                 </TabsTrigger>
-                <TabsTrigger
-                  value="friends"
-                  className="rounded-full px-4 py-1.5 text-sm text-muted-foreground transition
-                             data-[state=active]:bg-background data-[state=active]:text-foreground
-                             data-[state=active]:shadow-sm"
-                >
+                <TabsTrigger value="friends">
                   Your Friends
                 </TabsTrigger>
-                <TabsTrigger
-                  value="suggestions"
-                  className="rounded-full px-4 py-1.5 text-sm text-muted-foreground transition
-                             data-[state=active]:bg-background data-[state=active]:text-foreground
-                             data-[state=active]:shadow-sm"
-                >
+                <TabsTrigger value="suggestions">
                   Suggestions
                 </TabsTrigger>
               </TabsList>
 
               {/* Friend Requests */}
               <TabsContent value="requests" className="mt-4">
-                {/* Per-tab search with clear */}
-                <div className="mb-3 relative w-full sm:w-80">
+                {/* Per-tab search hidden */}
+                <div className="hidden">
                   <Input
                     placeholder="Search requests"
                     value={requestSearch}
                     onChange={(e) => setRequestSearch(e.target.value)}
                   />
-                  {requestSearch && (
-                    <button
-                      aria-label="Clear"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setRequestSearch("")}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -239,19 +215,17 @@ export default function Friends() {
                           </div>
                           <div className="flex gap-2">
                             <Button
-                              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#1877F2] to-[#166FE5] px-4 py-2 text-white shadow-md transition-all hover:from-[#166FE5] hover:to-[#1259c3] hover:shadow-lg active:scale-[0.98]"
                               onClick={async () => {
                                 try {
                                   await acceptFriend({ friendshipId: req._id });
-                                  toast.success("Followed back");
+                                  toast.success("Request confirmed");
                                   setTab("friends");
                                 } catch {
-                                  toast.error("Failed to follow back");
+                                  toast.error("Failed to confirm");
                                 }
                               }}
                             >
-                              <UserPlus className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                              <span>Follow back</span>
+                              Confirm
                             </Button>
                             <Button
                               variant="outline"
@@ -276,22 +250,13 @@ export default function Friends() {
 
               {/* Your Friends */}
               <TabsContent value="friends" className="mt-4">
-                {/* Per-tab search with clear */}
-                <div className="mb-3 relative w-full sm:w-80">
+                {/* Per-tab search hidden */}
+                <div className="hidden">
                   <Input
                     placeholder="Search your friends"
                     value={friendsSearch}
                     onChange={(e) => setFriendsSearch(e.target.value)}
                   />
-                  {friendsSearch && (
-                    <button
-                      aria-label="Clear"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setFriendsSearch("")}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -359,22 +324,13 @@ export default function Friends() {
 
               {/* Suggestions */}
               <TabsContent value="suggestions" className="mt-4">
-                {/* Per-tab search with clear (moved from global) */}
-                <div className="mb-3 relative w-full sm:w-80">
+                {/* Per-tab search hidden */}
+                <div className="hidden">
                   <Input
                     placeholder="Search for people"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
-                  {search && (
-                    <button
-                      aria-label="Clear"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      onClick={() => setSearch("")}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
                 </div>
 
                 {!suggestions && !friendRequests && search.trim().length < 2 ? (
@@ -424,19 +380,17 @@ export default function Friends() {
 
                                 <div className="mt-3 flex gap-2">
                                   <Button
-                                    className="flex-1 group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#1877F2] to-[#166FE5] px-4 py-2 text-white shadow-md transition-all hover:from-[#166FE5] hover:to-[#1259c3] hover:shadow-lg active:scale-[0.98]"
                                     onClick={async () => {
                                       try {
                                         await acceptFriend({ friendshipId: req._id });
-                                        toast.success("Followed back");
+                                        toast.success("Request confirmed");
                                         setTab("friends");
                                       } catch {
-                                        toast.error("Failed to follow back");
+                                        toast.error("Failed to confirm");
                                       }
                                     }}
                                   >
-                                    <UserPlus className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                                    <span>Follow back</span>
+                                    Confirm
                                   </Button>
                                   <Button
                                     variant="outline"
@@ -504,10 +458,8 @@ export default function Friends() {
 
                                 <div className="mt-3 flex gap-2">
                                   <Button
-                                    className="flex-1 bg-[#1877F2] hover:bg-[#166FE5] text-white"
                                     onClick={() => handleAddFriend(id)}
                                   >
-                                    <UserPlus className="mr-2 h-4 w-4" />
                                     Add Friend
                                   </Button>
                                   <Button
