@@ -165,9 +165,8 @@ export function Feed() {
           key={post._id}
           data-feed-card-idx
           data-idx={index}
-          initial={{ y: 50, opacity: 0 }}
+          initial={false}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: index * 0.1 }}
         >
           <PostCard post={post} />
         </motion.div>
