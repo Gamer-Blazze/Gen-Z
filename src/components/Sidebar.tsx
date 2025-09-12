@@ -8,7 +8,8 @@ import {
   Bell, 
   Settings, 
   LogOut,
-  User
+  User,
+  Clapperboard
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import { motion } from "framer-motion";
@@ -21,6 +22,7 @@ export function Sidebar() {
 
   const menuItems = [
     { icon: Home, label: "Home", path: "/dashboard" },
+    { icon: Clapperboard, label: "Reels", path: "/reels" },
     { icon: MessageCircle, label: "Messages", path: "/messages" },
     { icon: Users, label: "Friends", path: "/friends" },
     { icon: Bell, label: "Notifications", path: "/notifications" },
