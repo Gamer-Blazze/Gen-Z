@@ -69,9 +69,11 @@ export default function Reels() {
   }
 
   return (
-    <div className="h-screen w-screen bg-background text-foreground overflow-y-scroll snap-y snap-mandatory">
+    <div className="h-screen w-screen bg-background text-foreground overflow-y-scroll snap-y snap-mandatory pt-14">
       {/* Top Navigation Bar */}
-      <MobileTopNav showOnDesktop />
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <MobileTopNav showOnDesktop />
+      </div>
 
       {/* Reels list */}
       {onlyVideos.map((post: any, index: number) => (
