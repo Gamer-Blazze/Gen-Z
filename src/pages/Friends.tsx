@@ -46,6 +46,8 @@ export default function Friends() {
   const sendFriend = useMutation(api.friends.sendFriendRequest);
   const acceptFriend = useMutation(api.friends.acceptFriendRequest);
   const declineFriend = useMutation(api.friends.declineFriendRequest);
+  // New: follow mutation
+  const followUser = useMutation(api.friends.followUser);
 
   const onHide = (id: string) => {
     setHidden((prev) => new Set([...prev, id]));
@@ -508,8 +510,19 @@ export default function Friends() {
                                     <UserPlus className="mr-2 h-4 w-4" />
                                     Add Friend
                                   </Button>
-                                  <Button variant="outline" onClick={() => onHide(id)}>
-                                    Hide
+                                  <Button
+                                    variant="outline"
+                                    onClick={async () => {
+                                      try {
+                                        await followUser({ userId: id as any });
+                                        toast.success("Now following");
+                                        onHide(id);
+                                      } catch (e: any) {
+                                        toast.error(e?.message || "Failed to follow");
+                                      }
+                                    }}
+                                  >
+                                    Follow
                                   </Button>
                                 </div>
                               </div>

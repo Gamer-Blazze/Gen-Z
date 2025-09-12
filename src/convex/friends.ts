@@ -420,6 +420,62 @@ export const getOnlineFriends = query({
   }),
 });
 
+// Create a follow relationship (one-way).
+export const followUser = mutation({
+  args: {
+    targetUserId: v.optional(v.id("users")),
+    userId: v.optional(v.id("users")), // alias for compatibility
+  },
+  handler: withErrorLogging("friends.followUser", async (ctx, args) => {
+    const me = await getCurrentUser(ctx);
+    if (!me) throw new Error("Not authenticated");
+
+    const targetId = args.targetUserId ?? args.userId;
+    if (!targetId) throw new Error("Missing target user id");
+    if (targetId === me._id) throw new Error("Cannot follow yourself");
+
+    const exists = await ctx.db
+      .query("follows")
+      .withIndex("by_follower_and_following", (q: any) =>
+        q.eq("followerId", me._id).eq("followingId", targetId)
+      )
+      .first();
+    if (exists) return { ok: true, changed: false, followId: exists._id };
+
+    const followId = await ctx.db.insert("follows", {
+      followerId: me._id,
+      followingId: targetId,
+    });
+
+    return { ok: true, changed: true, followId };
+  }),
+});
+
+/**
+ * Remove a follow relationship (one-way).
+ */
+export const unfollowUser = mutation({
+  args: {
+    targetUserId: v.id("users"),
+  },
+  handler: withErrorLogging("friends.unfollowUser", async (ctx, args) => {
+    const me = await getCurrentUser(ctx);
+    if (!me) throw new Error("Not authenticated");
+
+    const row = await ctx.db
+      .query("follows")
+      .withIndex("by_follower_and_following", (q: any) =>
+        q.eq("followerId", me._id).eq("followingId", args.targetUserId)
+      )
+      .first();
+
+    if (!row) return { ok: true, changed: false };
+
+    await ctx.db.delete(row._id);
+    return { ok: true, changed: true };
+  }),
+});
+
 // Search users by name, username, or email using index ranges. Case-insensitive-ish with prefix ranges.
 export const searchUsers = query({
   args: {
@@ -519,7 +575,7 @@ export const searchUsers = query({
   }),
 });
 
-// Get people you may know: excludes me, existing friends (accepted), and pending requests (both directions).
+// Get people you may know: excludes me, existing friends (accepted), pending requests (both directions), and follows (both directions).
 export const getSuggestions = query({
   args: {
     limit: v.optional(v.number()),
@@ -531,7 +587,7 @@ export const getSuggestions = query({
 
     const exclude = new Set<string>([me._id as unknown as string]);
 
-    // Outgoing (me -> others)
+    // Outgoing (me -> others) friend requests
     const out = await ctx.db
       .query("friend_requests")
       .withIndex("by_from_and_to", (q: any) => q.eq("from", me._id).gt("to", ""))
@@ -542,16 +598,32 @@ export const getSuggestions = query({
       if (r.status === "accepted" || r.status === "pending") exclude.add(toId);
     }
 
-    // Incoming (others -> me)
+    // Incoming (others -> me) friend requests
     const inc = await ctx.db
       .query("friend_requests")
-      // FIX: use index starting with "to" to satisfy field order and fetch all rows to me
       .withIndex("by_to", (q: any) => q.eq("to", me._id))
       .take(1000);
 
     for (const r of inc) {
       const fromId = r.from as unknown as string;
       if (r.status === "accepted" || r.status === "pending") exclude.add(fromId);
+    }
+
+    // New: Exclude follows in both directions (I follow or they follow me)
+    const myFollows = await ctx.db
+      .query("follows")
+      .withIndex("by_follower", (q: any) => q.eq("followerId", me._id))
+      .take(1000);
+    for (const f of myFollows) {
+      exclude.add(f.followingId as unknown as string);
+    }
+
+    const theirFollows = await ctx.db
+      .query("follows")
+      .withIndex("by_following", (q: any) => q.eq("followingId", me._id))
+      .take(1000);
+    for (const f of theirFollows) {
+      exclude.add(f.followerId as unknown as string);
     }
 
     const suggestions: any[] = [];
