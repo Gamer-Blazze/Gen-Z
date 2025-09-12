@@ -109,7 +109,7 @@ export default function Landing() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 lg:py-32">
+      <section className="relative overflow-hidden py-12 lg:py-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <motion.div
@@ -149,7 +149,7 @@ export default function Landing() {
                     <Button 
                       size="lg"
                       onClick={() => navigate("/dashboard")}
-                      className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-lg px-8 py-6"
+                      className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-lg px-8 py-6"
                     >
                       Go to Dashboard
                       <ArrowRight className="ml-2 w-5 h-5" />
@@ -159,7 +159,7 @@ export default function Landing() {
                       <Button 
                         size="lg"
                         onClick={() => navigate("/auth")}
-                        className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-lg px-8 py-6"
+                        className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-lg px-8 py-6"
                       >
                         Gen-Z Nepal
                         <ArrowRight className="ml-2 w-5 h-5" />
@@ -167,7 +167,7 @@ export default function Landing() {
                       <Button 
                         size="lg"
                         variant="outline"
-                        className="border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20 text-lg px-8 py-6"
+                        className="w-full sm:w-auto border-red-200 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-900/20 text-lg px-8 py-6"
                       >
                         Learn More
                       </Button>
@@ -185,9 +185,9 @@ export default function Landing() {
               className="relative"
             >
               <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-3xl p-8 backdrop-blur-sm border border-red-200/50 dark:border-red-800/50">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                   <Card className="border-red-200/50 dark:border-red-800/50">
-                    <CardContent className="p-6 text-center">
+                    <CardContent className="p-4 md:p-6 text-center">
                       <div className="w-12 h-12 bg-gradient-to-r from-red-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
                         <MessageCircle className="w-6 h-6 text-white" />
                       </div>
@@ -197,7 +197,7 @@ export default function Landing() {
                   </Card>
                   
                   <Card className="border-red-200/50 dark:border-red-800/50">
-                    <CardContent className="p-6 text-center">
+                    <CardContent className="p-4 md:p-6 text-center">
                       <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Users className="w-6 h-6 text-white" />
                       </div>
@@ -207,7 +207,7 @@ export default function Landing() {
                   </Card>
                   
                   <Card className="border-red-200/50 dark:border-red-800/50">
-                    <CardContent className="p-6 text-center">
+                    <CardContent className="p-4 md:p-6 text-center">
                       <div className="w-12 h-12 bg-gradient-to-r from-yellow-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Heart className="w-6 h-6 text-white" />
                       </div>
@@ -223,7 +223,7 @@ export default function Landing() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-white/50 dark:bg-background/50">
+      <section className="py-14 md:py-20 bg-white/50 dark:bg-background/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ y: 50, opacity: 0 }}
@@ -271,26 +271,26 @@ export default function Landing() {
             initial={{ y: 50, opacity: 0 }}
             whileInView={{ y: 0, opacity: 1 }}
             viewport={{ once: true }}
-            className="bg-gradient-to-r from-red-600 to-orange-600 rounded-3xl p-12 text-white text-center"
+            className="bg-gradient-to-r from-red-600 to-orange-600 rounded-3xl p-8 md:p-12 text-white text-center"
           >
             <h2 className="text-3xl md:text-4xl font-bold mb-8">
               Join Thousands of Nepalis Worldwide
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div>
-                <div className="text-4xl font-bold mb-2">
+                <div className="text-3xl md:text-4xl font-bold mb-2">
                   {counts ? counts.totalUsers : 0}
                 </div>
                 <div className="text-red-100">Registered Users</div>
               </div>
               <div>
-                <div className="text-4xl font-bold mb-2">
+                <div className="text-3xl md:text-4xl font-bold mb-2">
                   {counts ? counts.onlineUsers : 0}
                 </div>
                 <div className="text-red-100">Online Now</div>
               </div>
               <div>
-                <div className="text-4xl font-bold mb-2">
+                <div className="text-3xl md:text-4xl font-bold mb-2">
                   {counts ? counts.communitiesCount : 0}
                 </div>
                 <div className="text-red-100">Communities</div>
@@ -301,7 +301,7 @@ export default function Landing() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20">
+      <section className="py-14 md:py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <motion.div
             initial={{ y: 50, opacity: 0 }}
@@ -318,7 +318,7 @@ export default function Landing() {
               <Button 
                 size="lg"
                 onClick={() => navigate("/auth")}
-                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-lg px-8 py-6"
+                className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-lg px-8 py-6"
               >
                 <Zap className="mr-2 w-5 h-5" />
                 Get Started Now
