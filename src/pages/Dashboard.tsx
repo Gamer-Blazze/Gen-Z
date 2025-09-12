@@ -93,6 +93,9 @@ export default function Dashboard() {
   // Add: local UI state for video actions
   const [liked, setLiked] = useState(false);
   const [commentCount, setCommentCount] = useState(0);
+  // Add: video loading/error state
+  const [videoLoading, setVideoLoading] = useState(true);
+  const [videoError, setVideoError] = useState<string | null>(null);
 
   // Add: handlers
   const toggleLike = () => setLiked((v) => !v);
@@ -111,6 +114,20 @@ export default function Dashboard() {
     } catch {
       // ignore cancel
     }
+  };
+
+  // Add: video handlers
+  const onVideoLoaded = () => {
+    setVideoLoading(false);
+    setVideoError(null);
+  };
+  const onVideoError = () => {
+    setVideoLoading(false);
+    setVideoError("The video failed to load. Please try again later.");
+    try {
+      const { toast } = require("sonner");
+      toast.error("Video failed to load");
+    } catch {}
   };
 
   useEffect(() => {
@@ -544,7 +561,13 @@ export default function Dashboard() {
 
           {/* Hero video section */}
           <section className="w-full">
-            <div className="mx-auto w-full">
+            <div className="mx-auto w-full relative">
+              {/* Add: simple loading indicator */}
+              {videoLoading && !videoError && (
+                <div className="absolute inset-0 grid place-items-center z-10">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-foreground/70 border-t-transparent" />
+                </div>
+              )}
               <video
                 src="https://videos.pexels.com/video-files/855292/855292-uhd_2560_1440_24fps.mp4"
                 className="w-full h-auto rounded-none"
@@ -553,8 +576,24 @@ export default function Dashboard() {
                 loop
                 autoPlay
                 controls
+                // Add: robust load/error handlers
+                onLoadedData={onVideoLoaded}
+                onCanPlay={onVideoLoaded}
+                onError={onVideoError}
               />
             </div>
+
+            {/* Add: readable inline alert when video fails */}
+            {videoError && (
+              <div className="mt-3">
+                <Alert variant="destructive">
+                  <AlertTitle>Playback error</AlertTitle>
+                  <AlertDescription>
+                    {videoError}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
