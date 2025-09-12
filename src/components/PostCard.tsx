@@ -69,6 +69,33 @@ interface PostCardProps {
   };
 }
 
+const LikeToggleButton = memo(function LikeToggleButton({
+  isLiked,
+  count,
+  onClick,
+}: {
+  isLiked: boolean;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={onClick}
+      aria-pressed={isLiked}
+      aria-label={isLiked ? "Unlike" : "Like"}
+      title={isLiked ? "Unlike" : "Like"}
+      className={`gap-2 transition-none ${isLiked ? "text-red-500" : ""}`}
+      data-state={isLiked ? "on" : "off"}
+    >
+      <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} />
+      <span className="text-xs sm:text-sm">{isLiked ? "Unlike" : "Like"}</span>
+      <span aria-hidden="true" className="ml-1 tabular-nums">{count}</span>
+    </Button>
+  );
+});
+
 function PostCardInner({ post }: PostCardProps) {
   const { user } = useAuth();
   const [showComments, setShowComments] = useState(false);
@@ -448,20 +475,11 @@ function PostCardInner({ post }: PostCardProps) {
 
         {/* Action Buttons */}
         <div className="flex items-center gap-4 py-2 border-t border-border/50">
-          <Button
-            variant="ghost"
-            size="sm"
+          <LikeToggleButton
+            isLiked={isLiked}
+            count={localLikesCount}
             onClick={handleLike}
-            aria-pressed={isLiked}
-            aria-label={isLiked ? "Unlike" : "Like"}
-            title={isLiked ? "Unlike" : "Like"}
-            className={`gap-2 transition-none ${isLiked ? "text-red-500" : ""}`}
-            data-state={isLiked ? "on" : "off"}
-          >
-            <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} />
-            <span className="text-xs sm:text-sm">{isLiked ? "Unlike" : "Like"}</span>
-            <span aria-hidden="true" className="ml-1 tabular-nums">{localLikesCount}</span>
-          </Button>
+          />
 
           <Button
             variant="ghost"
