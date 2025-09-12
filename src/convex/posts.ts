@@ -170,18 +170,20 @@ export const toggleLike = mutation({
     }
 
     const hasLiked = post.likes.includes(user._id);
-    
+
     if (hasLiked) {
-      // Unlike
+      // Unlike — recompute likes and count authoritatively
+      const newLikes = post.likes.filter((id: any) => id !== user._id);
       await ctx.db.patch(args.postId, {
-        likes: post.likes.filter((id: any) => id !== user._id),
-        likesCount: post.likesCount - 1,
+        likes: newLikes,
+        likesCount: newLikes.length,
       });
     } else {
-      // Like
+      // Like — avoid duplicates and recompute count
+      const newLikes = [...post.likes, user._id];
       await ctx.db.patch(args.postId, {
-        likes: [...post.likes, user._id],
-        likesCount: post.likesCount + 1,
+        likes: newLikes,
+        likesCount: newLikes.length,
       });
 
       // Create notification if not own post
