@@ -80,10 +80,12 @@ export default function Profile() {
   >(undefined);
   const rel = relOverride ?? relationshipStatus;
 
-  // Strict gating booleans based on LIVE backend status
-  const isActuallyPending = relationshipStatus === "outgoing_request";
-  const isActuallyNone = relationshipStatus === undefined || relationshipStatus === "none";
-  const isActuallyIncoming = relationshipStatus === "incoming_request";
+  // Effective relationship considering override
+  const effectiveRel = relOverride ?? relationshipStatus;
+  // Optimistic-aware flags
+  const isPending = effectiveRel === "outgoing_request";
+  const isNone = effectiveRel === undefined || effectiveRel === "none";
+  const isIncoming = effectiveRel === "incoming_request";
 
   // Reset override when backend status updates so UI follows source of truth
   useEffect(() => {
@@ -445,7 +447,7 @@ export default function Profile() {
                     )}
 
                     {/* Cancel Request only when backend says it's really pending */}
-                    {isActuallyPending && (
+                    {isPending && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -453,6 +455,8 @@ export default function Profile() {
                           try {
                             // Do not override UI; rely on live status update
                             await cancelOutgoing({ otherUserId: targetUser._id });
+                            // Optimistic reset to reflect immediate UI change
+                            setRelOverride("none");
                             toast.success("Friend request canceled");
                           } catch (e: any) {
                             toast.error(e?.message || "Failed to cancel request");
@@ -464,7 +468,7 @@ export default function Profile() {
                     )}
 
                     {/* Incoming request → Respond */}
-                    {isActuallyIncoming && (
+                    {isIncoming && (
                       <Button
                         size="sm"
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
@@ -475,13 +479,13 @@ export default function Profile() {
                     )}
 
                     {/* Add Friend only when backend reports none/undefined */}
-                    {isActuallyNone && (
+                    {isNone && (
                       <Button
                         size="sm"
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
                         onClick={async () => {
                           try {
-                            // Optimistic for quick feedback; live status will take over
+                            // Optimistic set to show Cancel immediately
                             setRelOverride("outgoing_request");
                             await sendFriend({ userId: targetUser._id });
                             toast.success("Friend request sent");
