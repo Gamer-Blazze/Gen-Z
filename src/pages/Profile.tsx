@@ -80,6 +80,9 @@ export default function Profile() {
   >(undefined);
   const rel = relOverride ?? relationshipStatus;
 
+  // Add: working flag to prevent double submits and improve UX
+  const [relWorking, setRelWorking] = useState(false);
+
   // Effective relationship considering override
   const effectiveRel = relOverride ?? relationshipStatus;
   // Optimistic-aware flags
@@ -421,7 +424,14 @@ export default function Profile() {
                       <div className="flex items-center gap-2">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button size="sm" variant="secondary" className="inline-flex items-center gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="inline-flex items-center gap-1.5"
+                              aria-label="Friends actions"
+                              disabled={relWorking}
+                              aria-busy={relWorking || undefined}
+                            >
                               Friends
                               <ChevronDown className="w-4 h-4" />
                             </Button>
@@ -430,16 +440,21 @@ export default function Profile() {
                             <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={async () => {
+                                if (relWorking) return;
+                                setRelWorking(true);
                                 try {
-                                  // No optimistic override; rely on live status
                                   await doUnfriend({ otherUserId: targetUser._id });
                                   toast.success("Unfriended");
                                 } catch (e: any) {
-                                  toast.error(e?.message || "Failed to unfriend");
+                                  const msg = e?.message || "Failed to unfriend";
+                                  toast.error(msg);
+                                } finally {
+                                  setRelWorking(false);
                                 }
                               }}
+                              disabled={relWorking}
                             >
-                              Unfriend
+                              {relWorking ? "Working..." : "Unfriend"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -452,18 +467,25 @@ export default function Profile() {
                         size="sm"
                         variant="outline"
                         onClick={async () => {
+                          if (relWorking) return;
+                          setRelWorking(true);
                           try {
-                            // Do not override UI; rely on live status update
                             await cancelOutgoing({ otherUserId: targetUser._id });
-                            // Optimistic reset to reflect immediate UI change
                             setRelOverride("none");
                             toast.success("Friend request canceled");
                           } catch (e: any) {
-                            toast.error(e?.message || "Failed to cancel request");
+                            const msg =
+                              e?.message ||
+                              "Failed to cancel request. Please try again.";
+                            toast.error(msg);
+                          } finally {
+                            setRelWorking(false);
                           }
                         }}
+                        disabled={relWorking}
+                        aria-busy={relWorking || undefined}
                       >
-                        Cancel Request
+                        {relWorking ? "Cancelling..." : "Cancel Request"}
                       </Button>
                     )}
 
@@ -473,6 +495,7 @@ export default function Profile() {
                         size="sm"
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
                         onClick={() => navigate("/friends")}
+                        disabled={relWorking}
                       >
                         Respond
                       </Button>
@@ -484,6 +507,8 @@ export default function Profile() {
                         size="sm"
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
                         onClick={async () => {
+                          if (relWorking) return;
+                          setRelWorking(true);
                           try {
                             // Optimistic set to show Cancel immediately
                             setRelOverride("outgoing_request");
@@ -491,11 +516,22 @@ export default function Profile() {
                             toast.success("Friend request sent");
                           } catch (e: any) {
                             setRelOverride(undefined);
-                            toast.error(e?.message || "Failed to send request");
+                            // Map common backend errors to friendly messages
+                            const raw = e?.message || "";
+                            let msg = "Failed to send request. Please try again.";
+                            if (raw.includes("Not authenticated")) msg = "Please sign in to add friends.";
+                            if (raw.includes("Cannot send friend request to yourself")) msg = "You cannot add yourself.";
+                            if (raw.includes("Already friends")) msg = "You're already friends.";
+                            if (raw.includes("Missing recipient user id")) msg = "Unable to find this user.";
+                            toast.error(msg);
+                          } finally {
+                            setRelWorking(false);
                           }
                         }}
+                        disabled={relWorking}
+                        aria-busy={relWorking || undefined}
                       >
-                        Add Friend
+                        {relWorking ? "Adding..." : "Add Friend"}
                       </Button>
                     )}
 
