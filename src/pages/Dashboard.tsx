@@ -13,7 +13,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { MobileTopNav } from "@/components/MobileTopNav";
-import { Search, Bell, MessageCircle, Moon, MessageSquare } from "lucide-react";
+import { Search, Bell, MessageCircle, Moon, MessageSquare, Heart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { LogoDropdown } from "@/components/LogoDropdown";
 import { Stories } from "@/components/Stories";
@@ -23,9 +23,6 @@ import FriendsOnlineSidebar from "@/components/FriendsOnlineSidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Image as ImageIcon, Video as VideoIcon, Clapperboard } from "lucide-react";
 import { CreatePost } from "@/components/CreatePost";
-import { Heart, Share2 } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 
 // Add: Small ErrorBoundary to catch UI errors from API-driven sections
 type ErrorBoundaryProps = {
@@ -89,200 +86,6 @@ export default function Dashboard() {
       return false;
     }
   });
-
-  // Add: local UI state for video actions
-  const [liked, setLiked] = useState(false);
-  const [commentCount, setCommentCount] = useState(0);
-  // Add: video loading/error state
-  const [videoLoading, setVideoLoading] = useState(true);
-  const [videoError, setVideoError] = useState<string | null>(null);
-
-  // Add: handlers
-  const toggleLike = () => setLiked((v) => !v);
-  const addComment = () => setCommentCount((c) => c + 1);
-  const onShare = async () => {
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: "Check this out",
-          text: "A nice video on the dashboard",
-          url: window.location.href,
-        });
-      } else {
-        toast("Share dialog not supported on this device");
-      }
-    } catch {
-      // ignore cancel
-    }
-  };
-
-  // Add: video handlers
-  const onVideoLoaded = () => {
-    setVideoLoading(false);
-    setVideoError(null);
-  };
-  const onVideoError = () => {
-    setVideoLoading(false);
-    setVideoError("The video failed to load. Please try again later.");
-    try {
-      const { toast } = require("sonner");
-      toast.error("Video failed to load");
-    } catch {}
-  };
-
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return;
-    const mql = window.matchMedia("(max-width: 767px)");
-    const handler = (e: MediaQueryListEvent) => setIsMobileView(e.matches);
-    try {
-      mql.addEventListener("change", handler);
-    } catch {
-      // Safari fallback
-      // @ts-ignore
-      mql.addListener(handler);
-    }
-    // Sync once on mount
-    setIsMobileView(mql.matches);
-    return () => {
-      try {
-        mql.removeEventListener("change", handler);
-      } catch {
-        // Safari fallback
-        // @ts-ignore
-        mql.removeListener(handler);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    // Sync in case of SSR hydration or storage changes
-    try {
-      const hidden = localStorage.getItem("hideComingSoon") === "1";
-      if (hidden && showComingSoon) setShowComingSoon(false);
-    } catch {
-      // no-op
-    }
-  }, []);
-
-  // Background watcher for notifications: plays tones + toasts for calls/messages
-  function NotificationWatcher({ enabled = true }: { enabled?: boolean }) {
-    if (!enabled) return null;
-    const { isAuthenticated, user } = useAuth();
-    const notifPrefs = ((user as any)?.settings?.notifications) || {};
-    const enableSound = notifPrefs.sound !== false;
-    const enableVibration = notifPrefs.vibration !== false;
-
-    const unread = useQuery(
-      api.notifications.getMyNotifications,
-      isAuthenticated && user ? { limit: 20, unreadOnly: true } : "skip"
-    );
-
-    const seenRef = useRef<Set<string>>(new Set());
-
-    // Simple tones using Web Audio API (autoplay policies may still require a user gesture)
-    const playTone = (kind: "message" | "call") => {
-      if (!enableSound) return;
-      try {
-        const AudioCtx =
-          (window as any).AudioContext || (window as any).webkitAudioContext;
-        const ctx = new AudioCtx();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.type = "sine";
-
-        if (kind === "message") {
-          // Short ping
-          osc.frequency.value = 800;
-          gain.gain.value = 0.0001;
-          osc.start();
-          gain.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime + 0.01);
-          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
-          osc.stop(ctx.currentTime + 0.35);
-        } else {
-          // Brief ring burst
-          osc.frequency.value = 440;
-          gain.gain.value = 0.0001;
-          osc.start();
-          gain.gain.exponentialRampToValueAtTime(0.28, ctx.currentTime + 0.05);
-          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.2);
-          osc.stop(ctx.currentTime + 1.25);
-        }
-      } catch {
-        // Ignore audio errors (e.g., autoplay blocked)
-      }
-    };
-
-    const vibrate = (pattern: number[]) => {
-      if (enableVibration && typeof navigator.vibrate === "function") {
-        navigator.vibrate(pattern);
-      }
-    };
-
-    const handleIncoming = (n: any) => {
-      const sender = n.fromUser?.name || "Someone";
-      if (n.type === "message") {
-        playTone("message");
-        vibrate([30]);
-        toast(`${sender} sent a message`, {
-          action: {
-            label: "Open",
-            onClick: () => {
-              window.location.href = "/messages";
-            },
-          },
-        });
-      } else if (n.type === "voice_call" || n.type === "video_call" || n.type === "call") {
-        playTone("call");
-        vibrate([120, 60, 120]);
-        toast(`${sender} is calling…`, {
-          action: {
-            label: "Answer",
-            onClick: () => {
-              window.location.href = "/friends";
-            },
-          },
-        });
-      // Add: like and comment notifications
-      } else if (n.type === "like") {
-        playTone("message");
-        vibrate([20]);
-        toast(`${sender} liked your post`, {
-          action: {
-            label: "View",
-            onClick: () => window.location.assign("/dashboard"),
-          },
-        });
-      } else if (n.type === "comment") {
-        playTone("message");
-        vibrate([30, 30]);
-        toast(`${sender} commented on your post`, {
-          action: {
-            label: "View",
-            onClick: () => window.location.assign("/dashboard"),
-          },
-        });
-      }
-    };
-
-    useEffect(() => {
-      if (!Array.isArray(unread)) return;
-      for (const n of unread) {
-        const id = n._id as unknown as string;
-        if (!seenRef.current.has(id)) {
-          handleIncoming(n);
-          seenRef.current.add(id);
-          // Trim memory
-          if (seenRef.current.size > 200) {
-            seenRef.current = new Set(Array.from(seenRef.current).slice(-100));
-          }
-        }
-      }
-    }, [unread]);
-
-    return null;
-  }
 
   // Add: real-time unread notifications count
   const unreadCount = useQuery(
@@ -380,10 +183,7 @@ export default function Dashboard() {
       animate={{ opacity: 1 }}
       className="min-h-screen bg-background overflow-x-hidden"
     >
-      {/* Mount watcher only on mobile to avoid desktop popups/sounds */}
-      <ErrorBoundary name="NotificationWatcher">
-        <NotificationWatcher enabled={isMobileView} />
-      </ErrorBoundary>
+      {/* Removed NotificationWatcher */}
 
       {/* Desktop Top Navigation (sticky) */}
       <div className="hidden md:block sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -558,75 +358,6 @@ export default function Dashboard() {
         <main className="flex-1 w-full max-w-xl mx-auto px-2 sm:px-3 py-2 sm:py-4 space-y-2 sm:space-y-3 pb-16">
           {/* Add: Create Post box above Stories, Facebook-style */}
           <CreatePost />
-
-          {/* Hero video section */}
-          <section className="w-full">
-            <div className="mx-auto w-full relative">
-              {/* Add: simple loading indicator */}
-              {videoLoading && !videoError && (
-                <div className="absolute inset-0 grid place-items-center z-10">
-                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-foreground/70 border-t-transparent" />
-                </div>
-              )}
-              <video
-                src="https://videos.pexels.com/video-files/855292/855292-uhd_2560_1440_24fps.mp4"
-                className="w-full h-auto rounded-none"
-                playsInline
-                muted
-                loop
-                autoPlay
-                controls
-                // Add: robust load/error handlers
-                onLoadedData={onVideoLoaded}
-                onCanPlay={onVideoLoaded}
-                onError={onVideoError}
-              />
-            </div>
-
-            {/* Add: readable inline alert when video fails */}
-            {videoError && (
-              <div className="mt-3">
-                <Alert variant="destructive">
-                  <AlertTitle>Playback error</AlertTitle>
-                  <AlertDescription>
-                    {videoError}
-                  </AlertDescription>
-                </Alert>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
-              <Button
-                onClick={toggleLike}
-                variant={liked ? "default" : "outline"}
-                className={liked ? "bg-red-500 hover:bg-red-600 text-white" : ""}
-                aria-pressed={liked}
-                aria-label="Like"
-              >
-                <Heart
-                  className="mr-2 h-4 w-4"
-                  fill={liked ? "currentColor" : "none"}
-                />
-                {liked ? "Liked" : "Like"}
-              </Button>
-
-              <Button onClick={addComment} variant="outline" aria-label="Comment">
-                <MessageCircle className="mr-2 h-4 w-4" />
-                Comment
-                {commentCount > 0 && (
-                  <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1 text-xs">
-                    {commentCount}
-                  </span>
-                )}
-              </Button>
-
-              <Button onClick={onShare} variant="outline" aria-label="Share">
-                <Share2 className="mr-2 h-4 w-4" />
-                Share
-              </Button>
-            </div>
-          </section>
 
           {/* Stories row */}
           <div className="rounded-2xl bg-card/60 border border-border/60 p-1.5 sm:p-2">
