@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Globe, Users, Lock } from "lucide-react";
+import { Video as VideoIcon, Clapperboard } from "lucide-react";
 
 // Direct post (text-only) composer
 export function CreatePost() {
@@ -111,57 +112,69 @@ export function CreatePost() {
   };
 
   return (
-    <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-6">
+    <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-4 sm:mb-6">
       <Card className="border border-primary/20">
-        <CardContent className="p-3">
+        <CardContent className="p-2 sm:p-3">
           <form onSubmit={handleSubmit}>
-            <div className="flex gap-3">
-              <Avatar>
-                <AvatarImage src={user?.image} />
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {user?.name?.charAt(0) || "U"}
-                </AvatarFallback>
-              </Avatar>
+            {/* Header row: avatar + privacy selector (top-right) */}
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <Avatar className="h-8 w-8 sm:h-9 sm:w-9">
+                  <AvatarImage src={user?.image} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs sm:text-sm">
+                    {user?.name?.charAt(0) || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="text-xs sm:text-sm">
+                  <div className="font-medium leading-tight">{user?.name || "You"}</div>
+                  <div className="text-muted-foreground leading-tight">@{(user as any)?.username || "username"}</div>
+                </div>
+              </div>
+
+              {/* Compact privacy selector */}
+              <Select
+                value={audience}
+                onValueChange={(val: "public" | "friends" | "only_me") => setAudience(val)}
+              >
+                <SelectTrigger className="h-8 w-[140px] text-xs">
+                  <SelectValue placeholder="Select privacy" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">
+                    <span className="inline-flex items-center gap-2 text-sm">
+                      <Globe className="h-4 w-4" /> Public
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="friends">
+                    <span className="inline-flex items-center gap-2 text-sm">
+                      <Users className="h-4 w-4" /> Friends
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="only_me">
+                    <span className="inline-flex items-center gap-2 text-sm">
+                      <Lock className="h-4 w-4" /> Only Me
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Composer: avatar on left, textarea on right (compact) */}
+            <div className="flex gap-2">
+              <div className="shrink-0 md:hidden">
+                {/* small avatar visible on mobile too, but header already has one; keep clean */}
+              </div>
               <div className="flex-1">
                 <Textarea
-                  placeholder="Share your thoughts…"
+                  placeholder="What's on your mind?"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[72px] resize-none border-0 p-0 text-base placeholder:text-muted-foreground focus-visible:ring-0"
+                  className="min-h-[60px] sm:min-h-[72px] resize-none border-0 p-0 text-sm sm:text-base placeholder:text-muted-foreground focus-visible:ring-0"
                 />
 
-                {/* Add: privacy selector */}
-                <div className="mt-2 flex items-center gap-2">
-                  <Select
-                    value={audience}
-                    onValueChange={(val: "public" | "friends" | "only_me") => setAudience(val)}
-                  >
-                    <SelectTrigger className="w-[180px] h-8 text-xs">
-                      <SelectValue placeholder="Select privacy" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="public">
-                        <span className="inline-flex items-center gap-2 text-sm">
-                          <Globe className="h-4 w-4" /> Public
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="friends">
-                        <span className="inline-flex items-center gap-2 text-sm">
-                          <Users className="h-4 w-4" /> Friends
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="only_me">
-                        <span className="inline-flex items-center gap-2 text-sm">
-                          <Lock className="h-4 w-4" /> Only Me
-                        </span>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Add: media previews */}
+                {/* Media previews (unchanged) */}
                 {hasMedia && (
-                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div className="mt-2 sm:mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {files.map((f, idx) => {
                       const url = URL.createObjectURL(f);
                       const isVideo = (f.type || "").startsWith("video/");
@@ -192,15 +205,25 @@ export function CreatePost() {
                   </div>
                 )}
 
-                {/* Add: media buttons + Post */}
-                <div className="flex items-center justify-between mt-3 pt-3 border-t">
-                  <div className="flex items-center gap-2">
+                {/* Action row: Live Video, Photo/Video, Reel + Post */}
+                <div className="mt-2 sm:mt-3 pt-2 border-t flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 text-xs sm:text-sm px-2 py-1 rounded-md hover:bg-muted"
+                      title="Go Live"
+                      onClick={() => toast("Live Video coming soon!")}
+                    >
+                      <VideoIcon className="h-4 w-4 text-rose-500" />
+                      <span>Live Video</span>
+                    </button>
+
                     <label
                       htmlFor={fileInputId}
-                      className="inline-flex items-center gap-1 text-sm text-primary cursor-pointer hover:underline"
+                      className="inline-flex items-center gap-1.5 text-xs sm:text-sm px-2 py-1 rounded-md hover:bg-muted cursor-pointer"
                       title="Add Photo/Video"
                     >
-                      <ImageIcon className="h-4 w-4" />
+                      <ImageIcon className="h-4 w-4 text-green-500" />
                       <span>Photo/Video</span>
                     </label>
                     <input
@@ -211,6 +234,16 @@ export function CreatePost() {
                       className="hidden"
                       onChange={onPickFiles}
                     />
+
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1.5 text-xs sm:text-sm px-2 py-1 rounded-md hover:bg-muted"
+                      title="Create a Reel"
+                      onClick={() => window.location.assign("/reels")}
+                    >
+                      <Clapperboard className="h-4 w-4 text-purple-500" />
+                      <span>Reel</span>
+                    </button>
                   </div>
 
                   <Button
@@ -223,7 +256,7 @@ export function CreatePost() {
                         ? "Posting…"
                         : undefined
                     }
-                    className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 rounded-full"
+                    className="self-end sm:self-auto bg-[#1877F2] hover:bg-[#166FE5] text-white rounded-full h-8 px-4"
                   >
                     {isSubmitting ? (
                       <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
