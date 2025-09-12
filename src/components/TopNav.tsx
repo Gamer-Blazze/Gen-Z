@@ -11,8 +11,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-
-// ... keep existing code (none - new file)
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Simple placeholder types
 type FriendRequest = {
@@ -65,6 +66,14 @@ export function TopNav() {
 
   // Center search
   const [query, setQuery] = useState("");
+
+  // Live search: call backend when query >= 2 chars
+  const trimmed = query.trim();
+  const searchResults = useQuery(
+    api.friends.searchUsers,
+    trimmed.length >= 2 ? { query: trimmed } : "skip"
+  );
+  const [searchFocused, setSearchFocused] = useState(false);
 
   // Friend requests
   const [friendRequests, setFriendRequests] = useState<FriendRequest[] | undefined>(undefined);
@@ -215,9 +224,47 @@ export function TopNav() {
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search"
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+                placeholder="Search for people"
                 className="pl-8"
               />
+
+              {/* Results panel */}
+              {searchFocused && trimmed.length >= 2 && (
+                <div className="absolute mt-2 w-full rounded-md border bg-popover text-popover-foreground shadow-md">
+                  {searchResults === undefined ? (
+                    <div className="p-3 text-sm text-muted-foreground">Searching...</div>
+                  ) : (searchResults as any[]).length === 0 ? (
+                    <div className="p-3 text-sm text-muted-foreground">No results</div>
+                  ) : (
+                    <div className="max-h-80 overflow-auto py-1">
+                      {(searchResults as any[]).map((u: any) => (
+                        <button
+                          key={u._id}
+                          className="w-full px-3 py-2 flex items-center gap-3 hover:bg-accent hover:text-accent-foreground text-left"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            navigate(`/profile?id=${u._id}`);
+                            setSearchFocused(false);
+                          }}
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={u.image} />
+                            <AvatarFallback className="bg-muted text-xs">
+                              {u.name?.charAt(0) || "U"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-medium">{u.name || "Anonymous"}</div>
+                            <div className="truncate text-xs text-muted-foreground">{u.email}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -418,9 +465,47 @@ export function TopNav() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search"
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+              placeholder="Search for people"
               className="pl-8"
             />
+
+            {/* Mobile results panel */}
+            {searchFocused && trimmed.length >= 2 && (
+              <div className="absolute mt-2 w-full rounded-md border bg-popover text-popover-foreground shadow-md">
+                {searchResults === undefined ? (
+                  <div className="p-3 text-sm text-muted-foreground">Searching...</div>
+                ) : (searchResults as any[]).length === 0 ? (
+                  <div className="p-3 text-sm text-muted-foreground">No results</div>
+                ) : (
+                  <div className="max-h-96 overflow-auto py-1">
+                    {(searchResults as any[]).map((u: any) => (
+                      <button
+                        key={u._id}
+                        className="w-full px-3 py-2 flex items-center gap-3 hover:bg-accent hover:text-accent-foreground text-left"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          navigate(`/profile?id=${u._id}`);
+                          setSearchFocused(false);
+                        }}
+                      >
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={u.image} />
+                          <AvatarFallback className="bg-muted text-xs">
+                            {u.name?.charAt(0) || "U"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">{u.name || "Anonymous"}</div>
+                          <div className="truncate text-xs text-muted-foreground">{u.email}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

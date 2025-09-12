@@ -351,28 +351,63 @@ export const searchUsers = query({
       return [];
     }
 
-    const q = args.query.trim();
-    if (q.length < 2) {
+    const raw = args.query.trim();
+    if (raw.length < 2) {
       return [];
     }
 
-    // Search by exact email via email index
-    const byEmail = await ctx.db
+    const qLower = raw.toLowerCase();
+
+    // 1) Pull a small batch by name using the by_name index (prefix/range), then do local contains-match.
+    // We purposely cap results to avoid scanning the whole table.
+    const nameBatch = await ctx.db
       .query("users")
-      .withIndex("email", (qi: any) => qi.eq("email", q))
+      .withIndex("by_name", (qi: any) => qi.gt("name", "")) // get a reasonable slice
+      .take(200);
+
+    // 2) Pull email batch using the email index. Try exact first, then small range.
+    const exactEmail = await ctx.db
+      .query("users")
+      .withIndex("email", (qi: any) => qi.eq("email", raw))
       .take(10);
 
-    // Search by exact name via by_name index
-    const byName = await ctx.db
+    const emailBatch = await ctx.db
       .query("users")
-      .withIndex("by_name", (qi: any) => qi.eq("name", q))
-      .take(10);
+      .withIndex("email", (qi: any) => qi.gt("email", "")) // small slice to locally filter
+      .take(200);
 
-    // Combine results, remove self, and de-duplicate by _id
-    const combined = [...byName, ...byEmail].filter((u) => u._id !== me._id);
-    const dedup = Array.from(new Map(combined.map((u) => [u._id, u])).values());
+    // Combine and locally filter to simulate "contains" behavior while leveraging indexes to avoid full scans.
+    const combined = [...nameBatch, ...exactEmail, ...emailBatch].filter((u) => u._id !== me._id);
 
-    return dedup;
+    const matches = combined.filter((u) => {
+      const name = (u.name || "").toLowerCase();
+      const email = (u.email || "").toLowerCase();
+      return name.includes(qLower) || email.includes(qLower);
+    });
+
+    // Rank: prioritize startsWith over contains, name over email
+    const startsWithScore = (text: string, query: string) =>
+      text.startsWith(query) ? 2 : text.includes(query) ? 1 : 0;
+
+    const scored = matches
+      .map((u) => {
+        const name = (u.name || "").toLowerCase();
+        const email = (u.email || "").toLowerCase();
+        const score = startsWithScore(name, qLower) * 3 + startsWithScore(email, qLower);
+        return { u, score };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    // De-duplicate by _id, keep best score
+    const dedupMap = new Map<string, any>();
+    for (const { u } of scored) {
+      if (!dedupMap.has(u._id as unknown as string)) dedupMap.set(u._id as unknown as string, u);
+    }
+
+    // Cap results
+    const result = Array.from(dedupMap.values()).slice(0, 20);
+
+    return result;
   }),
 });
 
