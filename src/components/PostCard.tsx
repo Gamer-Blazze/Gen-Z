@@ -112,6 +112,88 @@ const LikeToggleButton = memo(function LikeToggleButton({
   );
 });
 
+const MediaSection = memo(function MediaSection({
+  postId,
+  images,
+  videos,
+  onImageLoad,
+  onVideoLoad,
+  videoMuted,
+  toggleSoundAt,
+}: {
+  postId: string;
+  images: string[];
+  videos: string[];
+  onImageLoad: () => void;
+  onVideoLoad: () => void;
+  videoMuted: Record<number, boolean>;
+  toggleSoundAt: (index: number) => void;
+}) {
+  return (
+    <>
+      {images.length > 0 && (
+        <div
+          className={`mb-4 rounded-lg overflow-hidden grid gap-2 ${
+            images.length === 1 ? "grid-cols-1" : images.length === 2 ? "grid-cols-2" : "grid-cols-2"
+          }`}
+        >
+          {images.slice(0, 4).map((image, index) => (
+            <ProgressiveImage
+              key={index}
+              src={image}
+              alt="Post image"
+              className={`w-full h-auto ${images.length > 1 ? "aspect-video object-cover" : "object-contain"} rounded-xl bg-black/5 cursor-zoom-in`}
+              onLoad={onImageLoad}
+            />
+          ))}
+        </div>
+      )}
+
+      {videos.length > 0 && (
+        <div className="mb-4 rounded-lg overflow-hidden grid grid-cols-1 gap-2">
+          {videos.map((video, index) => (
+            <div
+              key={index}
+              className="relative"
+              data-post-id={postId}
+              data-video-idx={index}
+            >
+              <ProgressiveVideo
+                src={video}
+                className="w-full h-auto rounded-md bg-black"
+                onLoadedData={onVideoLoad}
+                mode="loop"
+                lazy
+                preload="metadata"
+                autoSound
+              />
+              <button
+                type="button"
+                aria-label={videoMuted[index] ? "Unmute" : "Mute"}
+                title={videoMuted[index] ? "Unmute" : "Mute"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleSoundAt(index);
+                }}
+                className="absolute bottom-3 right-3 z-10 grid place-items-center rounded-full bg-black/60 hover:bg-black/70 text-white p-2"
+              >
+                {videoMuted[index] ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}, (prev, next) => {
+  // Prevent media re-renders unless media or mute state changes
+  const sameImages = prev.images.length === next.images.length && prev.images.every((v, i) => v === next.images[i]);
+  const sameVideos = prev.videos.length === next.videos.length && prev.videos.every((v, i) => v === next.videos[i]);
+  const sameMutedKeys = Object.keys(prev.videoMuted).length === Object.keys(next.videoMuted).length &&
+    Object.keys(prev.videoMuted).every((k) => prev.videoMuted[Number(k)] === next.videoMuted[Number(k)]);
+  return prev.postId === next.postId && sameImages && sameVideos && sameMutedKeys;
+});
+
 function PostCardInner({ post }: PostCardProps) {
   const { user } = useAuth();
   const [showComments, setShowComments] = useState(false);
@@ -438,63 +520,17 @@ function PostCardInner({ post }: PostCardProps) {
           </div>
         ) : null}
 
-        {(post.images?.length ?? 0) > 0 && (
-          <div
-            className={`mb-4 rounded-lg overflow-hidden grid gap-2 ${
-              (post.images?.length ?? 0) === 1 ? "grid-cols-1" :
-              (post.images?.length ?? 0) === 2 ? "grid-cols-2" :
-              "grid-cols-2"
-            }`}
-          >
-            {(post.images ?? []).slice(0, 4).map((image, index) => (
-              <ProgressiveImage
-                key={index}
-                src={image}
-                alt="Post image"
-                className={`w-full h-auto ${((post.images?.length ?? 0) > 1 ? "aspect-video object-cover" : "object-contain")} rounded-xl bg-black/5 cursor-zoom-in`}
-                onLoad={markMediaLoaded}
-              />
-            ))}
-          </div>
-        )}
-
-        {post.videos && post.videos.length > 0 && (
-          <div className="mb-4 rounded-lg overflow-hidden grid grid-cols-1 gap-2">
-            {post.videos.map((video, index) => (
-              <div
-                key={index}
-                className="relative"
-                data-post-id={post._id as unknown as string}
-                data-video-idx={index}
-              >
-                <ProgressiveVideo
-                  src={video}
-                  className="w-full h-auto rounded-md bg-black"
-                  onLoadedData={markMediaLoaded}
-                  // Ensure smooth feed behaviour: loop + lazy + better buffering for current/next
-                  mode="loop"
-                  lazy
-                  preload="metadata"
-                  // NEW: attempt autoplay with sound at full volume with one-gesture fallback
-                  autoSound
-                />
-                {/* Sound toggle overlay */}
-                <button
-                  type="button"
-                  aria-label={videoMuted[index] ? "Unmute" : "Mute"}
-                  title={videoMuted[index] ? "Unmute" : "Mute"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleSoundAt(index);
-                  }}
-                  className="absolute bottom-3 right-3 z-10 grid place-items-center rounded-full bg-black/60 hover:bg-black/70 text-white p-2"
-                >
-                  {videoMuted[index] ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        {(post.images?.length ?? 0) > 0 || (post.videos?.length ?? 0) > 0 ? (
+          <MediaSection
+            postId={post._id as unknown as string}
+            images={(post.images ?? []) as string[]}
+            videos={(post.videos ?? []) as string[]}
+            onImageLoad={markMediaLoaded}
+            onVideoLoad={markMediaLoaded}
+            videoMuted={videoMuted}
+            toggleSoundAt={toggleSoundAt}
+          />
+        ) : null}
 
         {/* Action Buttons */}
         <div className="flex items-center gap-4 py-2 border-t border-border/50">
@@ -644,7 +680,7 @@ export const PostCard = memo(PostCardInner, (prev, next) => {
   const p = prev.post as any;
   const n = next.post as any;
 
-  // Always re-render if different post document
+  // Different post doc
   if ((p._id as unknown as string) !== (n._id as unknown as string)) return false;
 
   // Re-render when content or media changes
@@ -652,22 +688,19 @@ export const PostCard = memo(PostCardInner, (prev, next) => {
   if ((p.images?.length || 0) !== (n.images?.length || 0)) return false;
   if ((p.videos?.length || 0) !== (n.videos?.length || 0)) return false;
 
-  // Re-render when engagement or ownership-critical fields change
+  // Re-render when engagement other than likes changes
   if (p.commentsCount !== n.commentsCount) return false;
   if (p.sharesCount !== n.sharesCount) return false;
+
+  // Ownership changes
   if ((p.userId as unknown as string) !== (n.userId as unknown as string)) return false;
 
-  // IMPORTANT: Re-render when likes/likesCount change so all clients reflect real-time updates
-  if (p.likesCount !== n.likesCount) return false;
-  if ((p.likes?.length || 0) !== (n.likes?.length || 0)) return false;
-
-  // Compare minimal user fields used in header to reflect profile changes
+  // Header user updates
   const pu = p.user || {};
   const nu = n.user || {};
   if ((pu._id as unknown as string) !== (nu._id as unknown as string)) return false;
   if (pu.name !== nu.name) return false;
   if (pu.image !== nu.image) return false;
 
-  // Equal props -> skip re-render
   return true;
 });
