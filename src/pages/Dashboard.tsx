@@ -212,6 +212,49 @@ export default function Dashboard() {
   );
   const markAll = useMutation(api.notifications.markAllAsRead);
 
+  // Add: real-time presence updates (same robust handling as Messages)
+  const updateStatus = useMutation(api.users.updateStatus);
+
+  useEffect(() => {
+    const goOnline = () => {
+      updateStatus({ isOnline: true }).catch(() => {});
+    };
+    const goOffline = () => {
+      updateStatus({ isOnline: false }).catch(() => {});
+    };
+
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    window.addEventListener("focus", goOnline);
+    window.addEventListener("pagehide", goOffline);
+
+    // Heartbeat to keep presence fresh
+    const heartbeat = setInterval(goOnline, 45000);
+
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+      window.removeEventListener("focus", goOnline);
+      window.removeEventListener("pagehide", goOffline);
+      clearInterval(heartbeat);
+    };
+  }, [updateStatus]);
+
+  useEffect(() => {
+    // Mark online on mount
+    updateStatus({ isOnline: true }).catch(() => {});
+    const onVisibility = () => {
+      updateStatus({ isOnline: !document.hidden }).catch(() => {});
+    };
+    window.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("visibilitychange", onVisibility);
+      // Best-effort set offline on unmount
+      updateStatus({ isOnline: false }).catch(() => {});
+    };
+  }, [updateStatus]);
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate("/auth");
