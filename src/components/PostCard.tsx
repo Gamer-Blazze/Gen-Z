@@ -157,45 +157,39 @@ function PostCardInner({ post }: PostCardProps) {
     return user ? post.likes.includes(user._id) : false;
   });
   const [localLikesCount, setLocalLikesCount] = useState<number>(post.likesCount);
-  const [likePending, setLikePending] = useState<boolean>(false);
-  const lastLikeTsRef = useRef<number>(0);
+  const [pendingCount, setPendingCount] = useState<number>(0);
 
   // Reconcile optimistic like state when backend data changes (avoid mid-flight stomping)
   useEffect(() => {
-    if (likePending) return; // don't overwrite while a toggle is in flight
+    // If any toggles are still in flight, don't overwrite the local optimistic state
+    if (pendingCount > 0) return;
     const serverLiked = user ? post.likes.includes(user._id) : false;
     setLocalLiked(serverLiked);
     setLocalLikesCount(post.likesCount);
-  }, [post.likes, post.likesCount, user, likePending]);
+  }, [post.likes, post.likesCount, user, pendingCount]);
 
   const isLiked = localLiked;
 
   const handleLike = async () => {
-    const now = Date.now();
-    // Debounce rapid taps/clicks (300ms)
-    if (now - lastLikeTsRef.current < 300 || likePending) return;
-    lastLikeTsRef.current = now;
-
-    // Optimistic toggle without DOM replacement/flicker
+    // Remove debounce and blocking: allow rapid toggles (double-click → unlike)
     const prevLiked = localLiked;
     const prevCount = localLikesCount;
     const nextLiked = !prevLiked;
     const nextCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
 
+    // Optimistic update
     setLocalLiked(nextLiked);
     setLocalLikesCount(nextCount);
-    setLikePending(true);
+    setPendingCount((c) => c + 1);
 
     try {
       await toggleLike({ postId: post._id });
-      // success: state already matches expected outcome
+      // No revert here; after all inflight ops finish, reconcile effect will sync if needed
     } catch (error) {
-      // Revert on failure
-      setLocalLiked(prevLiked);
-      setLocalLikesCount(prevCount);
-      toast.error("Failed to like post");
+      // Keep optimistic state; notify user
+      toast.error("Failed to update like");
     } finally {
-      setLikePending(false);
+      setPendingCount((c) => Math.max(0, c - 1));
     }
   };
 
@@ -425,7 +419,6 @@ function PostCardInner({ post }: PostCardProps) {
             variant="ghost"
             size="sm"
             onClick={handleLike}
-            disabled={likePending}
             aria-pressed={isLiked}
             // Remove transitions/animations to prevent blink
             className={`gap-2 transition-none ${isLiked ? "text-red-500" : ""}`}
