@@ -82,139 +82,36 @@ export default function Reels() {
           className="relative h-screen w-screen snap-start overflow-hidden"
           data-reel-idx={index}
         >
-          {/* Mobile layout: full-bleed video with overlay actions and meta */}
-          <div className="md:hidden absolute inset-0">
-            <div className="absolute inset-0">
+          {/* Unified responsive layout: centered fixed-width column on md+, full-width on mobile */}
+          <div className="absolute inset-0 grid place-items-center">
+            <div className="relative h-full w-full md:w-[500px] md:mx-auto">
+              {/* Video fills the container height, loops and auto-plays */}
               <ProgressiveVideo
                 src={post.videos[0]}
-                className="h-full w-full object-cover bg-background"
+                className="h-full w-full object-cover bg-background rounded-none md:rounded-xl shadow-2xl"
                 mode="loop"
                 onLoadedData={() => {}}
               />
-            </div>
 
-            {/* Right-side actions (mobile) */}
-            <div className="absolute right-2 bottom-24 flex flex-col gap-4 items-center">
-              <button
-                className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 backdrop-blur transition-colors"
-                title="Like"
-                aria-label="Like"
-              >
-                <Heart className="h-6 w-6" />
-              </button>
-              <button
-                className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 backdrop-blur transition-colors"
-                title="Comment"
-                aria-label="Comment"
-              >
-                <MessageCircle className="h-6 w-6" />
-              </button>
-              <button
-                className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 backdrop-blur transition-colors"
-                title="Share"
-                aria-label="Share"
-                onClick={() => {
-                  try {
-                    if (navigator.share) {
-                      navigator
-                        .share({ url: window.location.href, title: post.user?.name || "Reel" })
-                        .catch(() => {});
-                    }
-                  } catch {}
-                }}
-              >
-                <Share2 className="h-6 w-6" />
-              </button>
-              <button
-                className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 backdrop-blur transition-colors"
-                title="Save"
-                aria-label="Save"
-              >
-                <Bookmark className="h-6 w-6" />
-              </button>
-            </div>
-
-            {/* Bottom-left meta (mobile overlay) */}
-            <div className="absolute left-3 right-20 bottom-8">
-              <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={post.user?.image} />
-                    <AvatarFallback className="bg-muted text-foreground">
-                      {post.user?.name?.charAt(0) || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="font-semibold">{post.user?.name || "Anonymous"}</div>
-                </div>
-                {post.content && (
-                  <p className="text-sm text-foreground/90 max-w-[75vw] whitespace-pre-wrap">
-                    {post.content}
-                  </p>
-                )}
-              </motion.div>
-
-              <div className="mt-2 text-xs text-muted-foreground">Tap video to play with sound</div>
-            </div>
-          </div>
-
-          {/* Desktop layout: centered 9:16 video, right action rail, meta below */}
-          <div className="hidden md:flex h-full w-full items-center justify-center px-6">
-            <div className="max-w-7xl w-full grid grid-cols-[minmax(0,1fr)_64px] gap-6 items-center">
-              {/* Centered video column */}
-              <div className="flex flex-col items-center justify-center w-full">
-                {/* Video container: 9:16, fit within viewport height */}
-                <div className="relative aspect-[9/16] h-[84vh] rounded-xl overflow-hidden bg-muted shadow-2xl">
-                  <ProgressiveVideo
-                    src={post.videos[0]}
-                    className="h-full w-full object-cover"
-                    mode="loop"
-                    onLoadedData={() => {}}
-                  />
-                </div>
-
-                {/* Meta under video */}
-                <div className="w-full max-w-[min(56vh,480px)] mt-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Avatar className="h-9 w-9">
-                      <AvatarImage src={post.user?.image} />
-                      <AvatarFallback className="bg-muted text-foreground">
-                        {post.user?.name?.charAt(0) || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold">{post.user?.name || "Anonymous"}</span>
-                      {/* Music line, fallback to Original audio */}
-                      <span className="text-xs text-muted-foreground">
-                        {(post as any)?.musicTitle || "Original audio"}
-                      </span>
-                    </div>
-                  </div>
-                  {post.content && (
-                    <p className="text-sm text-foreground/90 whitespace-pre-wrap">
-                      {post.content}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Action rail to the right of video */}
-              <div className="flex flex-col items-center gap-5">
+              {/* Overlays: actions & meta like Facebook reels */}
+              {/* Right-side actions (responsive positioning) */}
+              <div className="absolute right-2 md:right-3 bottom-24 flex flex-col gap-4 items-center">
                 <button
-                  className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 transition-colors"
+                  className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 backdrop-blur transition-colors"
                   title="Like"
                   aria-label="Like"
                 >
                   <Heart className="h-6 w-6" />
                 </button>
                 <button
-                  className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 transition-colors"
+                  className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 backdrop-blur transition-colors"
                   title="Comment"
                   aria-label="Comment"
                 >
                   <MessageCircle className="h-6 w-6" />
                 </button>
                 <button
-                  className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 transition-colors"
+                  className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 backdrop-blur transition-colors"
                   title="Share"
                   aria-label="Share"
                   onClick={() => {
@@ -230,12 +127,33 @@ export default function Reels() {
                   <Share2 className="h-6 w-6" />
                 </button>
                 <button
-                  className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 transition-colors"
+                  className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 backdrop-blur transition-colors"
                   title="Save"
                   aria-label="Save"
                 >
                   <Bookmark className="h-6 w-6" />
                 </button>
+              </div>
+
+              {/* Bottom-left meta overlay */}
+              <div className="absolute left-3 right-20 bottom-8">
+                <motion.div initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Avatar className="h-8 w-8 md:h-9 md:w-9">
+                      <AvatarImage src={post.user?.image} />
+                      <AvatarFallback className="bg-muted text-foreground">
+                        {post.user?.name?.charAt(0) || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="font-semibold">{post.user?.name || "Anonymous"}</div>
+                  </div>
+                  {post.content && (
+                    <p className="text-sm text-foreground/90 max-w-[75vw] md:max-w-[460px] whitespace-pre-wrap">
+                      {post.content}
+                    </p>
+                  )}
+                  <div className="mt-2 text-xs text-muted-foreground">Tap video to play with sound</div>
+                </motion.div>
               </div>
             </div>
           </div>
