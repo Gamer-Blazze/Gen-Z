@@ -1,4 +1,4 @@
-import { Home, MessageCircle, Users, Bell, User, Settings } from "lucide-react";
+import { Home, MessageCircle, Users, Bell, User, Settings, Clapperboard } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
 
 export function MobileTopNav({ showOnDesktop = false }: { showOnDesktop?: boolean }) {
@@ -7,6 +7,7 @@ export function MobileTopNav({ showOnDesktop = false }: { showOnDesktop?: boolea
 
   const items = [
     { icon: Home, path: "/dashboard", label: "Home" },
+    { icon: Clapperboard, path: "/reels", label: "Reels" },
     { icon: MessageCircle, path: "/messages", label: "Messages" },
     { icon: Users, path: "/friends", label: "Friends" },
     { icon: Bell, path: "/notifications", label: "Notifications" },
