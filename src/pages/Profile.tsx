@@ -44,6 +44,9 @@ export default function Profile() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [relWorking, setRelWorking] = useState(false);
 
+  // Add: basic mode query param
+  const basicMode = new URLSearchParams(location.search).get("basic") === "1";
+
   // Parse ?id=<userId> from the URL to view someone else's profile (fallback for old links)
   const params = new URLSearchParams(location.search);
   const viewUserIdParam = params.get("id") as Id<"users"> | null;
@@ -135,6 +138,39 @@ export default function Profile() {
 
   if (!isAuthenticated || !user) return null;
   if (!targetUser) return <div className="min-h-screen flex items-center justify-center">User not found.</div>;
+
+  // Early return: render a minimal/basic profile when ?basic=1
+  if (basicMode) {
+    const isOwnProfile =
+      !!user &&
+      (!!username
+        ? !!targetUser && user._id === targetUser._id
+        : !viewUserIdParam || viewUserIdParam === user._id);
+
+    return (
+      <div className="min-h-screen">
+        <div className="w-full max-w-3xl mx-auto px-4 py-6 space-y-6">
+          <div className="flex items-center gap-4">
+            <Avatar className="w-20 h-20">
+              <AvatarImage src={targetUser.image} />
+              <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                {targetUser.name?.charAt(0) || "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="font-semibold text-2xl">{targetUser.name || "User"}</div>
+              <div className="text-muted-foreground">
+                {targetUser.username ? `@${targetUser.username}` : targetUser.email}
+              </div>
+              {targetUser.bio && <p className="mt-2 text-sm">{targetUser.bio}</p>}
+            </div>
+          </div>
+
+          <ManagePostsForUser targetUserId={targetUser._id} canManage={isOwnProfile} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={`min-h-screen ${isMobile ? "bg-gradient-to-b from-primary/5 to-background" : "bg-background"}`}>
