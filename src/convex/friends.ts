@@ -30,6 +30,27 @@ export const sendFriendRequest = mutation({
       throw new Error("Cannot send friend request to yourself");
     }
 
+    // Add: Block sending a request if users are already friends (either direction)
+    const acceptedForward = await ctx.db
+      .query("friendships")
+      .withIndex("by_user1_and_user2", (q: any) =>
+        q.eq("userId1", user._id).eq("userId2", toUserId)
+      )
+      .first();
+    if (acceptedForward && acceptedForward.status === "accepted") {
+      throw new Error("Already friends");
+    }
+
+    const acceptedReverse = await ctx.db
+      .query("friendships")
+      .withIndex("by_user2_and_user1", (q: any) =>
+        q.eq("userId2", user._id).eq("userId1", toUserId)
+      )
+      .first();
+    if (acceptedReverse && acceptedReverse.status === "accepted") {
+      throw new Error("Already friends");
+    }
+
     // Prevent duplicate requests in either direction using composite index
     const existing = await ctx.db
       .query("friend_requests")
@@ -536,20 +557,32 @@ export const unfriend = mutation({
     // Check both directions for accepted friendship and delete
     const dir1 = await ctx.db
       .query("friendships")
-      .withIndex("by_user1_and_user2", (q: any) => q.eq("userId1", me._id).eq("userId2", args.otherUserId))
+      .withIndex("by_user1_and_user2", (q: any) =>
+        q.eq("userId1", me._id).eq("userId2", args.otherUserId)
+      )
       .first();
 
+    let removed = false;
     if (dir1 && dir1.status === "accepted") {
       await ctx.db.delete(dir1._id);
+      removed = true;
     }
 
     const dir2 = await ctx.db
       .query("friendships")
-      .withIndex("by_user2_and_user1", (q: any) => q.eq("userId2", me._id).eq("userId1", args.otherUserId))
+      .withIndex("by_user2_and_user1", (q: any) =>
+        q.eq("userId2", me._id).eq("userId1", args.otherUserId)
+      )
       .first();
 
     if (dir2 && dir2.status === "accepted") {
       await ctx.db.delete(dir2._id);
+      removed = true;
+    }
+
+    // Add: clear error when there is no accepted friendship to remove
+    if (!removed) {
+      throw new Error("Not friends");
     }
 
     return true;
