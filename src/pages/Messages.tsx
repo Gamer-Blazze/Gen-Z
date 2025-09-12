@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router";
 import { Sidebar } from "@/components/Sidebar";
 import { ConversationsList } from "@/components/ConversationsList";
@@ -44,13 +44,28 @@ export default function Messages() {
   const startCall = useMutation(api.calls.startCall);
   const updateStatus = useMutation(api.users.updateStatus);
 
+  // Add: resilient presence update helper with offline check + throttled error toast
+  const presenceErrorAtRef = useRef<number>(0);
+  const safeUpdatePresence = async (isOnline: boolean) => {
+    if (typeof navigator !== "undefined" && !navigator.onLine && isOnline) return;
+    try {
+      await updateStatus({ isOnline });
+    } catch (e: any) {
+      const now = Date.now();
+      if (now - (presenceErrorAtRef.current || 0) > 30000) {
+        presenceErrorAtRef.current = now;
+        toast.error("Failed to update your presence. We'll retry automatically.");
+      }
+    }
+  };
+
   // NEW: Robust presence handling across devices + heartbeat
   useEffect(() => {
     const goOnline = () => {
-      updateStatus({ isOnline: true }).catch(() => {});
+      safeUpdatePresence(true);
     };
     const goOffline = () => {
-      updateStatus({ isOnline: false }).catch(() => {});
+      safeUpdatePresence(false);
     };
 
     // Network changes
@@ -64,7 +79,7 @@ export default function Messages() {
     window.addEventListener("pagehide", goOffline);
 
     // Heartbeat: keep presence fresh while user is active (helps across tabs/devices)
-    const heartbeat = setInterval(goOnline, 45000);
+    const heartbeat = setInterval(() => safeUpdatePresence(true), 45000);
 
     return () => {
       window.removeEventListener("online", goOnline);
@@ -77,16 +92,16 @@ export default function Messages() {
 
   useEffect(() => {
     // Go online on mount
-    updateStatus({ isOnline: true }).catch(() => {});
+    safeUpdatePresence(true);
     const onVisibility = () => {
-      updateStatus({ isOnline: !document.hidden }).catch(() => {});
+      safeUpdatePresence(!document.hidden);
     };
     window.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       window.removeEventListener("visibilitychange", onVisibility);
       // Best-effort: mark offline on unmount
-      updateStatus({ isOnline: false }).catch(() => {});
+      safeUpdatePresence(false);
     };
   }, [updateStatus]);
 

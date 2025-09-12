@@ -215,12 +215,28 @@ export default function Dashboard() {
   // Add: real-time presence updates (same robust handling as Messages)
   const updateStatus = useMutation(api.users.updateStatus);
 
+  // Add: resilient presence update helper with offline check + throttled error toast
+  const presenceErrorAtRef = useRef<number>(0);
+  const safeUpdatePresence = async (isOnline: boolean) => {
+    // Avoid attempting "online" while the browser is offline
+    if (typeof navigator !== "undefined" && !navigator.onLine && isOnline) return;
+    try {
+      await updateStatus({ isOnline });
+    } catch (e: any) {
+      const now = Date.now();
+      if (now - (presenceErrorAtRef.current || 0) > 30000) {
+        presenceErrorAtRef.current = now;
+        toast.error("Failed to update your presence. We'll retry automatically.");
+      }
+    }
+  };
+
   useEffect(() => {
     const goOnline = () => {
-      updateStatus({ isOnline: true }).catch(() => {});
+      safeUpdatePresence(true);
     };
     const goOffline = () => {
-      updateStatus({ isOnline: false }).catch(() => {});
+      safeUpdatePresence(false);
     };
 
     window.addEventListener("online", goOnline);
@@ -229,7 +245,7 @@ export default function Dashboard() {
     window.addEventListener("pagehide", goOffline);
 
     // Heartbeat to keep presence fresh
-    const heartbeat = setInterval(goOnline, 45000);
+    const heartbeat = setInterval(() => safeUpdatePresence(true), 45000);
 
     return () => {
       window.removeEventListener("online", goOnline);
@@ -242,16 +258,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     // Mark online on mount
-    updateStatus({ isOnline: true }).catch(() => {});
+    safeUpdatePresence(true);
     const onVisibility = () => {
-      updateStatus({ isOnline: !document.hidden }).catch(() => {});
+      safeUpdatePresence(!document.hidden);
     };
     window.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       window.removeEventListener("visibilitychange", onVisibility);
       // Best-effort set offline on unmount
-      updateStatus({ isOnline: false }).catch(() => {});
+      safeUpdatePresence(false);
     };
   }, [updateStatus]);
 
