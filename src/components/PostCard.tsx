@@ -182,12 +182,28 @@ function PostCardInner({ post }: PostCardProps) {
     setLocalLikesCount(nextCount);
     setPendingCount((c) => c + 1);
 
+    // Offline fast-path: revert immediately and notify
+    if (typeof navigator !== "undefined" && navigator && navigator.onLine === false) {
+      // Revert
+      setLocalLiked(prevLiked);
+      setLocalLikesCount(prevCount);
+      setPendingCount((c) => Math.max(0, c - 1));
+      toast.error("You're offline. Please check your connection.");
+      return;
+    }
+
     try {
       await toggleLike({ postId: post._id });
-      // No revert here; after all inflight ops finish, reconcile effect will sync if needed
-    } catch (error) {
-      // Keep optimistic state; notify user
-      toast.error("Failed to update like");
+      // No revert here on success; reconciliation effect will sync after inflight ops finish
+    } catch (error: any) {
+      // Revert optimistic changes on failure
+      setLocalLiked(prevLiked);
+      setLocalLikesCount(prevCount);
+
+      const msg =
+        (error?.message as string) ||
+        "Failed to update like. Please try again.";
+      toast.error(msg);
     } finally {
       setPendingCount((c) => Math.max(0, c - 1));
     }
