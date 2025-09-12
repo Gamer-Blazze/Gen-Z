@@ -525,8 +525,9 @@ export const cancelOutgoingRequest = mutation({
       .withIndex("by_from_and_to", (q: any) => q.eq("from", me._id).eq("to", args.otherUserId))
       .first();
 
+    // If no pending request, return safe response (no error)
     if (!req || req.status !== "pending") {
-      throw new Error("No pending outgoing request to cancel");
+      return { ok: true, changed: false };
     }
 
     // Mark the request as rejected
@@ -542,7 +543,7 @@ export const cancelOutgoingRequest = mutation({
       await ctx.db.delete(maybeFriendship._id);
     }
 
-    return true;
+    return { ok: true, changed: true };
   }),
 });
 
