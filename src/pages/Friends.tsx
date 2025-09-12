@@ -231,7 +231,7 @@ export default function Friends() {
                           </div>
                           <div className="flex gap-2">
                             <Button
-                              className="bg-[#1877F2] hover:bg-[#166FE5] text-white gap-2"
+                              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#1877F2] to-[#166FE5] px-4 py-2 text-white shadow-md transition-all hover:from-[#166FE5] hover:to-[#1259c3] hover:shadow-lg active:scale-[0.98]"
                               onClick={async () => {
                                 try {
                                   await acceptFriend({ friendshipId: req._id });
@@ -242,8 +242,8 @@ export default function Friends() {
                                 }
                               }}
                             >
-                              <UserPlus className="h-4 w-4" />
-                              Follow back
+                              <UserPlus className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                              <span>Follow back</span>
                             </Button>
                             <Button
                               variant="outline"
@@ -416,7 +416,7 @@ export default function Friends() {
 
                                 <div className="mt-3 flex gap-2">
                                   <Button
-                                    className="flex-1 bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                                    className="flex-1 group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#1877F2] to-[#166FE5] px-4 py-2 text-white shadow-md transition-all hover:from-[#166FE5] hover:to-[#1259c3] hover:shadow-lg active:scale-[0.98]"
                                     onClick={async () => {
                                       try {
                                         await acceptFriend({ friendshipId: req._id });
@@ -427,7 +427,8 @@ export default function Friends() {
                                       }
                                     }}
                                   >
-                                    Follow back
+                                    <UserPlus className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                                    <span>Follow back</span>
                                   </Button>
                                   <Button
                                     variant="outline"
