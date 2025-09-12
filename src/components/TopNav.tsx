@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { initThemeManager } from "@/hooks/theme";
 
 // Simple placeholder types
 type FriendRequest = {
@@ -63,6 +64,11 @@ async function fetchNotifications(): Promise<AppNotification[]> {
 
 export function TopNav() {
   const navigate = useNavigate();
+
+  // Initialize theme manager once at top-level nav mount
+  useEffect(() => {
+    initThemeManager();
+  }, []);
 
   // Center search
   const [query, setQuery] = useState("");

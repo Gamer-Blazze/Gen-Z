@@ -1,9 +1,15 @@
 import { Home, MessageCircle, Users, Bell, User, Settings, Clapperboard } from "lucide-react";
 import { useLocation, useNavigate } from "react-router";
+import { useEffect } from "react";
+import { initThemeManager } from "@/hooks/theme";
 
 export function MobileTopNav({ showOnDesktop = false }: { showOnDesktop?: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    initThemeManager();
+  }, []);
 
   const items = [
     { icon: Home, path: "/dashboard", label: "Home" },

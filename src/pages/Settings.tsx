@@ -19,6 +19,7 @@ import { useLocation } from "react-router";
 import { Home, MessageCircle, Users, Bell, Settings as SettingsIcon, User as UserIcon } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { MobileTopNav } from "@/components/MobileTopNav";
+import { getThemePreference, setThemePreference, type ThemePref } from "@/hooks/theme";
 
 export default function Settings() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
@@ -651,27 +652,14 @@ export default function Settings() {
               {matches("Appearance") && <h2 className="font-semibold text-lg">Appearance</h2>}
               {!matches("Appearance") ? null : (
                 <>
-                  <div className="grid gap-2">
-                    <label className="text-sm text-muted-foreground">Theme</label>
-                    <Select
-                      value={theme}
-                      onValueChange={(val: "light" | "dark" | "system") => {
-                        setTheme(val);
-                        toast(`Theme set to ${val}`);
-                      }}
-                    >
-                      <SelectTrigger className="w-[220px]">
-                        <SelectValue placeholder="Select theme" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="light">Light</SelectItem>
-                        <SelectItem value="dark">Dark</SelectItem>
-                        <SelectItem value="system">System</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Choose Light or Dark, or follow your device's appearance.
-                    </p>
+                  <div className="rounded-lg border bg-card p-4 mt-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <Label className="text-sm font-medium">Theme</Label>
+                        <p className="text-xs text-muted-foreground">Use system preference or set a manual theme.</p>
+                      </div>
+                      <ThemeSelector />
+                    </div>
                   </div>
 
                   <div className="grid gap-2">
@@ -1360,5 +1348,33 @@ export default function Settings() {
         </main>
       </div>
     </motion.div>
+  );
+}
+
+function ThemeSelector() {
+  const [value, setValue] = useState<ThemePref>("system");
+
+  useEffect(() => {
+    setValue(getThemePreference());
+  }, []);
+
+  return (
+    <Select
+      value={value}
+      onValueChange={(v) => {
+        const next = (v as ThemePref) || "system";
+        setValue(next);
+        setThemePreference(next);
+      }}
+    >
+      <SelectTrigger className="w-40">
+        <SelectValue placeholder="Theme" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="system">System</SelectItem>
+        <SelectItem value="light">Light</SelectItem>
+        <SelectItem value="dark">Dark</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }
