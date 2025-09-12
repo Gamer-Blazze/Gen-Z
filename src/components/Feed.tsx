@@ -9,19 +9,48 @@ import { prefetchToCache } from "@/lib/cacheLRU";
 export function Feed() {
   const [limit, setLimit] = useState(20);
   const posts = useQuery(api.posts.getFeedPosts, { limit });
+  const prefetched = useQuery(api.posts.getFeedPosts, { limit: limit + 10 });
   const listRef = useRef<HTMLDivElement | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const onScroll = () => {
       const nearBottom =
         window.innerHeight + window.scrollY >= document.body.offsetHeight - 600;
       if (nearBottom) {
-        setLimit((n) => (n < 200 ? n + 10 : n)); // soft cap
+        // Append from prefetched chunk if available, else soft-increase
+        setLimit((n) => {
+          const target = Math.min(n + 10, (prefetched?.length ?? n + 10));
+          return target > n ? target : n;
+        });
       }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [prefetched]);
+
+  // Add: IntersectionObserver sentinel to append from prefetched when near end (for smoothness on mobile/WebKit)
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setLimit((n) => {
+              const target = Math.min(n + 10, (prefetched?.length ?? n + 10));
+              return target > n ? target : n;
+            });
+          }
+        }
+      },
+      { root: null, rootMargin: "800px 0px", threshold: 0 }
+    );
+
+    io.observe(sentinel);
+    return () => io.disconnect();
+  }, [prefetched]);
 
   // Prefetch next posts' media when near viewport
   useEffect(() => {
@@ -134,6 +163,8 @@ export function Feed() {
           <PostCard post={post} />
         </motion.div>
       ))}
+      {/* Add: invisible sentinel to trigger background-append without loaders */}
+      <div ref={sentinelRef} aria-hidden="true" className="h-8" />
       <div className="h-12" />
     </div>
   );

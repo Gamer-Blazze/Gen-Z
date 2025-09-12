@@ -60,5 +60,5 @@ export default function ProgressiveImage({ src, alt, className, onLoad }: Props)
     [className, loaded]
   );
 
-  return <img ref={imgRef} alt={alt} className={cls} />;
+  return <img ref={imgRef} alt={alt} className={cls} loading="lazy" decoding="async" />;
 }
