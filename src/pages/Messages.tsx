@@ -44,6 +44,37 @@ export default function Messages() {
   const startCall = useMutation(api.calls.startCall);
   const updateStatus = useMutation(api.users.updateStatus);
 
+  // NEW: Robust presence handling across devices + heartbeat
+  useEffect(() => {
+    const goOnline = () => {
+      updateStatus({ isOnline: true }).catch(() => {});
+    };
+    const goOffline = () => {
+      updateStatus({ isOnline: false }).catch(() => {});
+    };
+
+    // Network changes
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+
+    // Tab/window focus changes
+    window.addEventListener("focus", goOnline);
+
+    // When the page is about to be hidden or closed (mobile app switch, browser back, etc.)
+    window.addEventListener("pagehide", goOffline);
+
+    // Heartbeat: keep presence fresh while user is active (helps across tabs/devices)
+    const heartbeat = setInterval(goOnline, 45000);
+
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+      window.removeEventListener("focus", goOnline);
+      window.removeEventListener("pagehide", goOffline);
+      clearInterval(heartbeat);
+    };
+  }, [updateStatus]);
+
   useEffect(() => {
     // Go online on mount
     updateStatus({ isOnline: true }).catch(() => {});
