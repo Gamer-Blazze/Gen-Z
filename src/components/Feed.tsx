@@ -3,11 +3,13 @@ import { api } from "@/convex/_generated/api";
 import { PostCard } from "./PostCard";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { prefetchToCache } from "@/lib/cacheLRU";
 
 export function Feed() {
   const [limit, setLimit] = useState(20);
   const posts = useQuery(api.posts.getFeedPosts, { limit });
+  const listRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const onScroll = () => {
@@ -20,6 +22,35 @@ export function Feed() {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Prefetch next posts' media when near viewport
+  useEffect(() => {
+    if (!posts || posts.length === 0) return;
+    const root = listRef.current || undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const idx = Number((entry.target as HTMLElement).dataset["idx"] || -1);
+            // Prefetch media for next 1–3 items
+            for (let i = idx + 1; i <= Math.min(posts.length - 1, idx + 3); i++) {
+              const p: any = posts[i];
+              (p?.images || []).forEach((u: string) => prefetchToCache(u));
+              (p?.videos || []).forEach((u: string) => prefetchToCache(u));
+            }
+          }
+        }
+      },
+      { rootMargin: "400px 0px" }
+    );
+
+    // observe each card container
+    const nodes = document.querySelectorAll("[data-feed-card-idx]");
+    nodes.forEach((n) => observer.observe(n));
+
+    return () => observer.disconnect();
+  }, [posts]);
 
   if (posts === undefined) {
     return (
@@ -43,10 +74,12 @@ export function Feed() {
   }
 
   return (
-    <div className="space-y-6">
+    <div ref={listRef} className="space-y-6">
       {posts.map((post: any, index: number) => (
         <motion.div
           key={post._id}
+          data-feed-card-idx
+          data-idx={index}
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: index * 0.1 }}
@@ -54,7 +87,6 @@ export function Feed() {
           <PostCard post={post} />
         </motion.div>
       ))}
-      {/* Sentinel for spacing */}
       <div className="h-12" />
     </div>
   );

@@ -16,6 +16,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useEffect } from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import ProgressiveVideo from "@/components/ProgressiveVideo";
+import ProgressiveImage from "@/components/ProgressiveImage";
 
 function linkify(text: string) {
   // very lightweight linkifier for URLs, #hashtags, and @mentions
@@ -298,15 +300,12 @@ export function PostCard({ post }: PostCardProps) {
             }`}
           >
             {(post.images ?? []).slice(0, 4).map((image, index) => (
-              <img
+              <ProgressiveImage
                 key={index}
                 src={image}
                 alt="Post image"
                 className={`w-full h-auto ${((post.images?.length ?? 0) > 1 ? "aspect-video object-cover" : "object-contain")} rounded-xl bg-black/5 cursor-zoom-in`}
-                loading="lazy"
-                decoding="async"
                 onLoad={markMediaLoaded}
-                onClick={() => openViewer(image, "image")}
               />
             ))}
           </div>
@@ -315,19 +314,11 @@ export function PostCard({ post }: PostCardProps) {
         {post.videos && post.videos.length > 0 && (
           <div className="mb-4 rounded-lg overflow-hidden grid grid-cols-1 gap-2">
             {post.videos.map((video, index) => (
-              <video
+              <ProgressiveVideo
                 key={index}
                 src={video}
-                controls
-                className="w-full h-auto rounded-md bg-black cursor-zoom-in"
-                preload="metadata"
-                playsInline
+                className="w-full h-auto rounded-md bg-black"
                 onLoadedData={markMediaLoaded}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  openViewer(video, "video");
-                }}
               />
             ))}
           </div>
