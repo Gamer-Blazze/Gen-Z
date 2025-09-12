@@ -22,6 +22,7 @@ import FriendsOnlineSidebar from "@/components/FriendsOnlineSidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Image as ImageIcon, Video as VideoIcon, Clapperboard } from "lucide-react";
 import { CreatePost } from "@/components/CreatePost";
+import { Heart, MessageSquare } from "lucide-react";
 
 export default function Dashboard() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
@@ -106,6 +107,25 @@ export default function Dashboard() {
             },
           },
         });
+      // Add: like and comment notifications
+      } else if (n.type === "like") {
+        playTone("message");
+        vibrate([20]);
+        toast(`${sender} liked your post`, {
+          action: {
+            label: "View",
+            onClick: () => window.location.assign("/dashboard"),
+          },
+        });
+      } else if (n.type === "comment") {
+        playTone("message");
+        vibrate([30, 30]);
+        toast(`${sender} commented on your post`, {
+          action: {
+            label: "View",
+            onClick: () => window.location.assign("/dashboard"),
+          },
+        });
       }
     };
 
@@ -132,6 +152,13 @@ export default function Dashboard() {
     api.notifications.getUnreadCount,
     isAuthenticated && user ? {} : "skip"
   );
+
+  // Add: live notifications list for dropdown panel
+  const myNotifications = useQuery(
+    api.notifications.getMyNotifications,
+    isAuthenticated && user ? { limit: 10 } : "skip"
+  );
+  const markAll = useMutation(api.notifications.markAllAsRead);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -193,17 +220,76 @@ export default function Dashboard() {
               <Clapperboard className="h-4 w-4" />
             </button>
             {/* Notifications */}
-            <button
-              className="relative h-9 w-9 rounded-full bg-muted grid place-items-center"
-              title="Notifications"
-            >
-              <Bell className="h-4 w-4" />
-              {unreadCount && typeof unreadCount.count === "number" && unreadCount.count > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[11px] leading-[18px] text-white grid place-items-center">
-                  {unreadCount.count > 9 ? "9+" : unreadCount.count}
-                </span>
-              )}
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="relative h-9 w-9 rounded-full bg-muted grid place-items-center"
+                  title="Notifications"
+                >
+                  <Bell className="h-4 w-4" />
+                  {unreadCount && typeof unreadCount.count === "number" && unreadCount.count > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[11px] leading-[18px] text-white grid place-items-center">
+                      {unreadCount.count > 9 ? "9+" : unreadCount.count}
+                    </span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80 p-0">
+                <div className="flex items-center justify-between px-3 py-2 border-b">
+                  <span className="text-sm font-medium">Notifications</span>
+                  <button
+                    className="text-xs text-primary hover:underline"
+                    onClick={async () => {
+                      try {
+                        await markAll({});
+                        toast("All notifications marked as read");
+                      } catch {
+                        toast("Failed to mark as read");
+                      }
+                    }}
+                  >
+                    Mark all as read
+                  </button>
+                </div>
+                <div className="max-h-80 overflow-auto">
+                  {!Array.isArray(myNotifications) ? (
+                    <div className="px-3 py-4 text-sm text-muted-foreground">Loading…</div>
+                  ) : myNotifications.length === 0 ? (
+                    <div className="px-3 py-6 text-sm text-muted-foreground text-center">
+                      You're all caught up!
+                    </div>
+                  ) : (
+                    myNotifications.map((n: any) => {
+                      const isUnread = n.isRead === false;
+                      const icon =
+                        n.type === "message" ? (
+                          <MessageSquare className="h-4 w-4 text-blue-500" />
+                        ) : n.type === "like" ? (
+                          <Heart className="h-4 w-4 text-rose-500" />
+                        ) : n.type === "comment" ? (
+                          <MessageSquare className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <Bell className="h-4 w-4 text-muted-foreground" />
+                        );
+                      return (
+                        <div
+                          key={n._id as unknown as string}
+                          className={`flex items-start gap-3 px-3 py-2 ${isUnread ? "bg-muted/50" : ""}`}
+                        >
+                          <div className="mt-1">{icon}</div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm leading-5">
+                              {n.content || "You have a new notification"}
+                            </p>
+                          </div>
+                          {isUnread && <span className="mt-1 h-2 w-2 rounded-full bg-primary" />}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {/* Dark/Light */}
             <button className="h-9 w-9 rounded-full bg-muted grid place-items-center" title="Theme">
               <Moon className="h-4 w-4" />
