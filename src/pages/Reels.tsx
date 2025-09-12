@@ -84,8 +84,9 @@ export default function Reels() {
         >
           {/* Unified responsive layout: centered fixed-width column on md+, full-width on mobile */}
           <div className="absolute inset-0 grid place-items-center">
-            <div className="relative h-full w-full md:w-[500px] md:mx-auto">
-              {/* Video fills the container height, loops and auto-plays */}
+            {/* CHANGE: enforce same-size 9:16 viewport for all reels */}
+            <div className="relative w-full md:w-[500px] md:mx-auto aspect-[9/16]">
+              {/* Video fills the aspect-ratio box */}
               <ProgressiveVideo
                 src={post.videos[0]}
                 className="h-full w-full object-cover bg-background rounded-none md:rounded-xl shadow-2xl"
