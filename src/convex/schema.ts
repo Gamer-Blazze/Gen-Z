@@ -138,7 +138,9 @@ const schema = defineSchema(
       .index("by_from", ["from"])
       .index("by_status", ["status"])
       .index("by_from_and_to", ["from", "to"])
-      .index("by_to_and_status", ["to", "status"]),
+      .index("by_to_and_status", ["to", "status"])
+      // ADD: enable precise lookups of outgoing by status (e.g., accepted, pending)
+      .index("by_from_and_status", ["from", "status"]),
 
     // Friend requests and friendships
     friendships: defineTable({

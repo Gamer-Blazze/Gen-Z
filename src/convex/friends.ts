@@ -153,24 +153,25 @@ export const getUserFriends = query({
     // Accepted outgoing -> friends are "to"
     const acceptedOutgoing = await ctx.db
       .query("friend_requests")
-      .withIndex("by_from_and_to", (q: any) => q.eq("from", targetUserId).gt("to", "")) // small slice
-      .take(500);
+      .withIndex("by_from_and_status", (q: any) =>
+        q.eq("from", targetUserId).eq("status", "accepted")
+      )
+      .collect();
 
-    // FIX: use index by_to_and_status to keep index field order correct
+    // Accepted incoming -> friends are "from" (already filtered to accepted via index)
     const acceptedIncoming = await ctx.db
       .query("friend_requests")
-      .withIndex("by_to_and_status", (q: any) => q.eq("to", targetUserId).eq("status", "accepted"))
+      .withIndex("by_to_and_status", (q: any) =>
+        q.eq("to", targetUserId).eq("status", "accepted")
+      )
       .collect();
 
     const friendsIds: Set<string> = new Set();
 
     for (const row of acceptedOutgoing) {
-      if (row.status === "accepted") {
-        friendsIds.add(row.to as unknown as string);
-      }
+      friendsIds.add(row.to as unknown as string);
     }
     for (const row of acceptedIncoming) {
-      // already filtered to accepted via the index
       friendsIds.add(row.from as unknown as string);
     }
 
@@ -383,28 +384,23 @@ export const getOnlineFriends = query({
     const me = await getCurrentUser(ctx);
     if (!me) return [];
 
-    // Gather accepted friendships in both directions via friend_requests indexes
     const outgoingAccepted = await ctx.db
       .query("friend_requests")
-      .withIndex("by_from_and_to", (q: any) => q.eq("from", me._id).gt("to", ""))
-      .take(1000);
+      .withIndex("by_from_and_status", (q: any) =>
+        q.eq("from", me._id).eq("status", "accepted")
+      )
+      .collect();
 
     const incomingAccepted = await ctx.db
       .query("friend_requests")
-      .withIndex("by_to_and_status", (q: any) => q.eq("to", me._id).eq("status", "accepted"))
+      .withIndex("by_to_and_status", (q: any) =>
+        q.eq("to", me._id).eq("status", "accepted")
+      )
       .collect();
 
     const friendIds = new Set<string>();
-
-    for (const r of outgoingAccepted) {
-      if (r.status === "accepted") {
-        friendIds.add(r.to as unknown as string);
-      }
-    }
-    for (const r of incomingAccepted) {
-      // already filtered to accepted via index
-      friendIds.add(r.from as unknown as string);
-    }
+    for (const r of outgoingAccepted) friendIds.add(r.to as unknown as string);
+    for (const r of incomingAccepted) friendIds.add(r.from as unknown as string);
 
     const cap = Math.max(1, Math.min(args.limit ?? 20, 100));
     const online: any[] = [];
@@ -587,44 +583,52 @@ export const getSuggestions = query({
 
     const exclude = new Set<string>([me._id as unknown as string]);
 
-    // Outgoing (me -> others) friend requests
-    const out = await ctx.db
+    // Outgoing accepted + pending friend requests (exclude both)
+    const outAccepted = await ctx.db
       .query("friend_requests")
-      .withIndex("by_from_and_to", (q: any) => q.eq("from", me._id).gt("to", ""))
-      .take(1000);
+      .withIndex("by_from_and_status", (q: any) =>
+        q.eq("from", me._id).eq("status", "accepted")
+      )
+      .collect();
+    for (const r of outAccepted) exclude.add(r.to as unknown as string);
 
-    for (const r of out) {
-      const toId = r.to as unknown as string;
-      if (r.status === "accepted" || r.status === "pending") exclude.add(toId);
-    }
-
-    // Incoming (others -> me) friend requests
-    const inc = await ctx.db
+    const outPending = await ctx.db
       .query("friend_requests")
-      .withIndex("by_to", (q: any) => q.eq("to", me._id))
-      .take(1000);
+      .withIndex("by_from_and_status", (q: any) =>
+        q.eq("from", me._id).eq("status", "pending")
+      )
+      .collect();
+    for (const r of outPending) exclude.add(r.to as unknown as string);
 
-    for (const r of inc) {
-      const fromId = r.from as unknown as string;
-      if (r.status === "accepted" || r.status === "pending") exclude.add(fromId);
-    }
+    // Incoming accepted + pending friend requests (exclude both)
+    const incAccepted = await ctx.db
+      .query("friend_requests")
+      .withIndex("by_to_and_status", (q: any) =>
+        q.eq("to", me._id).eq("status", "accepted")
+      )
+      .collect();
+    for (const r of incAccepted) exclude.add(r.from as unknown as string);
 
-    // New: Exclude follows in both directions (I follow or they follow me)
+    const incPending = await ctx.db
+      .query("friend_requests")
+      .withIndex("by_to_and_status", (q: any) =>
+        q.eq("to", me._id).eq("status", "pending")
+      )
+      .collect();
+    for (const r of incPending) exclude.add(r.from as unknown as string);
+
+    // Exclude follows in both directions
     const myFollows = await ctx.db
       .query("follows")
       .withIndex("by_follower", (q: any) => q.eq("followerId", me._id))
       .take(1000);
-    for (const f of myFollows) {
-      exclude.add(f.followingId as unknown as string);
-    }
+    for (const f of myFollows) exclude.add(f.followingId as unknown as string);
 
     const theirFollows = await ctx.db
       .query("follows")
       .withIndex("by_following", (q: any) => q.eq("followingId", me._id))
       .take(1000);
-    for (const f of theirFollows) {
-      exclude.add(f.followerId as unknown as string);
-    }
+    for (const f of theirFollows) exclude.add(f.followerId as unknown as string);
 
     const suggestions: any[] = [];
     const seen = new Set<string>();
