@@ -127,6 +127,12 @@ export default function Dashboard() {
     return null;
   }
 
+  // Add: real-time unread notifications count
+  const unreadCount = useQuery(
+    api.notifications.getUnreadCount,
+    isAuthenticated && user ? {} : "skip"
+  );
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate("/auth");
@@ -187,8 +193,16 @@ export default function Dashboard() {
               <Clapperboard className="h-4 w-4" />
             </button>
             {/* Notifications */}
-            <button className="h-9 w-9 rounded-full bg-muted grid place-items-center" title="Notifications">
+            <button
+              className="relative h-9 w-9 rounded-full bg-muted grid place-items-center"
+              title="Notifications"
+            >
               <Bell className="h-4 w-4" />
+              {unreadCount && typeof unreadCount.count === "number" && unreadCount.count > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[11px] leading-[18px] text-white grid place-items-center">
+                  {unreadCount.count > 9 ? "9+" : unreadCount.count}
+                </span>
+              )}
             </button>
             {/* Dark/Light */}
             <button className="h-9 w-9 rounded-full bg-muted grid place-items-center" title="Theme">

@@ -80,3 +80,22 @@ export const markAllAsRead = mutation({
     return true;
   }),
 });
+
+export const getUnreadCount = query({
+  args: {},
+  handler: withErrorLogging("notifications.getUnreadCount", async (ctx) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) return { count: 0 };
+
+    let count = 0;
+    for await (const _ of ctx.db
+      .query("notifications")
+      .withIndex("by_read_status", (q: any) =>
+        q.eq("userId", user._id).eq("isRead", false)
+      )) {
+      count++;
+      if (count > 99) break; // cap loop early for efficiency
+    }
+    return { count };
+  }),
+});
