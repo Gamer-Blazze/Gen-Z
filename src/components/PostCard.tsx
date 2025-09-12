@@ -201,6 +201,8 @@ function PostCardInner({ post }: PostCardProps) {
   });
   const [localLikesCount, setLocalLikesCount] = useState<number>(post.likesCount);
   const [pendingCount, setPendingCount] = useState<number>(0);
+  // Add: brief click cooldown to prevent rapid double-clicks beyond in-flight disable
+  const [cooldown, setCooldown] = useState(false);
 
   // Reconcile optimistic like state when backend data changes (avoid mid-flight stomping)
   useEffect(() => {
@@ -227,6 +229,11 @@ function PostCardInner({ post }: PostCardProps) {
   }
 
   const handleLike = async () => {
+    // Add: short cooldown to throttle rapid taps (in addition to pending disable)
+    if (cooldown) return;
+    setCooldown(true);
+    setTimeout(() => setCooldown(false), 450);
+
     // Snapshot current state
     const prevLiked = localLiked;
     const prevCount = localLikesCount;
@@ -495,7 +502,8 @@ function PostCardInner({ post }: PostCardProps) {
             isLiked={isLiked}
             count={localLikesCount}
             onClick={handleLike}
-            disabled={pendingCount > 0}
+            // Disable during server call and brief cooldown to block rapid taps
+            disabled={pendingCount > 0 || cooldown}
           />
 
           <Button
@@ -639,14 +647,19 @@ export const PostCard = memo(PostCardInner, (prev, next) => {
   // Always re-render if different post document
   if ((p._id as unknown as string) !== (n._id as unknown as string)) return false;
 
-  // Ignore likes/likesCount to prevent full-card re-render on like toggles.
-  // Compare other critical fields to allow meaningful updates to re-render.
+  // Re-render when content or media changes
   if (p.content !== n.content) return false;
   if ((p.images?.length || 0) !== (n.images?.length || 0)) return false;
   if ((p.videos?.length || 0) !== (n.videos?.length || 0)) return false;
+
+  // Re-render when engagement or ownership-critical fields change
   if (p.commentsCount !== n.commentsCount) return false;
   if (p.sharesCount !== n.sharesCount) return false;
   if ((p.userId as unknown as string) !== (n.userId as unknown as string)) return false;
+
+  // IMPORTANT: Re-render when likes/likesCount change so all clients reflect real-time updates
+  if (p.likesCount !== n.likesCount) return false;
+  if ((p.likes?.length || 0) !== (n.likes?.length || 0)) return false;
 
   // Compare minimal user fields used in header to reflect profile changes
   const pu = p.user || {};
@@ -655,6 +668,6 @@ export const PostCard = memo(PostCardInner, (prev, next) => {
   if (pu.name !== nu.name) return false;
   if (pu.image !== nu.image) return false;
 
-  // If only likes changed, treat props as equal (skip re-render)
+  // Equal props -> skip re-render
   return true;
 });
