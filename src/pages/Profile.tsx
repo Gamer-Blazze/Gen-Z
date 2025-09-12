@@ -388,7 +388,7 @@ export default function Profile() {
                     {isIncoming && (
                       <Button
                         size="sm"
-                        className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                        className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
                         onClick={() => navigate("/friends")}
                       >
                         Respond
@@ -399,7 +399,7 @@ export default function Profile() {
                     {isNone && (
                       <Button
                         size="sm"
-                        className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
+                        className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
                         onClick={async () => {
                           try {
                             await sendFriend({ userId: targetUser._id });
@@ -411,6 +411,7 @@ export default function Profile() {
                             if (raw.includes("Cannot send friend request to yourself")) msg = "You cannot add yourself.";
                             if (raw.includes("Already friends")) msg = "You're already friends.";
                             if (raw.includes("Missing recipient user id")) msg = "Unable to find this user.";
+                            if (raw.includes("Unable to find this user.")) msg = "Unable to find this user.";
                             toast.error(msg);
                           }
                         }}

@@ -29,6 +29,12 @@ export const sendFriendRequest = mutation({
       throw new Error("Cannot send friend request to yourself");
     }
 
+    // Add: ensure recipient exists
+    const recipient = await ctx.db.get(toUserId);
+    if (!recipient) {
+      throw new Error("Unable to find this user.");
+    }
+
     // Single-table behavior using friend_requests only:
     // 1) If already friends (accepted in either direction) => prevent sending
     const acceptedOutgoing = await ctx.db
