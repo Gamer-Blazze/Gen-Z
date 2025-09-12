@@ -335,11 +335,11 @@ export default function Profile() {
                               size="sm"
                               variant="secondary"
                               className="inline-flex items-center gap-1.5"
-                              aria-label="Friends actions"
+                              aria-label="Following actions"
                               disabled={relWorking}
                               aria-busy={relWorking || undefined}
                             >
-                              Friends
+                              Following
                               <ChevronDown className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -349,14 +349,14 @@ export default function Profile() {
                               onClick={async () => {
                                 try {
                                   await doUnfriend({ otherUserId: targetUser._id });
-                                  toast.success("Unfriended");
+                                  toast.success("Unfollowed");
                                 } catch (e: any) {
-                                  const msg = e?.message || "Failed to unfriend";
+                                  const msg = e?.message || "Failed to unfollow";
                                   toast.error(msg);
                                 }
                               }}
                             >
-                              {relWorking ? "Working..." : "Unfriend"}
+                              {relWorking ? "Working..." : "Unfollow"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -371,16 +371,16 @@ export default function Profile() {
                         onClick={async () => {
                           try {
                             await cancelOutgoing({ otherUserId: targetUser._id });
-                            toast.success("Friend request canceled");
+                            toast.success("Follow request canceled");
                           } catch (e: any) {
                             const msg =
                               e?.message ||
-                              "Failed to cancel request. Please try again.";
+                              "Failed to cancel follow. Please try again.";
                             toast.error(msg);
                           }
                         }}
                       >
-                        Cancel Request
+                        Cancel Follow
                       </Button>
                     )}
 
@@ -391,7 +391,7 @@ export default function Profile() {
                         className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
                         onClick={() => navigate("/friends")}
                       >
-                        Respond
+                        Follow back
                       </Button>
                     )}
 
@@ -403,20 +403,20 @@ export default function Profile() {
                         onClick={async () => {
                           try {
                             await sendFriend({ userId: targetUser._id });
-                            toast.success("Friend request sent");
+                            toast.success("Follow request sent");
                           } catch (e: any) {
                             const raw = e?.message || "";
-                            let msg = "Failed to send request. Please try again.";
-                            if (raw.includes("Not authenticated")) msg = "Please sign in to add friends.";
-                            if (raw.includes("Cannot send friend request to yourself")) msg = "You cannot add yourself.";
-                            if (raw.includes("Already friends")) msg = "You're already friends.";
+                            let msg = "Failed to follow. Please try again.";
+                            if (raw.includes("Not authenticated")) msg = "Please sign in to follow.";
+                            if (raw.includes("Cannot send friend request to yourself")) msg = "You cannot follow yourself.";
+                            if (raw.includes("Already friends")) msg = "You're already following.";
                             if (raw.includes("Missing recipient user id")) msg = "Unable to find this user.";
                             if (raw.includes("Unable to find this user.")) msg = "Unable to find this user.";
                             toast.error(msg);
                           }
                         }}
                       >
-                        Add Friend
+                        Follow
                       </Button>
                     )}
 
