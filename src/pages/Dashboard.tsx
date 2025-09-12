@@ -521,7 +521,9 @@ export default function Dashboard() {
             <Stories />
           </div>
           {/* Feed remains real-time and functional */}
-          <Feed />
+          <ErrorBoundary name="Feed">
+            <Feed />
+          </ErrorBoundary>
         </main>
 
         {/* Right Sidebar (only on xl and up) */}

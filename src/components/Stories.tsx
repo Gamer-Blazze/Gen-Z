@@ -1,3 +1,4 @@
+import React from "react";
 import { useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "convex/react";
