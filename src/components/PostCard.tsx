@@ -360,6 +360,8 @@ export function PostCard({ post }: PostCardProps) {
                   mode="loop"
                   lazy
                   preload="metadata"
+                  // NEW: attempt autoplay with sound at full volume with one-gesture fallback
+                  autoSound
                 />
                 {/* Sound toggle overlay */}
                 <button

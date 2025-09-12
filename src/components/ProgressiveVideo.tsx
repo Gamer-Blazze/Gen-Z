@@ -1,20 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { cacheMatch, cachePut, prefetchToCache } from "@/lib/cacheLRU";
 import { useNetworkMode } from "@/hooks/use-network";
+import { onUserInteractionUnlock, playWithSound } from "@/lib/autoplaySound";
 
 type Props = {
   src: string;
   className?: string;
   onLoadedData?: () => void;
-  // Add: mode to control behavior (preview vs. continuous loop)
   mode?: "preview" | "loop";
-  // Add: control preload behaviour
   preload?: "auto" | "metadata" | "none";
-  // Add: lazy attach source only when in view
   lazy?: boolean;
+  // NEW: attempt to autoplay with sound at full volume (falls back to one-tap unlock)
+  autoSound?: boolean;
 };
 
-export default function ProgressiveVideo({ src, className, onLoadedData, mode = "preview", preload = "metadata", lazy = false }: Props) {
+export default function ProgressiveVideo({ src, className, onLoadedData, mode = "preview", preload = "metadata", lazy = false, autoSound = false }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [ready, setReady] = useState(false);
   const [previewDone, setPreviewDone] = useState(false);
@@ -95,17 +95,45 @@ export default function ProgressiveVideo({ src, className, onLoadedData, mode = 
     };
   }, [src, net, inView]);
 
-  // Autoplay a 3–4s muted preview then pause (only in preview mode)
+  // Autoplay behavior
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
 
-    const onLoaded = () => {
+    const onLoaded = async () => {
       setReady(true);
       onLoadedData?.();
-      v.muted = true;
       v.loop = mode === "loop";
-      v.play().catch(() => {});
+
+      // If autoSound is requested, try to start with sound immediately.
+      if (autoSound) {
+        // Mark as force sound for outside observers and not be re-muted
+        (v as any).dataset.forceSound = "1";
+        (v as any).dataset.userUnmuted = "1";
+        try {
+          await playWithSound(v);
+        } catch (err: any) {
+          // Likely autoplay with sound blocked; schedule retry after first user interaction
+          onUserInteractionUnlock(async () => {
+            try {
+              await playWithSound(v);
+            } catch {
+              // ignore repeat failures
+            }
+          });
+          // Start muted as a visual fallback until unlock
+          try {
+            v.muted = true;
+            await v.play();
+          } catch {
+            // ignore
+          }
+        }
+      } else {
+        // Existing default: start muted
+        v.muted = true;
+        v.play().catch(() => {});
+      }
     };
 
     const onTime = () => {
@@ -121,7 +149,7 @@ export default function ProgressiveVideo({ src, className, onLoadedData, mode = 
       v.removeEventListener("loadeddata", onLoaded);
       v.removeEventListener("timeupdate", onTime);
     };
-  }, [previewDone, userEngaged, onLoadedData, mode]);
+  }, [previewDone, userEngaged, onLoadedData, mode, autoSound]);
 
   return (
     <div className="relative group">
@@ -129,16 +157,23 @@ export default function ProgressiveVideo({ src, className, onLoadedData, mode = 
         ref={videoRef}
         className={className}
         playsInline
+        // If autoSound, we want controls visible only after user engages; keep consistent
         controls={userEngaged}
         preload={preload}
         loop={mode === "loop"}
         data-pv="1"
+        // Mark intent for observers
+        data-force-sound={autoSound ? "1" : undefined}
         onClick={(e) => {
           e.stopPropagation();
           const v = videoRef.current;
           if (!v) return;
           setUserEngaged(true);
+          // Always try to enable sound and controls on click
           v.muted = false;
+          v.volume = 1;
+          (v as any).dataset.userUnmuted = "1";
+          (v as any).dataset.forceSound = "1";
           v.controls = true;
           v.play().catch(() => {});
         }}
@@ -157,6 +192,9 @@ export default function ProgressiveVideo({ src, className, onLoadedData, mode = 
             if (!v) return;
             setUserEngaged(true);
             v.muted = false;
+            v.volume = 1;
+            (v as any).dataset.userUnmuted = "1";
+            (v as any).dataset.forceSound = "1";
             v.controls = true;
             v.play().catch(() => {});
           }}

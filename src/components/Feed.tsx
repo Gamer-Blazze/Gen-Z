@@ -106,10 +106,16 @@ export function Feed() {
             try {
               // Always start from the beginning when it comes into view
               v.currentTime = 0;
-              // Do not override user choice: only mute if user hasn't explicitly unmuted
-              if ((v.dataset.userUnmuted || "") !== "1") {
+
+              // Respect force-sound policy if set by the component
+              if ((v.dataset.forceSound || "") === "1") {
+                v.muted = false;
+                v.volume = 1;
+                v.controls = false;
+              } else if ((v.dataset.userUnmuted || "") !== "1") {
                 v.muted = true;
               }
+
               v.controls = false;
               v.play().catch(() => {});
               pauseOthers(v);
