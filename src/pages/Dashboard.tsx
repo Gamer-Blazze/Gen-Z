@@ -178,6 +178,14 @@ export default function Dashboard() {
             <button className="h-9 w-9 rounded-full bg-muted grid place-items-center" title="Messages">
               <MessageCircle className="h-4 w-4" />
             </button>
+            {/* Reels */}
+            <button
+              className="h-9 w-9 rounded-full bg-muted grid place-items-center"
+              title="Reels"
+              onClick={() => navigate("/reels")}
+            >
+              <Clapperboard className="h-4 w-4" />
+            </button>
             {/* Notifications */}
             <button className="h-9 w-9 rounded-full bg-muted grid place-items-center" title="Notifications">
               <Bell className="h-4 w-4" />
