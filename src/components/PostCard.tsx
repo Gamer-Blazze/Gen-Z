@@ -18,6 +18,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import ProgressiveVideo from "@/components/ProgressiveVideo";
 import ProgressiveImage from "@/components/ProgressiveImage";
+import { Volume2, VolumeX } from "lucide-react";
 
 function linkify(text: string) {
   // very lightweight linkifier for URLs, #hashtags, and @mentions
@@ -80,6 +81,37 @@ export function PostCard({ post }: PostCardProps) {
   // ADD: measure media loading time
   const [mediaLoadStart, setMediaLoadStart] = useState<number | null>(null);
   const [mediaLoadMs, setMediaLoadMs] = useState<number | null>(null);
+
+  // Track per-video mute UI state
+  const [videoMuted, setVideoMuted] = useState<Record<number, boolean>>({});
+
+  // Helper: toggle sound for a given video container (by index)
+  function toggleSoundAt(index: number) {
+    const container = document.querySelector<HTMLDivElement>(`[data-post-id='${post._id as unknown as string}'][data-video-idx='${index}']`);
+    if (!container) return;
+    const video = container.querySelector<HTMLVideoElement>("video[data-pv='1']");
+    if (!video) return;
+
+    const willUnmute = video.muted;
+    if (willUnmute) {
+      // Mute all others first
+      const all = Array.from(document.querySelectorAll<HTMLVideoElement>("video[data-pv='1']"));
+      for (const v of all) {
+        if (v !== video) {
+          v.muted = true;
+          v.dataset.userUnmuted && delete v.dataset.userUnmuted;
+        }
+      }
+      // Unmute this one and mark as user-unmuted
+      video.muted = false;
+      video.dataset.userUnmuted = "1";
+    } else {
+      // Mute this one and clear the flag
+      video.muted = true;
+      video.dataset.userUnmuted && delete video.dataset.userUnmuted;
+    }
+    setVideoMuted((prev) => ({ ...prev, [index]: video.muted }));
+  }
 
   useEffect(() => {
     // Start timing if the post has media and timing hasn't started yet
@@ -314,16 +346,35 @@ export function PostCard({ post }: PostCardProps) {
         {post.videos && post.videos.length > 0 && (
           <div className="mb-4 rounded-lg overflow-hidden grid grid-cols-1 gap-2">
             {post.videos.map((video, index) => (
-              <ProgressiveVideo
+              <div
                 key={index}
-                src={video}
-                className="w-full h-auto rounded-md bg-black"
-                onLoadedData={markMediaLoaded}
-                // Ensure smooth feed behaviour: loop + lazy + better buffering for current/next
-                mode="loop"
-                lazy
-                preload="metadata"
-              />
+                className="relative"
+                data-post-id={post._id as unknown as string}
+                data-video-idx={index}
+              >
+                <ProgressiveVideo
+                  src={video}
+                  className="w-full h-auto rounded-md bg-black"
+                  onLoadedData={markMediaLoaded}
+                  // Ensure smooth feed behaviour: loop + lazy + better buffering for current/next
+                  mode="loop"
+                  lazy
+                  preload="metadata"
+                />
+                {/* Sound toggle overlay */}
+                <button
+                  type="button"
+                  aria-label={videoMuted[index] ? "Unmute" : "Mute"}
+                  title={videoMuted[index] ? "Unmute" : "Mute"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleSoundAt(index);
+                  }}
+                  className="absolute bottom-3 right-3 z-10 grid place-items-center rounded-full bg-black/60 hover:bg-black/70 text-white p-2"
+                >
+                  {videoMuted[index] ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                </button>
+              </div>
             ))}
           </div>
         )}

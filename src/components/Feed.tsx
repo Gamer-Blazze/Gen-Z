@@ -106,7 +106,10 @@ export function Feed() {
             try {
               // Always start from the beginning when it comes into view
               v.currentTime = 0;
-              v.muted = true;
+              // Do not override user choice: only mute if user hasn't explicitly unmuted
+              if ((v.dataset.userUnmuted || "") !== "1") {
+                v.muted = true;
+              }
               v.controls = false;
               v.play().catch(() => {});
               pauseOthers(v);
