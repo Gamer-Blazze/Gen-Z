@@ -24,6 +24,8 @@ export function CreatePost() {
   // Add: media state
   const [files, setFiles] = useState<Array<File>>([]);
   const fileInputId = "create-post-media-input";
+  // Add: dedicated reel input id
+  const reelInputId = "create-post-reel-input";
 
   // Add: upload action
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
@@ -74,6 +76,49 @@ export function CreatePost() {
       }
     }
     return { imageIds, videoIds };
+  };
+
+  // Add: quick-upload a single reel from gallery and post immediately
+  const onPickReel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = Array.from(e.target.files || []);
+    e.currentTarget.value = "";
+    if (picked.length === 0) return;
+    const video = picked[0];
+    if (!video.type?.startsWith("video/")) {
+      toast.error("Please select a video file");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const url = await generateUploadUrl({});
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": video.type || "application/octet-stream" },
+        body: video,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const { storageId } = (await res.json()) as { storageId: string };
+
+      await createPost({
+        content: content.trim(),
+        images: [] as any,
+        videos: [storageId] as any,
+        isDraft: false,
+        audience,
+      });
+
+      setContent("");
+      setFiles([]);
+      setAudience("public");
+      toast.success("Reel uploaded!");
+      // Navigate to reels to view it
+      window.location.assign("/reels");
+    } catch {
+      toast.error("Failed to upload reel");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -235,15 +280,22 @@ export function CreatePost() {
                       onChange={onPickFiles}
                     />
 
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1.5 text-xs sm:text-sm px-2 py-1 rounded-md hover:bg-muted"
-                      title="Create a Reel"
-                      onClick={() => window.location.assign("/reels")}
+                    {/* Change: Reel uploads directly from gallery */}
+                    <label
+                      htmlFor={reelInputId}
+                      className="inline-flex items-center gap-1.5 text-xs sm:text-sm px-2 py-1 rounded-md hover:bg-muted cursor-pointer"
+                      title="Upload a Reel"
                     >
                       <Clapperboard className="h-4 w-4 text-purple-500" />
                       <span>Reel</span>
-                    </button>
+                    </label>
+                    <input
+                      id={reelInputId}
+                      type="file"
+                      accept="video/*"
+                      className="hidden"
+                      onChange={onPickReel}
+                    />
                   </div>
 
                   <Button
