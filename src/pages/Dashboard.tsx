@@ -36,6 +36,38 @@ export default function Dashboard() {
       return true;
     }
   });
+  const [isMobileView, setIsMobileView] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.matchMedia("(max-width: 767px)").matches;
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mql = window.matchMedia("(max-width: 767px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobileView(e.matches);
+    try {
+      mql.addEventListener("change", handler);
+    } catch {
+      // Safari fallback
+      // @ts-ignore
+      mql.addListener(handler);
+    }
+    // Sync once on mount
+    setIsMobileView(mql.matches);
+    return () => {
+      try {
+        mql.removeEventListener("change", handler);
+      } catch {
+        // Safari fallback
+        // @ts-ignore
+        mql.removeListener(handler);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     // Sync in case of SSR hydration or storage changes
@@ -48,7 +80,8 @@ export default function Dashboard() {
   }, []);
 
   // Background watcher for notifications: plays tones + toasts for calls/messages
-  function NotificationWatcher() {
+  function NotificationWatcher({ enabled = true }: { enabled?: boolean }) {
+    if (!enabled) return null;
     const { isAuthenticated, user } = useAuth();
     const notifPrefs = ((user as any)?.settings?.notifications) || {};
     const enableSound = notifPrefs.sound !== false;
@@ -203,8 +236,8 @@ export default function Dashboard() {
       animate={{ opacity: 1 }}
       className="min-h-screen bg-background overflow-x-hidden"
     >
-      {/* Mount watcher for real-time toasts on mobile too */}
-      <NotificationWatcher />
+      {/* Mount watcher only on mobile to avoid desktop popups/sounds */}
+      <NotificationWatcher enabled={isMobileView} />
       {/* Desktop Top Navigation (sticky) */}
       <div className="hidden md:block sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto max-w-7xl px-4 h-14 flex items-center gap-4">
