@@ -73,10 +73,12 @@ const LikeToggleButton = memo(function LikeToggleButton({
   isLiked,
   count,
   onClick,
+  disabled,
 }: {
   isLiked: boolean;
   count: number;
   onClick: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Button
@@ -86,7 +88,9 @@ const LikeToggleButton = memo(function LikeToggleButton({
       aria-pressed={isLiked}
       aria-label={isLiked ? "Unlike" : "Like"}
       title={isLiked ? "Unlike" : "Like"}
-      className={`gap-2 transition-none ${isLiked ? "text-red-500" : ""}`}
+      aria-busy={disabled ? true : undefined}
+      disabled={disabled}
+      className={`gap-2 transition-none ${isLiked ? "text-red-500" : ""} pointer-events-auto relative z-10`}
       data-state={isLiked ? "on" : "off"}
     >
       <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} />
@@ -479,6 +483,7 @@ function PostCardInner({ post }: PostCardProps) {
             isLiked={isLiked}
             count={localLikesCount}
             onClick={handleLike}
+            disabled={pendingCount > 0}
           />
 
           <Button
