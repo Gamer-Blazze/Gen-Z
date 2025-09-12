@@ -36,7 +36,25 @@ export const sendFriendRequest = mutation({
       .withIndex("by_from_and_to", (q: any) => q.eq("from", user._id).eq("to", toUserId))
       .first();
     if (existing) {
-      throw new Error("Friend request already sent");
+      // Make operation idempotent: ensure mirrored friendship exists, return existing ids
+      let existingFriendship = await ctx.db
+        .query("friendships")
+        .withIndex("by_user1_and_user2", (q: any) => q.eq("userId1", user._id).eq("userId2", toUserId))
+        .first();
+
+      if (!existingFriendship) {
+        existingFriendship = await ctx.db.insert("friendships", {
+          userId1: user._id,
+          userId2: toUserId,
+          status: existing.status === "accepted" ? "accepted" : "pending",
+          requesterId: user._id,
+        }) as any;
+      }
+
+      return {
+        friendRequestId: existing._id,
+        friendshipId: (existingFriendship as any)._id ?? existingFriendship,
+      };
     }
 
     const reverse = await ctx.db
@@ -44,7 +62,25 @@ export const sendFriendRequest = mutation({
       .withIndex("by_from_and_to", (q: any) => q.eq("from", toUserId).eq("to", user._id))
       .first();
     if (reverse) {
-      throw new Error("A pending request from this user already exists");
+      // If the other user already sent a request, don't throw. Mirror the friendship and return.
+      let reverseFriendship = await ctx.db
+        .query("friendships")
+        .withIndex("by_user1_and_user2", (q: any) => q.eq("userId1", toUserId).eq("userId2", user._id))
+        .first();
+
+      if (!reverseFriendship) {
+        reverseFriendship = await ctx.db.insert("friendships", {
+          userId1: toUserId,
+          userId2: user._id,
+          status: reverse.status === "accepted" ? "accepted" : "pending",
+          requesterId: toUserId,
+        }) as any;
+      }
+
+      return {
+        friendRequestId: reverse._id,
+        friendshipId: (reverseFriendship as any)._id ?? reverseFriendship,
+      };
     }
 
     // Insert into friend_requests as requested
