@@ -35,6 +35,15 @@ export default function Profile() {
   const isTablet = device === "tablet";
   const isDesktop = device === "desktop";
 
+  // Add: restore missing UI state used by the component
+  const [showMobileNav, setShowMobileNav] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editUsername, setEditUsername] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [relWorking, setRelWorking] = useState(false);
+
   // Parse ?id=<userId> from the URL to view someone else's profile (fallback for old links)
   const params = new URLSearchParams(location.search);
   const viewUserIdParam = params.get("id") as Id<"users"> | null;
@@ -62,9 +71,27 @@ export default function Profile() {
   const updateUserImage = useMutation(api.users.updateUserImage);
   const updateUserProfile = useMutation(api.users.updateUserProfile);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [uploadingCover, setUploadingCover] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const coverInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Add: handle selecting a new profile image
+  const onPickProfileImage = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    setUploadingImage(true);
+    try {
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      await updateUserImage({ image: dataUrl });
+      toast.success("Profile picture updated");
+    } catch (_e) {
+      toast.error("Failed to update picture");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const sendFriend = useMutation(api.friends.sendFriendRequest);
   const cancelOutgoing = useMutation(api.friends.cancelOutgoingRequest);
@@ -74,108 +101,10 @@ export default function Profile() {
     !isOwnProfile && targetUser ? { otherUserId: targetUser._id } : "skip"
   );
 
-  // Add: optimistic relationship override for instant UI feedback
-  const [relOverride, setRelOverride] = useState<
-    "none" | "outgoing_request" | "incoming_request" | "friends" | undefined
-  >(undefined);
-  const rel = relOverride ?? relationshipStatus;
-
-  // Add: working flag to prevent double submits and improve UX
-  const [relWorking, setRelWorking] = useState(false);
-
-  // Effective relationship considering override
-  const effectiveRel = relOverride ?? relationshipStatus;
-  // Optimistic-aware flags
-  const isPending = effectiveRel === "outgoing_request";
-  const isNone = effectiveRel === undefined || effectiveRel === "none";
-  const isIncoming = effectiveRel === "incoming_request";
-
-  // Reset override when backend status updates so UI follows source of truth
-  useEffect(() => {
-    if (relationshipStatus !== undefined) setRelOverride(undefined);
-  }, [relationshipStatus]);
-
-  const generateUploadUrl = useAction(api.files.generateUploadUrl);
-  const getFileUrl = useAction(api.files.getFileUrl);
-
-  const [showMobileNav, setShowMobileNav] = useState(false);
-
-  // Edit profile dialog state
-  const [editOpen, setEditOpen] = useState(false);
-  const [editName, setEditName] = useState<string>("");
-  const [editBio, setEditBio] = useState<string>("");
-  const [editUsername, setEditUsername] = useState<string>("");
-
-  const onPickProfileImage = async (fl: FileList | null) => {
-    if (!fl || fl.length === 0) return;
-    const file = fl[0];
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-    setUploadingImage(true);
-    try {
-      const uploadUrl = await generateUploadUrl({});
-      const buf = await new Promise<ArrayBuffer>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as ArrayBuffer);
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(file);
-      });
-      const res = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-        body: buf,
-      });
-      if (!res.ok) throw new Error("Upload failed");
-      const { storageId } = await res.json();
-      const signedUrl = await getFileUrl({ fileId: storageId });
-      await updateUserImage({ image: signedUrl });
-      toast.success("Profile picture updated");
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to update profile picture");
-    } finally {
-      setUploadingImage(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  // NEW: cover image upload
-  const onPickCoverImage = async (fl: FileList | null) => {
-    if (!fl || fl.length === 0) return;
-    const file = fl[0];
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-    setUploadingCover(true);
-    try {
-      const uploadUrl = await generateUploadUrl({});
-      const buf = await new Promise<ArrayBuffer>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as ArrayBuffer);
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(file);
-      });
-      const res = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type || "application/octet-stream" },
-        body: buf,
-      });
-      if (!res.ok) throw new Error("Upload failed");
-      const { storageId } = await res.json();
-      const signedUrl = await getFileUrl({ fileId: storageId });
-      await updateUserProfile({ coverImage: signedUrl });
-      toast.success("Cover photo updated");
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to update cover photo");
-    } finally {
-      setUploadingCover(false);
-      if (coverInputRef.current) coverInputRef.current.value = "";
-    }
-  };
+  const rel = relationshipStatus;
+  const isPending = rel === "outgoing_request";
+  const isNone = rel === undefined || rel === "none";
+  const isIncoming = rel === "incoming_request";
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -250,31 +179,9 @@ export default function Profile() {
             </div>
             {isOwnProfile && (
               <>
-                <input
-                  ref={coverInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => onPickCoverImage(e.target.files)}
-                />
-                <div className="absolute bottom-3 right-3">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => coverInputRef.current?.click()}
-                    disabled={uploadingCover}
-                    className="text-xs sm:text-sm"
-                  >
-                    {uploadingCover ? (
-                      <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    ) : (
-                      <>
-                        <span className="sm:inline hidden">Change Cover</span>
-                        <span className="sm:hidden inline">Change</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
+                {/* Removed cover change input and button */}
+                {/* <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => onPickCoverImage(e.target.files)} /> */}
+                {/* <div className="absolute bottom-3 right-3">Change Cover...</div> */}
               </>
             )}
           </div>
@@ -440,19 +347,14 @@ export default function Profile() {
                             <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={async () => {
-                                if (relWorking) return;
-                                setRelWorking(true);
                                 try {
                                   await doUnfriend({ otherUserId: targetUser._id });
                                   toast.success("Unfriended");
                                 } catch (e: any) {
                                   const msg = e?.message || "Failed to unfriend";
                                   toast.error(msg);
-                                } finally {
-                                  setRelWorking(false);
                                 }
                               }}
-                              disabled={relWorking}
                             >
                               {relWorking ? "Working..." : "Unfriend"}
                             </DropdownMenuItem>
@@ -467,25 +369,18 @@ export default function Profile() {
                         size="sm"
                         variant="outline"
                         onClick={async () => {
-                          if (relWorking) return;
-                          setRelWorking(true);
                           try {
                             await cancelOutgoing({ otherUserId: targetUser._id });
-                            setRelOverride("none");
                             toast.success("Friend request canceled");
                           } catch (e: any) {
                             const msg =
                               e?.message ||
                               "Failed to cancel request. Please try again.";
                             toast.error(msg);
-                          } finally {
-                            setRelWorking(false);
                           }
                         }}
-                        disabled={relWorking}
-                        aria-busy={relWorking || undefined}
                       >
-                        {relWorking ? "Cancelling..." : "Cancel Request"}
+                        Cancel Request
                       </Button>
                     )}
 
@@ -495,7 +390,6 @@ export default function Profile() {
                         size="sm"
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
                         onClick={() => navigate("/friends")}
-                        disabled={relWorking}
                       >
                         Respond
                       </Button>
@@ -507,16 +401,10 @@ export default function Profile() {
                         size="sm"
                         className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
                         onClick={async () => {
-                          if (relWorking) return;
-                          setRelWorking(true);
                           try {
-                            // Optimistic set to show Cancel immediately
-                            setRelOverride("outgoing_request");
                             await sendFriend({ userId: targetUser._id });
                             toast.success("Friend request sent");
                           } catch (e: any) {
-                            setRelOverride(undefined);
-                            // Map common backend errors to friendly messages
                             const raw = e?.message || "";
                             let msg = "Failed to send request. Please try again.";
                             if (raw.includes("Not authenticated")) msg = "Please sign in to add friends.";
@@ -524,14 +412,10 @@ export default function Profile() {
                             if (raw.includes("Already friends")) msg = "You're already friends.";
                             if (raw.includes("Missing recipient user id")) msg = "Unable to find this user.";
                             toast.error(msg);
-                          } finally {
-                            setRelWorking(false);
                           }
                         }}
-                        disabled={relWorking}
-                        aria-busy={relWorking || undefined}
                       >
-                        {relWorking ? "Adding..." : "Add Friend"}
+                        Add Friend
                       </Button>
                     )}
 
