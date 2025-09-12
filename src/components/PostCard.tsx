@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -69,7 +69,7 @@ interface PostCardProps {
   };
 }
 
-export function PostCard({ post }: PostCardProps) {
+function PostCardInner({ post }: PostCardProps) {
   const { user } = useAuth();
   const [showComments, setShowComments] = useState(false);
   const [commentContent, setCommentContent] = useState("");
@@ -567,3 +567,30 @@ export function PostCard({ post }: PostCardProps) {
     </Card>
   );
 }
+
+export const PostCard = memo(PostCardInner, (prev, next) => {
+  const p = prev.post as any;
+  const n = next.post as any;
+
+  // Always re-render if different post document
+  if ((p._id as unknown as string) !== (n._id as unknown as string)) return false;
+
+  // Ignore likes/likesCount to prevent full-card re-render on like toggles.
+  // Compare other critical fields to allow meaningful updates to re-render.
+  if (p.content !== n.content) return false;
+  if ((p.images?.length || 0) !== (n.images?.length || 0)) return false;
+  if ((p.videos?.length || 0) !== (n.videos?.length || 0)) return false;
+  if (p.commentsCount !== n.commentsCount) return false;
+  if (p.sharesCount !== n.sharesCount) return false;
+  if ((p.userId as unknown as string) !== (n.userId as unknown as string)) return false;
+
+  // Compare minimal user fields used in header to reflect profile changes
+  const pu = p.user || {};
+  const nu = n.user || {};
+  if ((pu._id as unknown as string) !== (nu._id as unknown as string)) return false;
+  if (pu.name !== nu.name) return false;
+  if (pu.image !== nu.image) return false;
+
+  // If only likes changed, treat props as equal (skip re-render)
+  return true;
+});
