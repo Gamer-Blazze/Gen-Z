@@ -170,6 +170,19 @@ function PostCardInner({ post }: PostCardProps) {
 
   const isLiked = localLiked;
 
+  // Add: friendly error classifier for like/unlike
+  function getFriendlyLikeErrorMessage(error: any): string {
+    const raw = (error?.message || "").toString().toLowerCase();
+    if (raw.includes("not authenticated")) return "Please sign in to like posts.";
+    if (raw.includes("post not found")) return "This post is no longer available.";
+    if (raw.includes("permission") || raw.includes("authorized")) return "You can't like this post.";
+    if (raw.includes("rate") || raw.includes("429") || raw.includes("too many")) return "You're tapping too fast. Please slow down.";
+    if (raw.includes("network") || raw.includes("failed to fetch") || raw.includes("timeout") || raw.includes("ecconn")) {
+      return "Network issue while updating your like. Please try again.";
+    }
+    return "Couldn't update your like. Please try again.";
+  }
+
   const handleLike = async () => {
     // Remove debounce and blocking: allow rapid toggles (double-click → unlike)
     const prevLiked = localLiked;
@@ -188,7 +201,7 @@ function PostCardInner({ post }: PostCardProps) {
       setLocalLiked(prevLiked);
       setLocalLikesCount(prevCount);
       setPendingCount((c) => Math.max(0, c - 1));
-      toast.error("You're offline. Please check your connection.");
+      toast.error("You're offline. Connect to the internet and try again.");
       return;
     }
 
@@ -200,10 +213,8 @@ function PostCardInner({ post }: PostCardProps) {
       setLocalLiked(prevLiked);
       setLocalLikesCount(prevCount);
 
-      const msg =
-        (error?.message as string) ||
-        "Failed to update like. Please try again.";
-      toast.error(msg);
+      // Improved, context-aware messaging
+      toast.error(getFriendlyLikeErrorMessage(error));
     } finally {
       setPendingCount((c) => Math.max(0, c - 1));
     }
