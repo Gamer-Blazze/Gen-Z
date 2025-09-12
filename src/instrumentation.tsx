@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Dialog } from "@radix-ui/react-dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { ChevronDown, ExternalLink } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
