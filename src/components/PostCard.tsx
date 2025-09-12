@@ -184,20 +184,21 @@ function PostCardInner({ post }: PostCardProps) {
   }
 
   const handleLike = async () => {
-    // Remove debounce and blocking: allow rapid toggles (double-click → unlike)
+    // Snapshot current state
     const prevLiked = localLiked;
     const prevCount = localLikesCount;
-    const nextLiked = !prevLiked;
-    const nextCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
 
-    // Optimistic update
+    // Optimistic next state
+    const nextLiked = !prevLiked;
+    const delta = nextLiked ? 1 : -1;
+
+    // Apply optimistic UI
     setLocalLiked(nextLiked);
-    setLocalLikesCount(nextCount);
+    setLocalLikesCount(Math.max(0, prevCount + delta));
     setPendingCount((c) => c + 1);
 
     // Offline fast-path: revert immediately and notify
     if (typeof navigator !== "undefined" && navigator && navigator.onLine === false) {
-      // Revert
       setLocalLiked(prevLiked);
       setLocalLikesCount(prevCount);
       setPendingCount((c) => Math.max(0, c - 1));
@@ -206,14 +207,19 @@ function PostCardInner({ post }: PostCardProps) {
     }
 
     try {
-      await toggleLike({ postId: post._id });
-      // No revert here on success; reconciliation effect will sync after inflight ops finish
+      // Server returns the definitive liked state after toggle
+      const serverLiked = await toggleLike({ postId: post._id });
+
+      // Reconcile UI with server result only if it differs from optimistic state
+      if (serverLiked !== nextLiked) {
+        // Revert like state and count back to what server says (one step back from optimistic)
+        setLocalLiked(serverLiked);
+        setLocalLikesCount((c) => Math.max(0, c - delta));
+      }
     } catch (error: any) {
-      // Revert optimistic changes on failure
+      // On error, hard revert to original state and show friendly message
       setLocalLiked(prevLiked);
       setLocalLikesCount(prevCount);
-
-      // Improved, context-aware messaging
       toast.error(getFriendlyLikeErrorMessage(error));
     } finally {
       setPendingCount((c) => Math.max(0, c - 1));
