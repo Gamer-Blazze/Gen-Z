@@ -13,7 +13,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { MobileTopNav } from "@/components/MobileTopNav";
-import { Search, Bell, MessageCircle, Moon } from "lucide-react";
+import { Search, Bell, MessageCircle, Moon, MessageSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { LogoDropdown } from "@/components/LogoDropdown";
 import { Stories } from "@/components/Stories";
@@ -23,7 +23,7 @@ import FriendsOnlineSidebar from "@/components/FriendsOnlineSidebar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Image as ImageIcon, Video as VideoIcon, Clapperboard } from "lucide-react";
 import { CreatePost } from "@/components/CreatePost";
-import { Heart, MessageSquare } from "lucide-react";
+import { Heart, Share2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -89,6 +89,29 @@ export default function Dashboard() {
       return false;
     }
   });
+
+  // Add: local UI state for video actions
+  const [liked, setLiked] = useState(false);
+  const [commentCount, setCommentCount] = useState(0);
+
+  // Add: handlers
+  const toggleLike = () => setLiked((v) => !v);
+  const addComment = () => setCommentCount((c) => c + 1);
+  const onShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: "Check this out",
+          text: "A nice video on the dashboard",
+          url: window.location.href,
+        });
+      } else {
+        toast("Share dialog not supported on this device");
+      }
+    } catch {
+      // ignore cancel
+    }
+  };
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
@@ -518,6 +541,53 @@ export default function Dashboard() {
         <main className="flex-1 w-full max-w-xl mx-auto px-2 sm:px-3 py-2 sm:py-4 space-y-2 sm:space-y-3 pb-16">
           {/* Add: Create Post box above Stories, Facebook-style */}
           <CreatePost />
+
+          {/* Hero video section */}
+          <section className="w-full">
+            <div className="mx-auto w-full">
+              <video
+                src="https://videos.pexels.com/video-files/855292/855292-uhd_2560_1440_24fps.mp4"
+                className="w-full h-auto rounded-none"
+                playsInline
+                muted
+                loop
+                autoPlay
+                controls
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="mt-3 sm:mt-4 flex flex-wrap items-center gap-2 sm:gap-3">
+              <Button
+                onClick={toggleLike}
+                variant={liked ? "default" : "outline"}
+                className={liked ? "bg-red-500 hover:bg-red-600 text-white" : ""}
+                aria-pressed={liked}
+                aria-label="Like"
+              >
+                <Heart
+                  className="mr-2 h-4 w-4"
+                  fill={liked ? "currentColor" : "none"}
+                />
+                {liked ? "Liked" : "Like"}
+              </Button>
+
+              <Button onClick={addComment} variant="outline" aria-label="Comment">
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Comment
+                {commentCount > 0 && (
+                  <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1 text-xs">
+                    {commentCount}
+                  </span>
+                )}
+              </Button>
+
+              <Button onClick={onShare} variant="outline" aria-label="Share">
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </Button>
+            </div>
+          </section>
 
           {/* Stories row */}
           <div className="rounded-2xl bg-card/60 border border-border/60 p-1.5 sm:p-2">
