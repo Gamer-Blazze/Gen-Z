@@ -519,3 +519,46 @@ export const unfriend = mutation({
     return true;
   }),
 });
+
+export const getOnlineFriends = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: withErrorLogging("friends.getOnlineFriends", async (ctx, args) => {
+    const me = await getCurrentUser(ctx);
+    if (!me) return [];
+
+    // Gather accepted friendships in both directions via indexes
+    const asUser1 = await ctx.db
+      .query("friendships")
+      .withIndex("by_user1_and_status", (q: any) =>
+        q.eq("userId1", me._id).eq("status", "accepted")
+      )
+      .collect();
+
+    const asUser2 = await ctx.db
+      .query("friendships")
+      .withIndex("by_user2_and_status", (q: any) =>
+        q.eq("userId2", me._id).eq("status", "accepted")
+      )
+      .collect();
+
+    const friendIds = new Set<string>(
+      [...asUser1, ...asUser2].map((f: any) =>
+        (f.userId1 === me._id ? f.userId2 : f.userId1) as unknown as string
+      )
+    );
+
+    const cap = Math.max(1, Math.min(args.limit ?? 20, 100));
+    const online: any[] = [];
+    for (const idStr of friendIds) {
+      const u = await ctx.db.get(idStr as any);
+      if (u && (u as any).isOnline) {
+        online.push(u);
+        if (online.length >= cap) break;
+      }
+    }
+
+    return online;
+  }),
+});

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 
 // Simple placeholder types
 type FriendRequest = {
@@ -95,6 +96,10 @@ export function TopNav() {
 
   // Loading states for actions
   const [working, setWorking] = useState<Set<string>>(new Set());
+
+  // Real-time online friends
+  const onlineFriends = useQuery(api.friends.getOnlineFriends, {});
+  const onlineCount = onlineFriends?.length ?? 0;
 
   useEffect(() => {
     // Initial load (simulated)
@@ -291,6 +296,45 @@ export function TopNav() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {/* Online now (real-time) */}
+                {Array.isArray(onlineFriends) && onlineFriends.length > 0 && (
+                  <div className="p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <div className="text-sm font-medium">Online now</div>
+                      <div className="text-xs text-emerald-600 dark:text-emerald-400">
+                        {onlineCount}
+                      </div>
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto pb-1">
+                      {onlineFriends.slice(0, 12).map((u: any) => (
+                        <button
+                          key={u._id}
+                          className="flex shrink-0 items-center gap-2 rounded-md border px-2 py-1 hover:bg-accent hover:text-accent-foreground"
+                          onClick={() => navigate(`/profile?id=${u._id as unknown as string}`)}
+                          aria-label={`Open ${u.name || "User"} profile`}
+                        >
+                          <div className="relative">
+                            <Avatar className="h-8 w-8">
+                              <AvatarImage src={u.image} />
+                              <AvatarFallback className="bg-muted text-xs">
+                                {u.name?.charAt(0) || "U"}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="absolute -right-0.5 -bottom-0.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
+                          </div>
+                          <span className="max-w-[7rem] truncate text-xs">
+                            {u.name || "Anonymous"}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {Array.isArray(onlineFriends) && onlineFriends.length > 0 && (
+                  <div className="px-3 pb-2">
+                    <Separator />
+                  </div>
+                )}
                 {friendRequests === undefined ? (
                   <div className="p-4 text-sm text-muted-foreground">Loading...</div>
                 ) : friendRequests.length === 0 ? (
