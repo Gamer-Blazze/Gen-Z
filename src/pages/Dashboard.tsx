@@ -1,3 +1,4 @@
+import React from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
@@ -25,6 +26,50 @@ import { CreatePost } from "@/components/CreatePost";
 import { Heart, MessageSquare } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+
+// Add: Small ErrorBoundary to catch UI errors from API-driven sections
+type ErrorBoundaryProps = {
+  name?: string;
+  renderFallback?: () => any;
+  children: React.ReactNode;
+};
+type ErrorBoundaryState = { hasError: boolean };
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  static displayed: Set<string> = new Set();
+
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(_error: unknown): ErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, info: any) {
+    const tag = this.props.name || "Section";
+    if (!ErrorBoundary.displayed.has(tag)) {
+      ErrorBoundary.displayed.add(tag);
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { toast } = require("sonner");
+        toast.error(`${tag} failed to load. Please try again.`);
+      } catch {
+        // no-op
+      }
+    }
+    // eslint-disable-next-line no-console
+    console.error(`[ErrorBoundary:${tag}]`, error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.renderFallback ? this.props.renderFallback() : null;
+    }
+    return this.props.children;
+  }
+}
 
 export default function Dashboard() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
@@ -296,7 +341,10 @@ export default function Dashboard() {
       className="min-h-screen bg-background overflow-x-hidden"
     >
       {/* Mount watcher only on mobile to avoid desktop popups/sounds */}
-      <NotificationWatcher enabled={isMobileView} />
+      <ErrorBoundary name="NotificationWatcher">
+        <NotificationWatcher enabled={isMobileView} />
+      </ErrorBoundary>
+
       {/* Desktop Top Navigation (sticky) */}
       <div className="hidden md:block sticky top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="mx-auto max-w-7xl px-4 h-14 flex items-center gap-4">
@@ -333,76 +381,89 @@ export default function Dashboard() {
               <Clapperboard className="h-4 w-4" />
             </button>
             {/* Notifications */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <ErrorBoundary
+              name="Notifications"
+              renderFallback={() => (
                 <button
-                  className="relative h-9 w-9 rounded-full bg-muted grid place-items-center"
-                  title="Notifications"
+                  className="relative h-9 w-9 rounded-full bg-muted grid place-items-center opacity-60 cursor-not-allowed"
+                  title="Notifications unavailable"
+                  aria-disabled="true"
                 >
                   <Bell className="h-4 w-4" />
-                  {unreadCount && typeof unreadCount.count === "number" && unreadCount.count > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[11px] leading-[18px] text-white grid place-items-center">
-                      {unreadCount.count > 9 ? "9+" : unreadCount.count}
-                    </span>
-                  )}
                 </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80 p-0">
-                <div className="flex items-center justify-between px-3 py-2 border-b">
-                  <span className="text-sm font-medium">Notifications</span>
+              )}
+            >
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
-                    className="text-xs text-primary hover:underline"
-                    onClick={async () => {
-                      try {
-                        await markAll({});
-                        toast("All notifications marked as read");
-                      } catch {
-                        toast("Failed to mark as read");
-                      }
-                    }}
+                    className="relative h-9 w-9 rounded-full bg-muted grid place-items-center"
+                    title="Notifications"
                   >
-                    Mark all as read
+                    <Bell className="h-4 w-4" />
+                    {unreadCount && typeof unreadCount.count === "number" && unreadCount.count > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[11px] leading-[18px] text-white grid place-items-center">
+                        {unreadCount.count > 9 ? "9+" : unreadCount.count}
+                      </span>
+                    )}
                   </button>
-                </div>
-                <div className="max-h-80 overflow-auto">
-                  {!Array.isArray(myNotifications) ? (
-                    <div className="px-3 py-4 text-sm text-muted-foreground">Loading…</div>
-                  ) : myNotifications.length === 0 ? (
-                    <div className="px-3 py-6 text-sm text-muted-foreground text-center">
-                      You're all caught up!
-                    </div>
-                  ) : (
-                    myNotifications.map((n: any) => {
-                      const isUnread = n.isRead === false;
-                      const icon =
-                        n.type === "message" ? (
-                          <MessageSquare className="h-4 w-4 text-blue-500" />
-                        ) : n.type === "like" ? (
-                          <Heart className="h-4 w-4 text-rose-500" />
-                        ) : n.type === "comment" ? (
-                          <MessageSquare className="h-4 w-4 text-emerald-500" />
-                        ) : (
-                          <Bell className="h-4 w-4 text-muted-foreground" />
-                        );
-                      return (
-                        <div
-                          key={n._id as unknown as string}
-                          className={`flex items-start gap-3 px-3 py-2 ${isUnread ? "bg-muted/50" : ""}`}
-                        >
-                          <div className="mt-1">{icon}</div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm leading-5">
-                              {n.content || "You have a new notification"}
-                            </p>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 p-0">
+                  <div className="flex items-center justify-between px-3 py-2 border-b">
+                    <span className="text-sm font-medium">Notifications</span>
+                    <button
+                      className="text-xs text-primary hover:underline"
+                      onClick={async () => {
+                        try {
+                          await markAll({});
+                          toast("All notifications marked as read");
+                        } catch {
+                          toast("Failed to mark as read");
+                        }
+                      }}
+                    >
+                      Mark all as read
+                    </button>
+                  </div>
+                  <div className="max-h-80 overflow-auto">
+                    {!Array.isArray(myNotifications) ? (
+                      <div className="px-3 py-4 text-sm text-muted-foreground">Loading…</div>
+                    ) : myNotifications.length === 0 ? (
+                      <div className="px-3 py-6 text-sm text-muted-foreground text-center">
+                        You're all caught up!
+                      </div>
+                    ) : (
+                      myNotifications.map((n: any) => {
+                        const isUnread = n.isRead === false;
+                        const icon =
+                          n.type === "message" ? (
+                            <MessageSquare className="h-4 w-4 text-blue-500" />
+                          ) : n.type === "like" ? (
+                            <Heart className="h-4 w-4 text-rose-500" />
+                          ) : n.type === "comment" ? (
+                            <MessageSquare className="h-4 w-4 text-emerald-500" />
+                          ) : (
+                            <Bell className="h-4 w-4 text-muted-foreground" />
+                          );
+                        return (
+                          <div
+                            key={n._id as unknown as string}
+                            className={`flex items-start gap-3 px-3 py-2 ${isUnread ? "bg-muted/50" : ""}`}
+                          >
+                            <div className="mt-1">{icon}</div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm leading-5">
+                                {n.content || "You have a new notification"}
+                              </p>
+                            </div>
+                            {isUnread && <span className="mt-1 h-2 w-2 rounded-full bg-primary" />}
                           </div>
-                          {isUnread && <span className="mt-1 h-2 w-2 rounded-full bg-primary" />}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                        );
+                      })
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </ErrorBoundary>
             {/* Dark/Light */}
             <button className="h-9 w-9 rounded-full bg-muted grid place-items-center" title="Theme">
               <Moon className="h-4 w-4" />
