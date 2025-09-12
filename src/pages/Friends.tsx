@@ -235,14 +235,14 @@ export default function Friends() {
                               onClick={async () => {
                                 try {
                                   await acceptFriend({ friendshipId: req._id });
-                                  toast.success("Followed back");
+                                  toast.success("Request confirmed");
                                   setTab("friends");
                                 } catch {
                                   toast.error("Failed to follow back");
                                 }
                               }}
                             >
-                              Follow back
+                              Confirm
                             </Button>
                             <Button
                               variant="outline"
