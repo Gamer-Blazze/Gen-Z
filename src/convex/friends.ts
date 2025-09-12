@@ -537,7 +537,8 @@ export const getSuggestions = query({
     // Incoming (others -> me)
     const inc = await ctx.db
       .query("friend_requests")
-      .withIndex("by_from_and_to", (q: any) => q.gt("from", "").eq("to", me._id))
+      // FIX: use index starting with "to" to satisfy field order and fetch all rows to me
+      .withIndex("by_to", (q: any) => q.eq("to", me._id))
       .take(1000);
 
     for (const r of inc) {
