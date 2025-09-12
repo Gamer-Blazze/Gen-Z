@@ -179,13 +179,13 @@ export default function ProgressiveVideo({ src, className, onLoadedData, mode = 
         }}
       />
       {!ready && (
-        <div className="absolute inset-0 grid place-items-center bg-black/40">
-          <span className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+        <div className="absolute inset-0 grid place-items-center bg-background/60">
+          <span className="h-6 w-6 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
         </div>
       )}
       {mode !== "loop" && previewDone && !userEngaged && (
         <button
-          className="absolute inset-x-0 bottom-2 mx-auto w-[140px] rounded-full bg-white/90 text-black text-sm py-1.5 shadow group-hover:opacity-100"
+          className="absolute inset-x-0 bottom-2 mx-auto w-[140px] rounded-full bg-background/90 text-foreground text-sm py-1.5 shadow group-hover:opacity-100 border"
           onClick={(e) => {
             e.stopPropagation();
             const v = videoRef.current;

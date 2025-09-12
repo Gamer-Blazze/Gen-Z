@@ -43,9 +43,9 @@ export default function Reels() {
 
   if (onlyVideos === undefined) {
     return (
-      <div className="h-screen grid place-items-center bg-black text-white">
-        <div className="flex items-center gap-2 text-sm opacity-80">
-          <span className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+      <div className="h-screen grid place-items-center bg-background text-foreground">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-foreground border-t-transparent" />
           Loading Reels…
         </div>
       </div>
@@ -54,10 +54,10 @@ export default function Reels() {
 
   if (onlyVideos.length === 0) {
     return (
-      <div className="h-screen bg-black text-white grid place-items-center">
+      <div className="h-screen bg-background text-foreground grid place-items-center">
         <div className="text-center px-6">
           <h2 className="text-2xl font-semibold mb-2">No reels yet</h2>
-          <p className="text-white/70">When people post videos, they'll appear here.</p>
+          <p className="text-muted-foreground">When people post videos, they'll appear here.</p>
           <div className="mt-6">
             <Button variant="outline" onClick={() => navigate("/dashboard")}>
               Back to Home
@@ -69,7 +69,7 @@ export default function Reels() {
   }
 
   return (
-    <div className="h-screen w-screen bg-black text-white overflow-y-scroll snap-y snap-mandatory">
+    <div className="h-screen w-screen bg-background text-foreground overflow-y-scroll snap-y snap-mandatory">
       {/* Top Navigation Bar */}
       <MobileTopNav showOnDesktop />
 
@@ -85,7 +85,7 @@ export default function Reels() {
             <div className="absolute inset-0">
               <ProgressiveVideo
                 src={post.videos[0]}
-                className="h-full w-full object-cover bg-black"
+                className="h-full w-full object-cover bg-background"
                 mode="loop"
                 onLoadedData={() => {}}
               />
@@ -94,27 +94,29 @@ export default function Reels() {
             {/* Right-side actions (mobile) */}
             <div className="absolute right-2 bottom-24 flex flex-col gap-4 items-center">
               <button
-                className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 backdrop-blur"
+                className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 backdrop-blur transition-colors"
                 title="Like"
                 aria-label="Like"
               >
                 <Heart className="h-6 w-6" />
               </button>
               <button
-                className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 backdrop-blur"
+                className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 backdrop-blur transition-colors"
                 title="Comment"
                 aria-label="Comment"
               >
                 <MessageCircle className="h-6 w-6" />
               </button>
               <button
-                className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 backdrop-blur"
+                className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 backdrop-blur transition-colors"
                 title="Share"
                 aria-label="Share"
                 onClick={() => {
                   try {
                     if (navigator.share) {
-                      navigator.share({ url: window.location.href, title: post.user?.name || "Reel" }).catch(() => {});
+                      navigator
+                        .share({ url: window.location.href, title: post.user?.name || "Reel" })
+                        .catch(() => {});
                     }
                   } catch {}
                 }}
@@ -122,7 +124,7 @@ export default function Reels() {
                 <Share2 className="h-6 w-6" />
               </button>
               <button
-                className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 backdrop-blur"
+                className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 backdrop-blur transition-colors"
                 title="Save"
                 aria-label="Save"
               >
@@ -136,20 +138,20 @@ export default function Reels() {
                 <div className="flex items-center gap-2 mb-2">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={post.user?.image} />
-                    <AvatarFallback className="bg-white/20 text-white">
+                    <AvatarFallback className="bg-muted text-foreground">
                       {post.user?.name?.charAt(0) || "U"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="font-semibold">{post.user?.name || "Anonymous"}</div>
                 </div>
                 {post.content && (
-                  <p className="text-sm text-white/90 max-w-[75vw] whitespace-pre-wrap">
+                  <p className="text-sm text-foreground/90 max-w-[75vw] whitespace-pre-wrap">
                     {post.content}
                   </p>
                 )}
               </motion.div>
 
-              <div className="mt-2 text-xs text-white/70">Tap video to play with sound</div>
+              <div className="mt-2 text-xs text-muted-foreground">Tap video to play with sound</div>
             </div>
           </div>
 
@@ -159,7 +161,7 @@ export default function Reels() {
               {/* Centered video column */}
               <div className="flex flex-col items-center justify-center w-full">
                 {/* Video container: 9:16, fit within viewport height */}
-                <div className="relative aspect-[9/16] h-[84vh] rounded-xl overflow-hidden bg-black/60 shadow-2xl">
+                <div className="relative aspect-[9/16] h-[84vh] rounded-xl overflow-hidden bg-muted shadow-2xl">
                   <ProgressiveVideo
                     src={post.videos[0]}
                     className="h-full w-full object-cover"
@@ -173,20 +175,20 @@ export default function Reels() {
                   <div className="flex items-center gap-3 mb-2">
                     <Avatar className="h-9 w-9">
                       <AvatarImage src={post.user?.image} />
-                      <AvatarFallback className="bg-white/20 text-white">
+                      <AvatarFallback className="bg-muted text-foreground">
                         {post.user?.name?.charAt(0) || "U"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
                       <span className="text-sm font-semibold">{post.user?.name || "Anonymous"}</span>
                       {/* Music line, fallback to Original audio */}
-                      <span className="text-xs text-white/70">
+                      <span className="text-xs text-muted-foreground">
                         {(post as any)?.musicTitle || "Original audio"}
                       </span>
                     </div>
                   </div>
                   {post.content && (
-                    <p className="text-sm text-white/90 whitespace-pre-wrap">
+                    <p className="text-sm text-foreground/90 whitespace-pre-wrap">
                       {post.content}
                     </p>
                   )}
@@ -196,27 +198,29 @@ export default function Reels() {
               {/* Action rail to the right of video */}
               <div className="flex flex-col items-center gap-5">
                 <button
-                  className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 transition-colors"
+                  className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 transition-colors"
                   title="Like"
                   aria-label="Like"
                 >
                   <Heart className="h-6 w-6" />
                 </button>
                 <button
-                  className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 transition-colors"
+                  className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 transition-colors"
                   title="Comment"
                   aria-label="Comment"
                 >
                   <MessageCircle className="h-6 w-6" />
                 </button>
                 <button
-                  className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 transition-colors"
+                  className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 transition-colors"
                   title="Share"
                   aria-label="Share"
                   onClick={() => {
                     try {
                       if (navigator.share) {
-                        navigator.share({ url: window.location.href, title: post.user?.name || "Reel" }).catch(() => {});
+                        navigator
+                          .share({ url: window.location.href, title: post.user?.name || "Reel" })
+                          .catch(() => {});
                       }
                     } catch {}
                   }}
@@ -224,7 +228,7 @@ export default function Reels() {
                   <Share2 className="h-6 w-6" />
                 </button>
                 <button
-                  className="grid place-items-center rounded-full bg-white/10 hover:bg-white/20 p-3 transition-colors"
+                  className="grid place-items-center rounded-full bg-muted/60 hover:bg-muted p-3 transition-colors"
                   title="Save"
                   aria-label="Save"
                 >
