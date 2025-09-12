@@ -84,8 +84,9 @@ export default function Reels() {
           <div className="absolute inset-0">
             <ProgressiveVideo
               src={post.videos[0]}
-              className="h-full w-full object-contain md:object-cover bg-black"
-              // ProgressiveVideo autoplays a 3–4s muted preview; user tap continues with sound
+              className="h-full w-full object-cover bg-black"
+              // Use continuous loop mode for TikTok/IG-like behavior
+              mode="loop"
               onLoadedData={() => {}}
             />
           </div>

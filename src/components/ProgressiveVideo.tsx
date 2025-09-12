@@ -6,9 +6,11 @@ type Props = {
   src: string;
   className?: string;
   onLoadedData?: () => void;
+  // Add: mode to control behavior (preview vs. continuous loop)
+  mode?: "preview" | "loop";
 };
 
-export default function ProgressiveVideo({ src, className, onLoadedData }: Props) {
+export default function ProgressiveVideo({ src, className, onLoadedData, mode = "preview" }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [ready, setReady] = useState(false);
   const [previewDone, setPreviewDone] = useState(false);
@@ -64,7 +66,7 @@ export default function ProgressiveVideo({ src, className, onLoadedData }: Props
     };
   }, [src, net]);
 
-  // Autoplay a 3–4s muted preview then pause
+  // Autoplay a 3–4s muted preview then pause (only in preview mode)
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
@@ -74,11 +76,14 @@ export default function ProgressiveVideo({ src, className, onLoadedData }: Props
       onLoadedData?.();
       // auto-play muted
       v.muted = true;
+      // Add: loop mode enables continuous looping
+      v.loop = mode === "loop";
       v.play().catch(() => {});
     };
 
     const onTime = () => {
-      if (!previewDone && v.currentTime >= 3.5 && !userEngaged) {
+      // Only pause after 3.5s in preview mode
+      if (mode !== "loop" && !previewDone && v.currentTime >= 3.5 && !userEngaged) {
         v.pause();
         setPreviewDone(true);
       }
@@ -90,7 +95,7 @@ export default function ProgressiveVideo({ src, className, onLoadedData }: Props
       v.removeEventListener("loadeddata", onLoaded);
       v.removeEventListener("timeupdate", onTime);
     };
-  }, [previewDone, userEngaged, onLoadedData]);
+  }, [previewDone, userEngaged, onLoadedData, mode]);
 
   return (
     <div className="relative group">
@@ -100,6 +105,8 @@ export default function ProgressiveVideo({ src, className, onLoadedData }: Props
         playsInline
         controls={userEngaged}
         preload="metadata"
+        // Add: ensure loop attribute reflects mode as well
+        loop={mode === "loop"}
         onClick={(e) => {
           e.stopPropagation();
           const v = videoRef.current;
@@ -115,7 +122,7 @@ export default function ProgressiveVideo({ src, className, onLoadedData }: Props
           <span className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
         </div>
       )}
-      {previewDone && !userEngaged && (
+      {mode !== "loop" && previewDone && !userEngaged && (
         <button
           className="absolute inset-x-0 bottom-2 mx-auto w-[140px] rounded-full bg-white/90 text-black text-sm py-1.5 shadow group-hover:opacity-100"
           onClick={(e) => {
