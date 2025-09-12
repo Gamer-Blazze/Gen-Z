@@ -515,12 +515,12 @@ export default function Dashboard() {
         </div>
 
         {/* Main Content */}
-        <main className="flex-1 w-full max-w-2xl mx-auto px-2 sm:px-4 py-3 sm:py-6 space-y-3 sm:space-y-4 pb-16">
+        <main className="flex-1 w-full max-w-xl mx-auto px-2 sm:px-3 py-2 sm:py-4 space-y-2 sm:space-y-3 pb-16">
           {/* Add: Create Post box above Stories, Facebook-style */}
           <CreatePost />
 
           {/* Stories row */}
-          <div className="rounded-2xl bg-card/60 border border-border/60 p-2 sm:p-3">
+          <div className="rounded-2xl bg-card/60 border border-border/60 p-1.5 sm:p-2">
             <Stories />
           </div>
 

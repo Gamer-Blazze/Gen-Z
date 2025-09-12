@@ -23,12 +23,12 @@ export function Stories() {
         <div className="flex gap-3 pb-1">
           {/* Your Story */}
           <button
-            className="group relative w-28 h-44 shrink-0 rounded-xl overflow-hidden border bg-muted/40"
+            className="group relative w-24 h-40 shrink-0 rounded-xl overflow-hidden border bg-muted/40"
             title="Add to story"
           >
             <div className="absolute inset-0 bg-gradient-to-b from-black/0 to-black/30" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <Avatar className="h-14 w-14 ring-2 ring-white">
+              <Avatar className="h-12 w-12 ring-2 ring-white">
                 <AvatarImage src={user?.image} />
                 <AvatarFallback className="bg-primary text-primary-foreground">
                   {user?.name?.charAt(0) || "U"}
@@ -37,7 +37,7 @@ export function Stories() {
             </div>
             <div className="absolute bottom-2 left-2 right-2">
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-[#1877F2] text-white">
+                <span className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-[#1877F2] text-white">
                   <Plus className="h-4 w-4" />
                 </span>
                 <span className="text-xs font-medium text-white drop-shadow">Create</span>
@@ -50,7 +50,7 @@ export function Stories() {
             const id = f?._id as string;
             const name = f?.name || "Friend";
             return (
-              <div key={id} className="relative w-28 h-44 shrink-0 rounded-xl overflow-hidden border bg-muted/40">
+              <div key={id} className="relative w-24 h-40 shrink-0 rounded-xl overflow-hidden border bg-muted/40">
                 <img
                   src={f?.image || "/logo.png"}
                   alt={name}
@@ -60,7 +60,7 @@ export function Stories() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-black/10 to-black/40" />
                 <div className="absolute top-2 left-2">
-                  <Avatar className="h-8 w-8 ring-2 ring-white">
+                  <Avatar className="h-7 w-7 ring-2 ring-white">
                     <AvatarImage src={f?.image} />
                     <AvatarFallback className="bg-muted text-[10px]">
                       {name?.charAt(0) || "F"}

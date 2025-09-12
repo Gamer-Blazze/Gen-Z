@@ -112,8 +112,8 @@ export function CreatePost() {
 
   return (
     <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-6">
-      <Card className="border-2 border-primary/20">
-        <CardContent className="p-4">
+      <Card className="border border-primary/20">
+        <CardContent className="p-3">
           <form onSubmit={handleSubmit}>
             <div className="flex gap-3">
               <Avatar>
@@ -127,7 +127,7 @@ export function CreatePost() {
                   placeholder="Share your thoughts…"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="min-h-[100px] resize-none border-0 p-0 text-base placeholder:text-muted-foreground focus-visible:ring-0"
+                  className="min-h-[72px] resize-none border-0 p-0 text-base placeholder:text-muted-foreground focus-visible:ring-0"
                 />
 
                 {/* Add: privacy selector */}
@@ -179,12 +179,12 @@ export function CreatePost() {
                           {isVideo ? (
                             <video
                               src={url}
-                              className="w-full h-28 object-cover"
+                              className="w-full h-24 object-cover"
                               muted
                               playsInline
                             />
                           ) : (
-                            <img src={url} alt="preview" className="w-full h-28 object-cover" />
+                            <img src={url} alt="preview" className="w-full h-24 object-cover" />
                           )}
                         </div>
                       );
