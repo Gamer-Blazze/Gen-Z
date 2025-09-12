@@ -231,18 +231,19 @@ export default function Friends() {
                           </div>
                           <div className="flex gap-2">
                             <Button
-                              className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                              className="bg-[#1877F2] hover:bg-[#166FE5] text-white gap-2"
                               onClick={async () => {
                                 try {
                                   await acceptFriend({ friendshipId: req._id });
-                                  toast.success("Request confirmed");
+                                  toast.success("Followed back");
                                   setTab("friends");
                                 } catch {
                                   toast.error("Failed to follow back");
                                 }
                               }}
                             >
-                              Confirm
+                              <UserPlus className="h-4 w-4" />
+                              Follow back
                             </Button>
                             <Button
                               variant="outline"
