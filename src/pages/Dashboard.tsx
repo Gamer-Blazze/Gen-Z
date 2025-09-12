@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { motion } from "framer-motion";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Sidebar } from "@/components/Sidebar";
 import { Feed } from "@/components/Feed";
@@ -23,10 +23,30 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Image as ImageIcon, Video as VideoIcon, Clapperboard } from "lucide-react";
 import { CreatePost } from "@/components/CreatePost";
 import { Heart, MessageSquare } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 
 export default function Dashboard() {
   const { isLoading, isAuthenticated, user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [showComingSoon, setShowComingSoon] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("hideComingSoon") !== "1";
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    // Sync in case of SSR hydration or storage changes
+    try {
+      const hidden = localStorage.getItem("hideComingSoon") === "1";
+      if (hidden && showComingSoon) setShowComingSoon(false);
+    } catch {
+      // no-op
+    }
+  }, []);
 
   // Background watcher for notifications: plays tones + toasts for calls/messages
   function NotificationWatcher() {
@@ -345,6 +365,41 @@ export default function Dashboard() {
         {/* Main Content */}
         <main className="flex-1 w-full max-w-2xl mx-auto px-2 sm:px-4 py-3 sm:py-6 space-y-3 sm:space-y-4 pb-16">
           {/* New: Visual composer to match requested UI */}
+          {showComingSoon && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl border border-border/60 bg-card/70 backdrop-blur p-3 sm:p-4"
+            >
+              <Alert className="relative pr-10 bg-transparent border-none p-0">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <AlertTitle className="text-sm font-semibold">Coming soon</AlertTitle>
+                    <AlertDescription className="text-sm text-muted-foreground">
+                      New features are on the way. Stay tuned!
+                    </AlertDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => {
+                      try {
+                        localStorage.setItem("hideComingSoon", "1");
+                      } catch {
+                        // no-op
+                      }
+                      setShowComingSoon(false);
+                    }}
+                    aria-label="Dismiss"
+                    title="Dismiss"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Alert>
+            </motion.div>
+          )}
           <CreatePost />
           {/* Stories row with tighter mobile padding */}
           <div className="rounded-2xl bg-card/60 border border-border/60 p-2 sm:p-3">
