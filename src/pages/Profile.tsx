@@ -531,7 +531,7 @@ function ManagePostsForUser({ targetUserId, canManage }: { targetUserId: Id<"use
 
         {posts && posts.length > 0 ? (
           <div className="space-y-4">
-            {posts.map((post) => (
+            {posts.map((post: any) => (
               <div key={post._id} className="relative">
                 {canManage && (
                   <div className="absolute right-2 top-2 z-10">

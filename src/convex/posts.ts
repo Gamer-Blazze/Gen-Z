@@ -117,7 +117,7 @@ export const getUserPosts = query({
     userId: v.id("users"),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("posts.getUserPosts", async (ctx, args) => {
     const posts = await ctx.db
       .query("posts")
       .withIndex("by_user", (q: any) => q.eq("userId", args.userId))
@@ -150,7 +150,7 @@ export const getUserPosts = query({
     );
 
     return mapped;
-  },
+  }),
 });
 
 // Like/unlike a post
@@ -303,7 +303,7 @@ export const getPostComments = query({
 // Add: delete a post (owner only) and its comments
 export const deletePost = mutation({
   args: { postId: v.id("posts") },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("posts.deletePost", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
@@ -320,7 +320,7 @@ export const deletePost = mutation({
     // Delete related comments
     const comments = await ctx.db
       .query("comments")
-      .withIndex("by_post", (q) => q.eq("postId", args.postId))
+      .withIndex("by_post", (q: any) => q.eq("postId", args.postId))
       .collect();
 
     for (const c of comments) {
@@ -330,7 +330,7 @@ export const deletePost = mutation({
     // Delete the post
     await ctx.db.delete(args.postId);
     return true;
-  },
+  }),
 });
 
 // ADD: helper to determine unpublished
@@ -347,7 +347,7 @@ export const publishPost = mutation({
     postId: v.id("posts"),
     targetStatus: v.optional(v.union(v.literal("working"), v.literal("active"))),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("posts.publishPost", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
@@ -371,13 +371,13 @@ export const publishPost = mutation({
     });
 
     return { updated: true, message: `Post moved to ${target}.` };
-  },
+  }),
 });
 
 // Add: get count of current user's unpublished posts
 export const getMyUnpublishedCount = query({
   args: {},
-  handler: async (ctx) => {
+  handler: withErrorLogging("posts.getMyUnpublishedCount", async (ctx, _args) => {
     const user = await getCurrentUser(ctx);
     if (!user) return { count: 0 };
 
@@ -387,9 +387,9 @@ export const getMyUnpublishedCount = query({
       .withIndex("by_user", (q: any) => q.eq("userId", user._id))
       .collect();
 
-    const count = posts.reduce((acc, p) => (isUnpublished(p, now) ? acc + 1 : acc), 0);
+    const count = posts.reduce((acc: number, p: any) => (isUnpublished(p, now) ? acc + 1 : acc), 0);
     return { count };
-  },
+  }),
 });
 
 // Add: publish all of current user's unpublished posts
@@ -397,7 +397,7 @@ export const publishAllMyUnpublished = mutation({
   args: {
     targetStatus: v.optional(v.union(v.literal("working"), v.literal("active"))),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("posts.publishAllMyUnpublished", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
@@ -423,13 +423,13 @@ export const publishAllMyUnpublished = mutation({
     }
 
     return { updated, message: `Moved ${updated} item(s) to ${args.targetStatus ?? "active"}.` };
-  },
+  }),
 });
 
 // ADD: Share a post (increments counter and notifies author)
 export const sharePost = mutation({
   args: { postId: v.id("posts") },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("posts.sharePost", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
@@ -453,7 +453,7 @@ export const sharePost = mutation({
     }
 
     return true;
-  },
+  }),
 });
 
 // Add: edit a post (owner only)
@@ -464,7 +464,7 @@ export const editPost = mutation({
     location: v.optional(v.string()),
     feeling: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("posts.editPost", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
@@ -480,5 +480,5 @@ export const editPost = mutation({
       // keep publishedAt/status unchanged
     });
     return true;
-  },
+  }),
 });
