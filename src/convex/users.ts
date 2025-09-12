@@ -3,6 +3,7 @@ import { query, QueryCtx, MutationCtx } from "./_generated/server";
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
+import { withErrorLogging } from "./utils/errors";
 
 /**
  * Get the current signed in user. Returns null if the user is not signed in.
@@ -11,7 +12,7 @@ import type { Doc } from "./_generated/dataModel";
  */
 export const currentUser = query({
   args: {},
-  handler: async (ctx) => {
+  handler: withErrorLogging("users.currentUser", async (ctx, _args) => {
     const user = await getCurrentUser(ctx);
 
     if (user === null) {
@@ -19,7 +20,7 @@ export const currentUser = query({
     }
 
     return user;
-  },
+  }),
 });
 
 /**
@@ -37,7 +38,7 @@ export const getCurrentUser = async (ctx: QueryCtx | MutationCtx) => {
 
 export const updateUserName = mutation({
   args: { name: v.string() },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("users.updateUserName", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
@@ -48,39 +49,37 @@ export const updateUserName = mutation({
     }
     await ctx.db.patch(user._id, { name });
     return true;
-  },
+  }),
 });
 
 export const updateUserImage = mutation({
   args: { image: v.string() },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("users.updateUserImage", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
     }
     await ctx.db.patch(user._id, { image: args.image });
     return true;
-  },
+  }),
 });
 
 export const getUserById = query({
   args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("users.getUserById", async (ctx, args) => {
     const user = await ctx.db.get(args.userId);
     return user ?? null;
-  },
+  }),
 });
 
 export const getUserCounts = query({
   args: {},
-  handler: async (ctx) => {
-    // Count total users
+  handler: withErrorLogging("users.getUserCounts", async (ctx, _args) => {
     let totalUsers = 0;
     for await (const _ of ctx.db.query("users")) {
       totalUsers++;
     }
 
-    // Count users marked online using the index
     let onlineUsers = 0;
     for await (const _ of ctx.db
       .query("users")
@@ -88,7 +87,6 @@ export const getUserCounts = query({
       onlineUsers++;
     }
 
-    // NEW: Count communities (group conversations) using index
     let communitiesCount = 0;
     for await (const _ of ctx.db
       .query("conversations")
@@ -97,13 +95,13 @@ export const getUserCounts = query({
     }
 
     return { totalUsers, onlineUsers, communitiesCount };
-  },
+  }),
 });
 
 // Fetch user by username
 export const getUserByUsername = query({
   args: { username: v.string() },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("users.getUserByUsername", async (ctx, args) => {
     const uname = args.username.trim().toLowerCase();
     if (!uname) return null;
 
@@ -113,16 +111,15 @@ export const getUserByUsername = query({
       .unique();
 
     return user ?? null;
-  },
+  }),
 });
 
 // Check username availability (case-insensitive)
 export const checkUsernameAvailable = query({
   args: { username: v.string() },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("users.checkUsernameAvailable", async (ctx, args) => {
     const uname = args.username.trim().toLowerCase();
     if (!/^[a-z0-9._-]{3,20}$/.test(uname)) {
-      // invalid format treated as not available for safety (frontends should validate format)
       return { available: false };
     }
     const existing = await ctx.db
@@ -132,7 +129,7 @@ export const checkUsernameAvailable = query({
       .catch(() => null);
 
     return { available: !existing };
-  },
+  }),
 });
 
 // Update multiple user profile fields with basic validation and username uniqueness
@@ -143,7 +140,7 @@ export const updateUserProfile = mutation({
     coverImage: v.optional(v.string()),
     username: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("users.updateUserProfile", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
@@ -170,7 +167,6 @@ export const updateUserProfile = mutation({
       if (!/^[a-z0-9._-]{3,20}$/.test(uname)) {
         throw new Error("Username must be 3-20 chars (a-z, 0-9, ., _, -)");
       }
-      // ensure not taken by someone else
       const existing = await ctx.db
         .query("users")
         .withIndex("by_username", (q: any) => q.eq("username", uname))
@@ -187,7 +183,7 @@ export const updateUserProfile = mutation({
 
     await ctx.db.patch(user._id, patch);
     return true;
-  },
+  }),
 });
 
 export const updateUserSettings = mutation({
@@ -198,7 +194,6 @@ export const updateUserSettings = mutation({
         comments: v.optional(v.boolean()),
         friendRequests: v.optional(v.boolean()),
         messages: v.optional(v.boolean()),
-        // richer notifications (optional)
         sound: v.optional(v.boolean()),
         vibration: v.optional(v.boolean()),
         previews: v.optional(v.boolean()),
@@ -208,29 +203,29 @@ export const updateUserSettings = mutation({
       v.object({
         canMessage: v.optional(v.union(v.literal("everyone"), v.literal("friends"))),
         postsVisibility: v.optional(v.union(v.literal("public"), v.literal("friends"))),
-        // Active status toggle
         showActiveStatus: v.optional(v.boolean()),
-        // optional extras
-        lastSeenVisibility: v.optional(v.union(v.literal("everyone"), v.literal("friends"), v.literal("nobody"))),
-        profilePhotoVisibility: v.optional(v.union(v.literal("everyone"), v.literal("friends"), v.literal("nobody"))),
+        lastSeenVisibility: v.optional(
+          v.union(v.literal("everyone"), v.literal("friends"), v.literal("nobody"))
+        ),
+        profilePhotoVisibility: v.optional(
+          v.union(v.literal("everyone"), v.literal("friends"), v.literal("nobody"))
+        ),
         readReceipts: v.optional(v.boolean()),
       })
     ),
-    // Preferences updates (language + density)
     preferences: v.optional(
       v.object({
         language: v.optional(v.union(v.literal("en"), v.literal("es"), v.literal("hi"))),
         density: v.optional(v.union(v.literal("comfortable"), v.literal("compact"))),
       })
     ),
-    // NEW: security updates (e.g., 2FA toggle)
     security: v.optional(
       v.object({
         twoFactorEnabled: v.optional(v.boolean()),
       })
     ),
   },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("users.updateUserSettings", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
@@ -264,17 +259,16 @@ export const updateUserSettings = mutation({
 
     await ctx.db.patch(user._id, { settings: merged });
     return true;
-  },
+  }),
 });
 
 export const getUserByRawId = query({
   args: { rawId: v.string() },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("users.getUserByRawId", async (ctx, args) => {
     const id = args.rawId.trim();
     if (!id) return null;
     try {
       const maybeUser = await ctx.db.get(id as any);
-      // Ensure it's a users doc (best-effort check)
       if (maybeUser && (maybeUser as any).email !== undefined) {
         return maybeUser as Doc<"users">;
       }
@@ -282,12 +276,12 @@ export const getUserByRawId = query({
     } catch {
       return null;
     }
-  },
+  }),
 });
 
 export const updateStatus = mutation({
   args: { isOnline: v.boolean() },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("users.updateStatus", async (ctx, args) => {
     const user = await getCurrentUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
@@ -298,13 +292,13 @@ export const updateStatus = mutation({
     }
     await ctx.db.patch(user._id, patch);
     return true;
-  },
+  }),
 });
 
 // Return privacy-respecting last seen data for a user
 export const getLastSeen = query({
   args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
+  handler: withErrorLogging("users.getLastSeen", async (ctx, args) => {
     const viewer = await getCurrentUser(ctx);
     if (!viewer) {
       throw new Error("Not authenticated");
@@ -327,36 +321,11 @@ export const getLastSeen = query({
     }
 
     if (lastSeenVisibility === "friends") {
-      // TEMP: To avoid schema/index dependency blocking deploy,
-      // conservatively hide last seen for "friends" until friendship checks are wired.
       return { visible: false } as const;
-
-      // NOTE: When ready, replace the above with a friendship check using proper indexes:
-      // const a = await ctx.db
-      //   .query("friendships")
-      //   .withIndex("by_user1_and_user2", (q) =>
-      //     q.eq("userId1", viewer._id).eq("userId2", target._id)
-      //   )
-      //   .unique()
-      //   .catch(() => null);
-      // const b = !a
-      //   ? await ctx.db
-      //       .query("friendships")
-      //       .withIndex("by_user2_and_user1", (q) =>
-      //         q.eq("userId2", viewer._id).eq("userId1", target._id)
-      //       )
-      //       .unique()
-      //       .catch(() => null)
-      //   : null;
-      // const friendship = a || b;
-      // const isFriends = !!friendship && (friendship as any).status === "accepted";
-      // if (!isFriends) {
-      //   return { visible: false } as const;
-      // }
     }
 
     const isOnline = !!(target as any).isOnline;
     const lastSeen = (target as any).lastSeen ?? null;
     return { visible: true, isOnline, lastSeen } as const;
-  },
+  }),
 });
