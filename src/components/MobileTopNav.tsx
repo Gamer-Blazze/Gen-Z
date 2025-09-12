@@ -32,7 +32,7 @@ export function MobileTopNav({ showOnDesktop = false }: { showOnDesktop?: boolea
                 isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              <Icon className={`w-6 h-6 sm:w-5 sm:h-5 mb-0.5 ${isActive ? "text-primary" : ""}`} />
+              <Icon className={`w-7 h-7 sm:w-6 sm:h-6 mb-0.5 ${isActive ? "text-primary" : ""}`} />
               <span className="hidden sm:inline">{item.label}</span>
             </button>
           );
