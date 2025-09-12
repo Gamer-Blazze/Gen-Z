@@ -90,10 +90,14 @@ const LikeToggleButton = memo(function LikeToggleButton({
       title={isLiked ? "Unlike" : "Like"}
       aria-busy={disabled ? true : undefined}
       disabled={disabled}
-      className={`gap-2 transition-none ${isLiked ? "text-red-500" : ""} pointer-events-auto relative z-10`}
+      className={`group relative z-10 gap-2 rounded-full px-3 py-1.5 transition-colors pointer-events-auto ${
+        isLiked
+          ? "bg-red-50 text-red-600 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-red-500/40 dark:bg-red-500/10 dark:hover:bg-red-500/20"
+          : "bg-muted hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring/60"
+      }`}
       data-state={isLiked ? "on" : "off"}
     >
-      <Heart className={`w-4 h-4 ${isLiked ? "fill-current" : ""}`} />
+      <Heart className={`w-4 h-4 transition-transform duration-200 ${isLiked ? "fill-current scale-110" : "scale-100"}`} />
       <span className="text-xs sm:text-sm">{isLiked ? "Unlike" : "Like"}</span>
       <span aria-hidden="true" className="ml-1 tabular-nums">{count}</span>
     </Button>
