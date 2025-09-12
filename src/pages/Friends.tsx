@@ -148,22 +148,28 @@ export default function Friends() {
 
             {/* Tabs */}
             <Tabs value={tab} onValueChange={(v) => setTab(v as any)} className="w-full">
-              <TabsList className="bg-muted/50">
+              <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex rounded-full bg-muted p-1 gap-1">
                 <TabsTrigger
                   value="requests"
-                  className="data-[state=active]:text-[#1877F2] data-[state=active]:border-b-2 data-[state=active]:border-[#1877F2] rounded-none"
+                  className="rounded-full px-4 py-1.5 text-sm text-muted-foreground transition
+                             data-[state=active]:bg-background data-[state=active]:text-foreground
+                             data-[state=active]:shadow-sm"
                 >
                   Friend Requests
                 </TabsTrigger>
                 <TabsTrigger
                   value="friends"
-                  className="data-[state=active]:text-[#1877F2] data-[state=active]:border-b-2 data-[state=active]:border-[#1877F2] rounded-none"
+                  className="rounded-full px-4 py-1.5 text-sm text-muted-foreground transition
+                             data-[state=active]:bg-background data-[state=active]:text-foreground
+                             data-[state=active]:shadow-sm"
                 >
                   Your Friends
                 </TabsTrigger>
                 <TabsTrigger
                   value="suggestions"
-                  className="data-[state=active]:text-[#1877F2] data-[state=active]:border-b-2 data-[state=active]:border-[#1877F2] rounded-none"
+                  className="rounded-full px-4 py-1.5 text-sm text-muted-foreground transition
+                             data-[state=active]:bg-background data-[state=active]:text-foreground
+                             data-[state=active]:shadow-sm"
                 >
                   Suggestions
                 </TabsTrigger>
