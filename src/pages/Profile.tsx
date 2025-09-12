@@ -5,7 +5,7 @@ import { useNavigate } from "react-router";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useQuery, useMutation, useAction } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { PostCard } from "@/components/PostCard";
 import { toast } from "sonner";
@@ -371,11 +371,11 @@ export default function Profile() {
                               size="sm"
                               variant="secondary"
                               className="inline-flex items-center gap-1.5"
-                              aria-label="Following actions"
+                              aria-label="Friend options"
                               disabled={relWorking}
                               aria-busy={relWorking || undefined}
                             >
-                              Following
+                              Friends
                               <ChevronDown className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -383,26 +383,27 @@ export default function Profile() {
                             <DropdownMenuItem
                               className="cursor-pointer"
                               onClick={async () => {
+                                if (!window.confirm("Unfriend this user?")) return;
                                 try {
                                   setRelWorking(true);
                                   await doUnfriend({ otherUserId: targetUser._id });
-                                  toast.success("Unfollowed");
+                                  toast.success("Unfriended");
                                 } catch (e: any) {
-                                  const msg = e?.message || "Failed to unfollow";
+                                  const msg = e?.message || "Failed to unfriend";
                                   toast.error(msg);
                                 } finally {
                                   setRelWorking(false);
                                 }
                               }}
                             >
-                              {relWorking ? "Working..." : "Unfollow"}
+                              {relWorking ? "Working..." : "Unfriend"}
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
                     )}
 
-                    {/* Cancel Request only when backend says it's really pending */}
+                    {/* Outgoing request → Cancel Request */}
                     {isPending && (
                       <Button
                         size="sm"
@@ -413,33 +414,33 @@ export default function Profile() {
                           try {
                             setRelWorking(true);
                             await cancelOutgoing({ otherUserId: targetUser._id });
-                            toast.success("Follow request canceled");
+                            toast.success("Friend request canceled");
                           } catch (e: any) {
                             const msg =
                               e?.message ||
-                              "Failed to cancel follow. Please try again.";
+                              "Failed to cancel request. Please try again.";
                             toast.error(msg);
                           } finally {
                             setRelWorking(false);
                           }
                         }}
                       >
-                        Cancel Follow
+                        Cancel Request
                       </Button>
                     )}
 
-                    {/* Incoming request → Respond */}
+                    {/* Incoming request → Respond (route to Friends page to accept/decline) */}
                     {isIncoming && (
                       <Button
                         size="sm"
                         className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
                         onClick={() => navigate("/friends")}
                       >
-                        Follow back
+                        Respond
                       </Button>
                     )}
 
-                    {/* Add Friend only when backend reports none/undefined */}
+                    {/* None → Add Friend */}
                     {isNone && (
                       <Button
                         size="sm"
@@ -450,13 +451,13 @@ export default function Profile() {
                           try {
                             setRelWorking(true);
                             await sendFriend({ userId: targetUser._id });
-                            toast.success("Follow request sent");
+                            toast.success("Friend request sent");
                           } catch (e: any) {
                             const raw = e?.message || "";
-                            let msg = "Failed to follow. Please try again.";
-                            if (raw.includes("Not authenticated")) msg = "Please sign in to follow.";
-                            if (raw.includes("Cannot send friend request to yourself")) msg = "You cannot follow yourself.";
-                            if (raw.includes("Already friends")) msg = "You're already following.";
+                            let msg = "Failed to send request. Please try again.";
+                            if (raw.includes("Not authenticated")) msg = "Please sign in to add friends.";
+                            if (raw.includes("Cannot send friend request to yourself")) msg = "You cannot add yourself.";
+                            if (raw.includes("Already friends")) msg = "You're already friends.";
                             if (raw.includes("Missing recipient user id")) msg = "Unable to find this user.";
                             if (raw.includes("Unable to find this user.")) msg = "Unable to find this user.";
                             toast.error(msg);
@@ -465,7 +466,7 @@ export default function Profile() {
                           }
                         }}
                       >
-                        Follow
+                        Add Friend
                       </Button>
                     )}
 
