@@ -348,11 +348,14 @@ export default function Profile() {
                               className="cursor-pointer"
                               onClick={async () => {
                                 try {
+                                  setRelWorking(true);
                                   await doUnfriend({ otherUserId: targetUser._id });
                                   toast.success("Unfollowed");
                                 } catch (e: any) {
                                   const msg = e?.message || "Failed to unfollow";
                                   toast.error(msg);
+                                } finally {
+                                  setRelWorking(false);
                                 }
                               }}
                             >
@@ -368,8 +371,11 @@ export default function Profile() {
                       <Button
                         size="sm"
                         variant="outline"
+                        disabled={relWorking}
+                        aria-busy={relWorking || undefined}
                         onClick={async () => {
                           try {
+                            setRelWorking(true);
                             await cancelOutgoing({ otherUserId: targetUser._id });
                             toast.success("Follow request canceled");
                           } catch (e: any) {
@@ -377,6 +383,8 @@ export default function Profile() {
                               e?.message ||
                               "Failed to cancel follow. Please try again.";
                             toast.error(msg);
+                          } finally {
+                            setRelWorking(false);
                           }
                         }}
                       >
@@ -400,8 +408,11 @@ export default function Profile() {
                       <Button
                         size="sm"
                         className="bg-[#1877F2] hover:bg-[#166FE5] text-white"
+                        disabled={relWorking}
+                        aria-busy={relWorking || undefined}
                         onClick={async () => {
                           try {
+                            setRelWorking(true);
                             await sendFriend({ userId: targetUser._id });
                             toast.success("Follow request sent");
                           } catch (e: any) {
@@ -413,6 +424,8 @@ export default function Profile() {
                             if (raw.includes("Missing recipient user id")) msg = "Unable to find this user.";
                             if (raw.includes("Unable to find this user.")) msg = "Unable to find this user.";
                             toast.error(msg);
+                          } finally {
+                            setRelWorking(false);
                           }
                         }}
                       >
