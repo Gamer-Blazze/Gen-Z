@@ -90,16 +90,24 @@ const LikeToggleButton = memo(function LikeToggleButton({
       title={isLiked ? "Unlike" : "Like"}
       aria-busy={disabled ? true : undefined}
       disabled={disabled}
-      className={`group relative z-10 gap-2 rounded-full px-3 py-1.5 transition-colors pointer-events-auto ${
+      className={`group relative z-10 gap-2 rounded-full px-3 py-1.5 transition-all active:scale-[0.98] pointer-events-auto border ${
         isLiked
-          ? "bg-red-50 text-red-600 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-red-500/40 dark:bg-red-500/10 dark:hover:bg-red-500/20"
-          : "bg-muted hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring/60"
-      }`}
+          ? "bg-red-600/10 text-red-600 border-red-300 hover:bg-red-600/15 hover:text-red-700 focus-visible:ring-2 focus-visible:ring-red-500/40 dark:border-red-500/30"
+          : "bg-muted/60 text-foreground border-border/60 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/60"
+      } shadow-sm`}
       data-state={isLiked ? "on" : "off"}
     >
-      <Heart className={`w-4 h-4 transition-transform duration-200 ${isLiked ? "fill-current scale-110" : "scale-100"}`} />
-      <span className="text-xs sm:text-sm">{isLiked ? "Unlike" : "Like"}</span>
-      <span aria-hidden="true" className="ml-1 tabular-nums">{count}</span>
+      <Heart
+        className={`w-4 h-4 transition-transform duration-200 ${
+          isLiked ? "scale-110 fill-current drop-shadow-sm" : "scale-100"
+        }`}
+      />
+      <span className="text-xs sm:text-sm font-medium">
+        {isLiked ? "Unlike" : "Like"}
+      </span>
+      <span aria-hidden="true" className="ml-1 tabular-nums text-xs sm:text-sm font-semibold">
+        {count}
+      </span>
     </Button>
   );
 });
