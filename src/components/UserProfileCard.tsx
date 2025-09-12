@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,6 +8,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { toast } from "sonner";
 
 type RequestStatus = "none" | "pending" | "friends";
 
@@ -48,17 +51,46 @@ export function UserProfileCard({
   const [status, setStatus] = useState<RequestStatus>(requestStatus);
   const [working, setWorking] = useState(false);
 
-  // Default mock handlers if not provided
+  // Live relationship from backend when handlers aren't provided (auto-wire)
+  const relationship = useQuery(
+    api.friends.getRelationshipStatus,
+    !sendFriendRequest && !cancelFriendRequest && !unfriendUser
+      ? { otherUserId: userId as any }
+      : "skip"
+  );
+
+  const sendReq = useMutation(api.friends.sendFriendRequest);
+  const cancelOutgoing = useMutation(api.friends.cancelOutgoingRequest);
+  const doUnfriend = useMutation(api.friends.unfriend);
+
+  // Derive status from backend (map to local RequestStatus)
+  const derivedStatus: RequestStatus = useMemo(() => {
+    if (relationship === "friends") return "friends";
+    if (relationship === "outgoing_request") return "pending";
+    if (relationship === "incoming_request") return "pending"; // we'll render Respond in this case below
+    if (relationship === "self") return "friends";
+    return "none";
+  }, [relationship]);
+
+  // Keep local status in sync when auto-wired
+  useEffect(() => {
+    if (!sendFriendRequest && !cancelFriendRequest && !unfriendUser && relationship !== undefined) {
+      setStatus(derivedStatus);
+    }
+  }, [relationship, derivedStatus, sendFriendRequest, cancelFriendRequest, unfriendUser]);
+
   const onSend = async () => {
     setWorking(true);
     try {
       if (sendFriendRequest) {
         await sendFriendRequest(userId);
       } else {
-        await new Promise((r) => setTimeout(r, 400));
-        // console.log("Mock: sendFriendRequest", userId);
+        await sendReq({ userId: userId as any });
       }
       setStatus("pending");
+      toast.success("Friend request sent");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to send request");
     } finally {
       setWorking(false);
     }
@@ -70,10 +102,12 @@ export function UserProfileCard({
       if (cancelFriendRequest) {
         await cancelFriendRequest(userId);
       } else {
-        await new Promise((r) => setTimeout(r, 400));
-        // console.log("Mock: cancelFriendRequest", userId);
+        await cancelOutgoing({ otherUserId: userId as any });
       }
       setStatus("none");
+      toast.success("Friend request canceled");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to cancel request");
     } finally {
       setWorking(false);
     }
@@ -85,10 +119,12 @@ export function UserProfileCard({
       if (unfriendUser) {
         await unfriendUser(userId);
       } else {
-        await new Promise((r) => setTimeout(r, 400));
-        // console.log("Mock: unfriendUser", userId);
+        await doUnfriend({ otherUserId: userId as any });
       }
       setStatus("none");
+      toast.success("Unfriended");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to unfriend");
     } finally {
       setWorking(false);
     }
@@ -149,7 +185,15 @@ export function UserProfileCard({
 
           {/* Action Button */}
           <div className="w-full sm:w-auto">
-            {status === "none" && (
+            {relationship === "incoming_request" && !sendFriendRequest && !cancelFriendRequest && !unfriendUser ? (
+              <Button
+                onClick={() => (window.location.href = "/friends")}
+                disabled={working}
+                className="w-full sm:w-auto bg-[#1877F2] hover:bg-[#166FE5] text-white transition-colors"
+              >
+                Respond
+              </Button>
+            ) : status === "none" ? (
               <Button
                 onClick={onSend}
                 disabled={working}
@@ -157,8 +201,7 @@ export function UserProfileCard({
               >
                 {working ? "Adding..." : "Add Friend"}
               </Button>
-            )}
-            {status === "pending" && (
+            ) : status === "pending" ? (
               <Button
                 onClick={onCancel}
                 disabled={working}
@@ -167,8 +210,7 @@ export function UserProfileCard({
               >
                 {working ? "Cancelling..." : "Cancel Request"}
               </Button>
-            )}
-            {status === "friends" && (
+            ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
