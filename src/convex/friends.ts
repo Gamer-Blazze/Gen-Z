@@ -150,11 +150,11 @@ export const getUserFriends = query({
       .withIndex("by_from_and_to", (q: any) => q.eq("from", targetUserId).gt("to", "")) // small slice
       .take(500);
 
-    // Accepted incoming -> friends are "from"
+    // FIX: use index by_to_and_status to keep index field order correct
     const acceptedIncoming = await ctx.db
       .query("friend_requests")
-      .withIndex("by_from_and_to", (q: any) => q.gt("from", "").eq("to", targetUserId)) // small slice
-      .take(500);
+      .withIndex("by_to_and_status", (q: any) => q.eq("to", targetUserId).eq("status", "accepted"))
+      .collect();
 
     const friendsIds: Set<string> = new Set();
 
@@ -164,9 +164,8 @@ export const getUserFriends = query({
       }
     }
     for (const row of acceptedIncoming) {
-      if (row.status === "accepted") {
-        friendsIds.add(row.from as unknown as string);
-      }
+      // already filtered to accepted via the index
+      friendsIds.add(row.from as unknown as string);
     }
 
     const results: any[] = [];
