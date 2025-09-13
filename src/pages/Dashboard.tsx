@@ -87,6 +87,16 @@ export default function Dashboard() {
     }
   });
 
+  // Add: local online status for UI pill
+  const [online, setOnline] = useState<boolean>(() => {
+    if (typeof navigator === "undefined") return true;
+    try {
+      return navigator.onLine;
+    } catch {
+      return true;
+    }
+  });
+
   // Add: real-time unread notifications count
   const unreadCount = useQuery(
     api.notifications.getUnreadCount,
@@ -121,9 +131,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     const goOnline = () => {
+      // Update UI pill immediately
+      setOnline(true);
       safeUpdatePresence(true);
     };
     const goOffline = () => {
+      // Update UI pill immediately
+      setOnline(false);
       safeUpdatePresence(false);
     };
 
@@ -147,7 +161,14 @@ export default function Dashboard() {
   useEffect(() => {
     // Mark online on mount
     safeUpdatePresence(true);
+    // Initialize UI pill accurately
+    try {
+      setOnline(typeof navigator !== "undefined" ? navigator.onLine && !document.hidden : true);
+    } catch {/* no-op */}
+
     const onVisibility = () => {
+      const active = !document.hidden && (typeof navigator === "undefined" ? true : navigator.onLine);
+      setOnline(active);
       safeUpdatePresence(!document.hidden);
     };
     window.addEventListener("visibilitychange", onVisibility);
@@ -220,6 +241,19 @@ export default function Dashboard() {
             >
               <Clapperboard className="h-4 w-4" />
             </button>
+
+            {/* Add: Online/Offline pill */}
+            <span
+              className="hidden md:inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs border bg-muted/60"
+              title={online ? "You are online" : "You are offline"}
+              aria-live="polite"
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${online ? "bg-emerald-500" : "bg-muted-foreground"}`}
+              />
+              {online ? "Online" : "Offline"}
+            </span>
+
             {/* Notifications */}
             <ErrorBoundary
               name="Notifications"
