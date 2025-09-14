@@ -394,9 +394,19 @@ export default function Dashboard() {
           <CreatePost />
 
           {/* Stories row */}
-          <div className="rounded-2xl bg-card/60 border border-border/60 p-1.5 sm:p-2">
-            <Stories />
-          </div>
+          {/* Wrap Stories with ErrorBoundary to prevent API issues from breaking the page */}
+          <ErrorBoundary
+            name="Stories"
+            renderFallback={() => (
+              <div className="rounded-2xl bg-card/60 border border-border/60 p-4 text-sm text-muted-foreground">
+                Stories are unavailable right now.
+              </div>
+            )}
+          >
+            <div className="rounded-2xl bg-card/60 border border-border/60 p-1.5 sm:p-2">
+              <Stories />
+            </div>
+          </ErrorBoundary>
 
           {/* Feed remains real-time and functional */}
           <ErrorBoundary name="Feed">
@@ -407,8 +417,29 @@ export default function Dashboard() {
         {/* Right Sidebar */}
         <div className="hidden xl:block">
           <div className="w-80 space-y-4 pr-2">
-            <FriendsSidebar />
-            <FriendsOnlineSidebar />
+            {/* Guard FriendsSidebar */}
+            <ErrorBoundary
+              name="FriendsSidebar"
+              renderFallback={() => (
+                <div className="rounded-xl border bg-card/60 p-4 text-sm text-muted-foreground">
+                  Friends list is unavailable.
+                </div>
+              )}
+            >
+              <FriendsSidebar />
+            </ErrorBoundary>
+
+            {/* Guard FriendsOnlineSidebar */}
+            <ErrorBoundary
+              name="FriendsOnlineSidebar"
+              renderFallback={() => (
+                <div className="rounded-xl border bg-card/60 p-4 text-sm text-muted-foreground">
+                  Online friends are unavailable.
+                </div>
+              )}
+            >
+              <FriendsOnlineSidebar />
+            </ErrorBoundary>
           </div>
         </div>
       </div>
