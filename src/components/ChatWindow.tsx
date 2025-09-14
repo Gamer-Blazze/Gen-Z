@@ -1,808 +1,467 @@
-import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useAuth } from "@/hooks/use-auth";
+import { Id } from "@/convex/_generated/dataModel";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Phone, Video, MoreVertical, Info, Smile, Images, Bell, BellOff } from "lucide-react";
-import { Check, CheckCheck } from "lucide-react";
-import { motion } from "framer-motion";
-import { formatDistanceToNow } from "date-fns";
-import { Id } from "@/convex/_generated/dataModel";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/hooks/use-auth";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Send, Paperclip, Image as ImageIcon, Video, File, Check, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
-import { Paperclip } from "lucide-react";
-import { useNavigate } from "react-router";
-import CallDialog from "./CallDialog";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Mic, Square } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { formatDistanceToNow } from "date-fns";
+import ProgressiveImage from "./ProgressiveImage";
+import ProgressiveVideo from "./ProgressiveVideo";
+import { onUserInteractionUnlock } from "@/lib/autoplaySound";
+import { cacheMessages, getCachedMessages } from "@/lib/idb";
 
 interface ChatWindowProps {
-  conversationId: Id<"conversations">;
+  conversationId: Id<"conversations"> | null;
 }
 
-export function ChatWindow({ conversationId }: ChatWindowProps) {
-  const startCall = useMutation(api.calls.startCall);
-  const activeCall = useQuery(api.calls.getActiveCallForUser, { conversationId });
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+
+export default function ChatWindow({ conversationId }: ChatWindowProps) {
   const { user } = useAuth();
-
-  const [callOpen, setCallOpen] = useState(false);
-  const [callId, setCallId] = useState<Id<"calls"> | null>(null);
-  const [callType, setCallType] = useState<"voice" | "video">("voice");
-  const [callRole, setCallRole] = useState<"caller" | "callee">("caller");
-  const [incomingOpen, setIncomingOpen] = useState(false);
   const [message, setMessage] = useState("");
-  // Add: submission state for sending messages
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [inputFocused, setInputFocused] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<BlobPart[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
-  const [atBottom, setAtBottom] = useState(true);
-  const lastMessageIdRef = useRef<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingRef = useRef<number>(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const endCall = useMutation(api.calls.endCall);
+  const conversations = useQuery(api.messages.getUserConversations, {});
+  const conversation = conversations?.find((c: any) => c._id === conversationId) || null;
 
-  // Add: conversation details and messages
-  const conversationsList = useQuery(api.messages.getUserConversations, {});
-  const conversation = conversationsList?.find((c: any) => c._id === conversationId);
-  const otherUser = conversation?.isGroup ? null : (conversation?.otherParticipants?.[0] ?? null);
+  const messagesQuery = useQuery(
+    api.messages.getMessages,
+    conversationId ? { 
+      conversationId, 
+      paginationOpts: { numItems: 50, cursor: null } 
+    } : "skip"
+  );
 
-  const messages = useQuery(api.messages.getConversationMessages, { conversationId, limit: 200 }) as any[] | undefined;
+  const typingUsers = useQuery(
+    api.messages.getTyping,
+    conversationId ? { conversationId } : "skip"
+  );
 
-  // Add: required message mutations
-  const sendMessage = useMutation(api.messages.sendMessage);
-  const markAsRead = useMutation(api.messages.markMessagesAsRead);
-
-  // Add: helper to initiate a call
-  const placeCall = async (type: "voice" | "video") => {
-    try {
-      const newCallId = await startCall({ conversationId, type });
-      setCallType(type);
-      setCallRole("caller");
-      setCallId(newCallId as Id<"calls">);
-      setCallOpen(true);
-    } catch (e) {
-      toast.error("Failed to start call");
-      console.error(e);
-    }
-  };
-
-  // When there's an incoming ringing call for me, show Accept/Reject prompt; auto-open only if already accepted
-  useEffect(() => {
-    if (!activeCall || !user) return;
-    const isIncoming = activeCall.status === "ringing" && activeCall.calleeId === user._id;
-    const isAcceptedOngoing = activeCall.status === "accepted";
-
-    if (isIncoming) {
-      // Show incoming prompt instead of auto-opening
-      setIncomingOpen(true);
-    } else if (isAcceptedOngoing && !callOpen) {
-      setCallId(activeCall._id as Id<"calls">);
-      setCallType(activeCall.type);
-      setCallRole(activeCall.callerId === user._id ? "caller" : "callee");
-      setCallOpen(true);
-      setIncomingOpen(false);
-    }
-  }, [activeCall, user, callOpen]);
-
-  // Close incoming prompt if call ends or disappears
-  useEffect(() => {
-    if (!activeCall || activeCall.status === "ended") {
-      setIncomingOpen(false);
-    }
-  }, [activeCall]);
-
-  // Add: handle scroll state based on container scroll
-  const handleScroll = () => {
-    const el = messagesContainerRef.current;
-    if (!el) return;
-    const threshold = 32; // px tolerance
-    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
-    setAtBottom(isNearBottom);
-  };
-
-  // Add: helpers to jump
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const ENABLE_MESSAGE_SOUND = false;
-
-  const playNotify = async () => {
-    if (!ENABLE_MESSAGE_SOUND) return;
-    if (notifyMuted) return; // respect mute
-    try {
-      const Ctor = (window as any).AudioContext || (window as any).webkitAudioContext;
-      const ctx = new Ctor();
-      const master = ctx.createGain();
-      master.gain.value = 0.06;
-      master.connect(ctx.destination);
-
-      // Soft double-chime: two short sine pings with slight pitch difference
-      const makePing = (freq: number, startAt: number) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, ctx.currentTime + startAt);
-        gain.gain.setValueAtTime(0.0001, ctx.currentTime + startAt);
-        gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + startAt + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startAt + 0.18);
-        osc.connect(gain);
-        gain.connect(master);
-        osc.start(ctx.currentTime + startAt);
-        osc.stop(ctx.currentTime + startAt + 0.22);
-      };
-
-      makePing(880, 0);     // first chime
-      makePing(988, 0.12);  // second chime slightly higher
-
-      // Close context after envelope finishes
-      setTimeout(() => ctx.close().catch(() => {}), 500);
-    } catch {
-      // ignore audio errors to avoid blocking UI
-    }
-  };
-
-  // Add: play notification sound for new incoming messages only
-  useEffect(() => {
-    if (!messages || messages.length === 0) return;
-    const last = messages[messages.length - 1];
-    // Initialize without playing on first load
-    if (lastMessageIdRef.current === null) {
-      lastMessageIdRef.current = (last as any)._id as string;
-      return;
-    }
-    if (lastMessageIdRef.current !== (last as any)._id) {
-      lastMessageIdRef.current = (last as any)._id as string;
-      // Beep only if message is from someone else
-      if (last.senderId !== user?._id) {
-        playNotify();
-      }
-    }
-  }, [messages, user?._id]);
-
-  // Add: lightweight animated waveform component for recording indicator
-  const RecordingWaveform = () => {
-    // Animate bars with CSS and minor JS-driven randomization to feel alive
-    const [bars, setBars] = useState<number[]>([8, 14, 20, 14, 8]);
-    useEffect(() => {
-      let raf = 0;
-      let t = 0;
-      const loop = () => {
-        t += 1;
-        // subtle, smooth variation
-        setBars((prev) =>
-          prev.map((h, i) => {
-            const base = [8, 14, 22, 14, 8][i];
-            const wobble = Math.sin((t + i * 6) / 6) * 6;
-            const jitter = (Math.random() - 0.5) * 2;
-            return Math.max(6, Math.min(28, Math.round(base + wobble + jitter)));
-          })
-        );
-        raf = requestAnimationFrame(loop);
-      };
-      raf = requestAnimationFrame(loop);
-      return () => cancelAnimationFrame(raf);
-    }, []);
-    return (
-      <div className="flex items-end gap-0.5 h-7 px-2 rounded-full bg-muted/60 border">
-        {bars.map((h, idx) => (
-          <div
-            key={idx}
-            className="w-[3px] rounded-sm bg-primary"
-            style={{ height: `${h}px` }}
-          />
-        ))}
-      </div>
-    );
-  };
-
-  // Add: toggle to respect read receipts privacy (disabled if explicitly false)
-  const readReceiptsEnabled = user?.settings?.privacy?.readReceipts !== false;
-
-  // NEW: query last-seen/active with privacy applied
-  // const lastSeenInfo = useQuery(
-  //   api.users.getLastSeen,
-  //   otherUser?._id ? { userId: otherUser._id } : "skip"
-  // );
-
-  useEffect(() => {
-    if (atBottom) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, atBottom]);
-
-  useEffect(() => {
-    // Respect privacy: only send read receipts when enabled
-    if (readReceiptsEnabled) {
-      markAsRead({ conversationId });
-    }
-  }, [conversationId, markAsRead, readReceiptsEnabled]);
-
+  const sendMessageMutation = useMutation(api.messages.sendMessage);
+  const markSeenMutation = useMutation(api.messages.markSeen);
+  const setTypingMutation = useMutation(api.messages.setTyping);
   const generateUploadUrl = useAction(api.files.generateUploadUrl);
-  const getFileUrl = useAction(api.files.getFileUrl);
-  const navigate = useNavigate();
 
-  const [notifyMuted, setNotifyMuted] = useState(false);
+  // Cache messages for offline viewing
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("chat_notify_muted");
-      if (saved) setNotifyMuted(saved === "1");
-    } catch {}
-  }, []);
+    if (messagesQuery?.page && conversationId) {
+      cacheMessages(conversationId, messagesQuery.page);
+    }
+  }, [messagesQuery?.page, conversationId]);
+
+  // Auto-scroll to bottom on new messages
   useEffect(() => {
-    try {
-      localStorage.setItem("chat_notify_muted", notifyMuted ? "1" : "0");
-    } catch {}
-  }, [notifyMuted]);
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messagesQuery?.page]);
 
-  const onPickFiles = async (fileList: FileList | null) => {
-    if (!fileList || fileList.length === 0) return;
-    setIsUploading(true);
-    try {
-      const files = Array.from(fileList);
+  // Mark messages as seen when conversation is active
+  useEffect(() => {
+    if (conversationId && messagesQuery?.page?.length) {
+      markSeenMutation({ conversationId });
+    }
+  }, [conversationId, messagesQuery?.page?.length, markSeenMutation]);
 
-      for (const file of files) {
-        // 1) Get signed upload URL
-        const uploadUrl = await generateUploadUrl({});
-
-        // 2) Upload bytes
-        const buf = await new Promise<ArrayBuffer>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as ArrayBuffer);
-          reader.onerror = reject;
-          reader.readAsArrayBuffer(file);
+  // Sound notification for new messages
+  useEffect(() => {
+    if (messagesQuery?.page?.length && conversationId) {
+      const latestMessage = messagesQuery.page[0];
+      if (latestMessage?.senderId !== user?._id && document.hidden) {
+        onUserInteractionUnlock(() => {
+          try {
+            new Audio("/notification.mp3").play().catch(() => {});
+          } catch {}
         });
-
-        const res = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": file.type || "application/octet-stream" },
-          body: buf,
-        });
-        if (!res.ok) throw new Error("Upload failed");
-        const { storageId } = await res.json();
-
-        // 3) Resolve a signed URL for the uploaded file
-        const signedUrl = await getFileUrl({ fileId: storageId });
-
-        // 4) Send message depending on type
-        if (file.type.startsWith("image/")) {
-          await sendMessage({
-            conversationId,
-            content: "", // no text when sending just media
-            messageType: "image",
-            imageUrl: signedUrl,
-          });
-        } else {
-          await sendMessage({
-            conversationId,
-            content: "",
-            messageType: "file",
-            fileUrl: signedUrl,
-            fileName: file.name,
-          });
-        }
       }
-    } catch (err) {
-      toast.error("Failed to upload and send files");
-      console.error(err);
-    } finally {
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
-  };
+  }, [messagesQuery?.page, user?._id, conversationId]);
 
-  const startRecording = async () => {
-    try {
-      // Request mic
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // Prefer webm/opus; browser picks best available
-      const mimeType =
-        MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-          ? "audio/webm;codecs=opus"
-          : MediaRecorder.isTypeSupported("audio/webm")
-          ? "audio/webm"
-          : "";
-      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      audioChunksRef.current = [];
-      mr.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
-        }
-      };
-      mr.onstop = async () => {
-        try {
-          const blob = new Blob(audioChunksRef.current, { type: mr.mimeType || "audio/webm" });
-          if (blob.size === 0) {
-            setIsRecording(false);
-            return;
-          }
-          // Determine duration by decoding
-          const audio = document.createElement("audio");
-          const url = URL.createObjectURL(blob);
-          const getDuration = () =>
-            new Promise<number>((resolve) => {
-              audio.onloadedmetadata = () => {
-                resolve(isFinite(audio.duration) ? audio.duration : 0);
-                URL.revokeObjectURL(url);
-              };
-              audio.src = url;
-            });
-          const duration = await getDuration();
-
-          // Upload blob
-          setIsUploading(true);
-          const uploadUrl = await generateUploadUrl({});
-          const buf = await blob.arrayBuffer();
-          const res = await fetch(uploadUrl, {
-            method: "POST",
-            headers: { "Content-Type": blob.type || "application/octet-stream" },
-            body: buf,
-          });
-          if (!res.ok) throw new Error("Upload failed");
-          const { storageId } = await res.json();
-          const signedUrl = await getFileUrl({ fileId: storageId });
-
-          // Send audio message
-          await sendMessage({
-            conversationId,
-            content: "",
-            messageType: "audio",
-            audioUrl: signedUrl,
-            audioDuration: Math.round(duration || 0),
-          });
-        } catch (err) {
-          toast.error("Failed to send voice message");
-          console.error(err);
-        } finally {
-          setIsUploading(false);
-          setIsRecording(false);
-        }
-      };
-      mediaRecorderRef.current = mr;
-      mr.start();
-      setIsRecording(true);
-    } catch (err) {
-      toast.error("Microphone permission denied");
-      console.error(err);
+  // Typing indicator logic
+  const handleTyping = useCallback(() => {
+    if (!conversationId) return;
+    
+    const now = Date.now();
+    if (now - lastTypingRef.current > 2000) { // Throttle to every 2 seconds
+      setTypingMutation({ conversationId, isTyping: true });
+      lastTypingRef.current = now;
     }
-  };
 
-  const stopRecording = () => {
-    try {
-      const mr = mediaRecorderRef.current;
-      if (mr && mr.state !== "inactive") {
-        mr.stop();
-      }
-      // Stop tracks
-      mr?.stream.getTracks().forEach((t) => t.stop());
-    } catch (e) {
-      // ignore
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
     }
-  };
 
-  const onAudioPlay = async () => {
+    // Set new timeout to stop typing
+    typingTimeoutRef.current = setTimeout(() => {
+      setTypingMutation({ conversationId, isTyping: false });
+    }, 3000);
+  }, [conversationId, setTypingMutation]);
+
+  const handleSendMessage = async () => {
+    if (!conversationId || (!message.trim() && !uploading)) return;
+
+    const content = message.trim();
+    setMessage("");
+    
+    // Stop typing indicator
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    setTypingMutation({ conversationId, isTyping: false });
+
     try {
-      // reinforce seen when the receiver plays audio
-      await markAsRead({ conversationId });
-    } catch {}
-  };
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim()) return;
-
-    setIsSubmitting(true);
-    try {
-      await sendMessage({
+      await sendMessageMutation({
         conversationId,
-        content: message.trim(),
-        messageType: "text",
+        content,
+        type: "text",
       });
-      setMessage("");
-    } catch (error) {
-      toast.error("Failed to send message");
-    } finally {
-      setIsSubmitting(false);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send message");
+      setMessage(content); // Restore message on error
     }
   };
 
-  if (!conversation) {
+  const handleFileUpload = async (files: FileList) => {
+    if (!conversationId || files.length === 0) return;
+
+    const validFiles = Array.from(files).filter(file => {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`${file.name} is too large (max 25MB)`);
+        return false;
+      }
+      return true;
+    });
+
+    if (validFiles.length === 0) return;
+
+    setUploading(true);
+    const uploadedFiles: { type: "image" | "video" | "file"; storageId: string }[] = [];
+
+    try {
+      for (const file of validFiles) {
+        const uploadUrl = await generateUploadUrl();
+        
+        // Upload with progress tracking
+        const xhr = new XMLHttpRequest();
+        const uploadPromise = new Promise<string>((resolve, reject) => {
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const progress = (e.loaded / e.total) * 100;
+              setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status === 200) {
+              const result = JSON.parse(xhr.responseText);
+              resolve(result.storageId);
+            } else {
+              reject(new Error(`Upload failed: ${xhr.statusText}`));
+            }
+          };
+
+          xhr.onerror = () => reject(new Error("Upload failed"));
+        });
+
+        xhr.open("POST", uploadUrl);
+        xhr.send(file);
+
+        const storageId = await uploadPromise;
+        
+        // Determine file type
+        let fileType: "image" | "video" | "file" = "file";
+        if (file.type.startsWith("image/")) fileType = "image";
+        else if (file.type.startsWith("video/")) fileType = "video";
+
+        uploadedFiles.push({ type: fileType, storageId });
+
+        // Store file metadata
+        await fetch("/api/files", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            storageId,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+          }),
+        });
+      }
+
+      // Group by type
+      const images = uploadedFiles.filter(f => f.type === "image").map(f => f.storageId);
+      const videos = uploadedFiles.filter(f => f.type === "video").map(f => f.storageId);
+      const files = uploadedFiles.filter(f => f.type === "file").map(f => f.storageId);
+
+      // Send message with media
+      await sendMessageMutation({
+        conversationId,
+        type: images.length > 0 ? "image" : videos.length > 0 ? "video" : "file",
+        images: images.length > 0 ? images : undefined,
+        videos: videos.length > 0 ? videos : undefined,
+        files: files.length > 0 ? files : undefined,
+      });
+
+      toast.success("Media sent successfully");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to upload media");
+    } finally {
+      setUploading(false);
+      setUploadProgress({});
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  if (!conversationId) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="h-full flex items-center justify-center text-muted-foreground">
+        <div className="text-center">
+          <h3 className="text-lg font-semibold mb-2">Select a conversation</h3>
+          <p className="text-sm">Choose a chat to start messaging</p>
+        </div>
       </div>
     );
   }
 
-  const displayName = conversation.isGroup 
-    ? conversation.groupName 
-    : otherUser?.name || "Unknown User";
-  const displayImage = conversation.isGroup 
-    ? conversation.groupImage 
-    : otherUser?.image;
-
-  // Simplified: derive header subtext directly from otherUser fields
-  const headerSubtext = !conversation?.isGroup
-    ? (() => {
-        if (!otherUser) return "";
-        if (otherUser.isOnline) return "Active now";
-        if (otherUser.lastSeen) {
-          return `Last seen ${formatDistanceToNow(new Date(otherUser.lastSeen), { addSuffix: true })}`;
-        }
-        return "";
-      })()
-    : "";
+  const otherUser = !conversation?.isGroup ? conversation?.otherParticipants?.[0] : null;
+  const displayName = conversation?.isGroup ? conversation?.groupName : otherUser?.name || "Unknown";
+  const isOnline = !conversation?.isGroup && otherUser?.isOnline;
 
   return (
     <div className="h-full flex flex-col">
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,video/*"
-        multiple
-        className="hidden"
-        onChange={(e) => onPickFiles(e.target.files)}
-      />
-
       {/* Chat Header */}
-      {/* Keep header visible while scrolling messages on mobile */}
-      <div className="p-4 border-b border-border bg-card/90 sticky top-0 z-20 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <button
-                onClick={() => {
-                  if (!conversation.isGroup && otherUser?._id) {
-                    navigate(`/profile?id=${otherUser._id}`);
-                  }
-                }}
-                className="shrink-0"
-                aria-label="View profile"
-              >
-                <Avatar>
-                  <AvatarImage src={displayImage} />
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    {displayName?.charAt(0) || "U"}
-                  </AvatarFallback>
-                </Avatar>
-              </button>
-              {!conversation.isGroup && otherUser?.isOnline && (
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-background rounded-full"></div>
+      <div className="p-4 border-b flex items-center gap-3">
+        <Avatar>
+          <AvatarImage src={conversation?.isGroup ? conversation?.groupImage : otherUser?.image} />
+          <AvatarFallback className="bg-muted">
+            {displayName?.charAt(0) || "U"}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex-1">
+          <h3 className="font-semibold">{displayName}</h3>
+          {!conversation?.isGroup && (
+            <p className="text-xs text-muted-foreground">
+              {isOnline ? (
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  Active now
+                </span>
+              ) : otherUser?.lastSeenAt ? (
+                `Last seen ${formatDistanceToNow(new Date(otherUser.lastSeenAt), { addSuffix: true })}`
+              ) : (
+                "Offline"
               )}
-            </div>
-            <div>
-              <h3
-                className={`font-semibold ${!conversation.isGroup && otherUser?._id ? "cursor-pointer hover:underline" : ""}`}
-                onClick={() => {
-                  if (!conversation.isGroup && otherUser?._id) {
-                    navigate(`/profile?id=${otherUser._id}`);
-                  }
-                }}
-              >
-                {displayName}
-              </h3>
-              {!conversation.isGroup && (
-                <p className="text-sm text-muted-foreground">
-                  {headerSubtext}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" title="Voice call" onClick={() => placeCall("voice")}>
-              <Phone className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" title="Video call" onClick={() => placeCall("video")}>
-              <Video className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" title="Chat info">
-              <Info className="w-4 h-4" />
-            </Button>
-          </div>
+            </p>
+          )}
         </div>
       </div>
 
       {/* Messages */}
-      <div
-        ref={messagesContainerRef}
-        onScroll={handleScroll}
-        className="relative flex-1 overflow-y-auto p-4 space-y-4 overscroll-contain pb-2"
-      >
-        {messages && messages.length > 0 ? (
-          messages.map((msg: any, index: number) => {
-            const isOwn = msg.senderId === user?._id;
-            const showAvatar = index === 0 || messages[index - 1].senderId !== msg.senderId;
+      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <div className="space-y-4">
+          {messagesQuery?.page?.map((msg: any) => {
+            const isMe = msg.senderId === user?._id;
+            const sender = isMe ? user : (conversation?.otherParticipants?.find((p: any) => p._id === msg.senderId) || { name: "Unknown" });
             
-            // Compute seen status for 1:1 and group
-            const otherParticipantIds: Array<string> =
-              Array.isArray(conversation?.participants)
-                ? (conversation!.participants as any[])
-                    .map((p: any) => p._id || p)
-                    .filter((pid: string) => pid !== user?._id)
-                : (conversation?.otherParticipants?.map((p: any) => p._id) || []);
-            const readByUserIds: Array<string> = (msg.readBy || []).map((r: any) => r.userId);
-            const seenByOthers = otherParticipantIds.filter((pid) => readByUserIds.includes(pid));
-
-            // For 1:1: seen if the single counterpart has read
-            const isSeen = seenByOthers.length > 0;
+            // Check if message is seen by all other participants
+            const otherParticipantIds = conversation?.participants?.filter((id: string) => id !== user?._id) || [];
+            const allSeen = otherParticipantIds.every((id: string) => msg.seenBy?.[id]);
 
             return (
               <motion.div
                 key={msg._id}
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                className={`flex gap-2 ${isOwn ? "flex-row-reverse" : ""}`}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
               >
-                <div className="w-8">
-                  {showAvatar && !isOwn && (
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={msg.sender?.image} />
-                      <AvatarFallback className="bg-muted text-xs">
-                        {msg.sender?.name?.charAt(0) || "U"}
-                      </AvatarFallback>
-                    </Avatar>
+                <div className={`max-w-[70%] ${isMe ? "order-2" : "order-1"}`}>
+                  {!isMe && conversation?.isGroup && (
+                    <p className="text-xs text-muted-foreground mb-1 px-3">
+                      {sender?.name || "Unknown"}
+                    </p>
                   )}
-                </div>
-                <div className={`flex flex-col max-w-xs ${isOwn ? "items-end" : ""}`}>
-                  {msg.messageType === "image" && msg.imageUrl ? (
-                    <div className={`${isOwn ? "" : ""}`}>
-                      <img
-                        src={msg.imageUrl}
-                        alt={msg.fileName || "image"}
-                        className="max-w-xs rounded-2xl border"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </div>
-                  ) : msg.messageType === "file" && msg.fileUrl ? (
-                    <div className="w-full">
-                      <video
-                        src={msg.fileUrl}
-                        className="max-w-xs rounded-2xl border"
-                        controls
-                        preload="metadata"
-                        playsInline
-                      />
-                      {msg.fileName && (
-                        <div className="text-xs text-muted-foreground mt-1 truncate max-w-xs">{msg.fileName}</div>
-                      )}
-                    </div>
-                  ) : msg.messageType === "audio" && msg.audioUrl ? (
-                    // Messenger-like voice message bubble
-                    <div className="group max-w-[280px]">
-                      <div
-                        className={`flex items-center gap-3 px-3 py-2 rounded-2xl shadow-sm border ${
-                          isOwn
-                            ? "bg-primary text-primary-foreground border-primary/20"
-                            : "bg-muted text-foreground border-muted/50"
-                        }`}
-                      >
-                        {/* Circular mic badge to the left, similar to Messenger */}
-                        <div
-                          className={`size-8 rounded-full flex items-center justify-center ${
-                            isOwn ? "bg-white/20 text-primary-foreground" : "bg-background text-muted-foreground"
-                          }`}
-                          title="Voice message"
-                        >
-                          <Mic className="w-4 h-4" />
-                        </div>
+                  <div
+                    className={`rounded-2xl px-4 py-2 ${
+                      isMe
+                        ? "bg-primary text-primary-foreground ml-auto"
+                        : "bg-muted text-foreground"
+                    }`}
+                  >
+                    {/* Text content */}
+                    {msg.content && (
+                      <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                    )}
 
-                        {/* Inline player kept simple and compact */}
-                        <audio
-                          src={msg.audioUrl}
-                          controls
-                          preload="metadata"
-                          onPlay={onAudioPlay}
-                          onError={() => {
-                            toast.error("Audio failed to load or play");
-                          }}
-                          className="w-40"
+                    {/* Images */}
+                    {msg.imageUrls?.map((url: string, idx: number) => (
+                      <div key={idx} className="mt-2 rounded-lg overflow-hidden">
+                        <ProgressiveImage
+                          src={url}
+                          alt="Shared image"
+                          className="max-w-full h-auto rounded-lg"
                         />
                       </div>
-                      {typeof msg.audioDuration === "number" && msg.audioDuration > 0 && (
-                        <div className={`mt-1 text-[11px] ${isOwn ? "text-primary/80 text-right" : "text-muted-foreground text-left"}`}>
-                          {Math.floor(msg.audioDuration / 60)}:{(msg.audioDuration % 60).toString().padStart(2, "0")}
+                    ))}
+
+                    {/* Videos */}
+                    {msg.videoUrls?.map((url: string, idx: number) => (
+                      <div key={idx} className="mt-2 rounded-lg overflow-hidden">
+                        <ProgressiveVideo
+                          src={url}
+                          className="max-w-full h-auto rounded-lg"
+                          mode="preview"
+                        />
+                      </div>
+                    ))}
+
+                    {/* Files */}
+                    {msg.fileUrls?.map((file: any, idx: number) => (
+                      <div key={idx} className="mt-2 flex items-center gap-2 p-2 bg-background/10 rounded-lg">
+                        <File className="w-4 h-4" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{file.name}</p>
+                          {file.size && (
+                            <p className="text-xs opacity-70">
+                              {(file.size / 1024 / 1024).toFixed(1)} MB
+                            </p>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div
-                      className={`px-4 py-2 rounded-2xl shadow-sm ${
-                        isOwn ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
-                      }`}
-                    >
-                      <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
-                    </div>
-                  )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => window.open(file.url, "_blank")}
+                        >
+                          Download
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
 
-                  {/* NEW: read indicator line (respects read receipts privacy) */}
-                  {isOwn && (
-                    <div className="flex items-center gap-1 mt-1">
-                      {/* 1:1 — show checks; Group — show up to 3 tiny avatars when seen */}
-                      {conversation?.isGroup ? (
-                        readReceiptsEnabled && seenByOthers.length > 0 ? (
-                          <div className="flex -space-x-1">
-                            {conversation.otherParticipants
-                              .filter((p: any) => seenByOthers.includes(p._id))
-                              .slice(0, 3)
-                              .map((p: any) => (
-                                <Avatar key={p._id} className="w-4 h-4 ring-1 ring-background">
-                                  <AvatarImage src={p.image} />
-                                  <AvatarFallback className="text-[9px] bg-muted">
-                                    {p.name?.charAt(0) || "U"}
-                                  </AvatarFallback>
-                                </Avatar>
-                              ))}
-                          </div>
+                  <div className={`flex items-center gap-1 mt-1 text-xs text-muted-foreground ${isMe ? "justify-end" : "justify-start"}`}>
+                    <span>
+                      {formatDistanceToNow(new Date(msg._creationTime), { addSuffix: true })}
+                    </span>
+                    {isMe && (
+                      <span className="ml-1">
+                        {allSeen ? (
+                          <CheckCheck className="w-3 h-3 text-blue-500" />
                         ) : (
-                          <Check className="w-3 h-3 text-muted-foreground" />
-                        )
-                      ) : readReceiptsEnabled && isSeen ? (
-                        <CheckCheck className="w-3.5 h-3.5 text-blue-600" />
-                      ) : (
-                        <Check className="w-3.5 h-3.5 text-muted-foreground" />
-                      )}
-                    </div>
-                  )}
-
-                  <span className="text-[10px] text-muted-foreground mt-1">
-                    {formatDistanceToNow(new Date(msg._creationTime), { addSuffix: true })}
-                  </span>
+                          <Check className="w-3 h-3" />
+                        )}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             );
-          })
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <div className="text-center">
-              <h3 className="font-semibold mb-2">Start the conversation</h3>
-              <p className="text-sm">Send a message to get started</p>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+          })}
 
-      {/* Message Input */}
-      {/* Respect safe-area inset on mobile devices */}
-      <div className="p-4 pb-[env(safe-area-inset-bottom)] border-t border-border bg-card shadow-sm">
-        <form onSubmit={handleSendMessage} className="flex gap-2 items-end">
+          {/* Typing indicator */}
+          <AnimatePresence>
+            {typingUsers && typingUsers.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex justify-start"
+              >
+                <div className="bg-muted text-foreground rounded-2xl px-4 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                    <span className="text-sm">
+                      {typingUsers.map((u: any) => u.name).join(", ")} {typingUsers.length === 1 ? "is" : "are"} typing...
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </ScrollArea>
+
+      {/* Upload Progress */}
+      {Object.keys(uploadProgress).length > 0 && (
+        <div className="px-4 py-2 border-t bg-muted/50">
+          {Object.entries(uploadProgress).map(([filename, progress]) => (
+            <div key={filename} className="flex items-center gap-2 text-sm">
+              <span className="truncate flex-1">{filename}</span>
+              <span>{Math.round(progress)}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Message Composer */}
+      <div className="p-4 border-t">
+        <div className="flex items-end gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,video/*,*/*"
+            className="hidden"
+            onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+          />
+          
           <Button
-            type="button"
+            size="sm"
             variant="ghost"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="h-10 w-10 p-0 rounded-full"
-            title="Attach photo/video"
+            disabled={uploading}
           >
-            {isUploading ? (
-              <div className="w-4 h-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            ) : (
-              <Paperclip className="w-4 h-4" />
-            )}
+            <Paperclip className="w-4 h-4" />
           </Button>
-          <Button type="button" variant="ghost" className="h-10 w-10 p-0 rounded-full" title="Emoji">
-            <Smile className="w-4 h-4" />
-          </Button>
-          <Button type="button" variant="ghost" className="h-10 w-10 p-0 rounded-full" title="GIFs">
-            <Images className="w-4 h-4" />
-          </Button>
-          <Input
-            placeholder="Message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            className="flex-1 rounded-full bg-muted border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-            onFocus={() => setInputFocused(true)}
-            onBlur={() => setInputFocused(false)}
-          />
-          {/* Add: waveform animation when recording */}
-          {inputFocused && isRecording && (
-            <div className="flex items-center gap-2">
-              <RecordingWaveform />
-            </div>
-          )}
-          {inputFocused && (
-            isRecording ? (
-              <Button
-                type="button"
-                variant="destructive"
-                className="h-10 w-10 p-0 rounded-full"
-                title="Stop recording"
-                onClick={stopRecording}
-                disabled={isUploading}
-              >
-                <Square className="w-4 h-4" />
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="ghost"
-                className="h-10 w-10 p-0 rounded-full"
-                title="Record voice message"
-                onClick={startRecording}
-                disabled={isUploading}
-              >
-                <Mic className="w-4 h-4" />
-              </Button>
-            )
-          )}
+
+          <div className="flex-1">
+            <Textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                if (e.target.value.trim()) {
+                  handleTyping();
+                }
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Type a message..."
+              className="min-h-[40px] max-h-32 resize-none"
+              disabled={uploading}
+            />
+          </div>
+
           <Button
-            type="submit"
-            disabled={!message.trim() || isSubmitting}
-            className="h-10 w-10 p-0 rounded-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
-            aria-label="Send"
-            title="Send"
+            onClick={handleSendMessage}
+            disabled={!message.trim() || uploading}
+            size="sm"
           >
-            {isSubmitting ? (
-              <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
+            <Send className="w-4 h-4" />
           </Button>
-        </form>
+        </div>
       </div>
-
-      {/* Incoming Call Prompt */}
-      {incomingOpen && activeCall && user && activeCall.calleeId === user._id && (
-        <Dialog open={incomingOpen} onOpenChange={setIncomingOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Incoming {activeCall.type === "video" ? "Video" : "Voice"} Call</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                You have an incoming {activeCall.type} call. Do you want to accept?
-              </p>
-            </div>
-            <DialogFooter className="flex gap-2 sm:justify-end">
-              <Button
-                variant="secondary"
-                onClick={async () => {
-                  try {
-                    await endCall({ callId: activeCall._id as Id<"calls"> });
-                  } catch {
-                    // ignore
-                  } finally {
-                    setIncomingOpen(false);
-                  }
-                }}
-              >
-                Reject
-              </Button>
-              <Button
-                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800"
-                onClick={() => {
-                  setCallId(activeCall._id as Id<"calls">);
-                  setCallType(activeCall.type);
-                  setCallRole("callee");
-                  setIncomingOpen(false);
-                  setCallOpen(true); // CallDialog handles the actual accept flow
-                }}
-              >
-                Accept
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {callOpen && callId && (
-        <CallDialog
-          callId={callId}
-          conversationId={conversationId}
-          type={callType}
-          role={callRole}
-          open={callOpen}
-          onOpenChange={(v) => setCallOpen(v)}
-        />
-      )}
     </div>
   );
 }

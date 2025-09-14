@@ -1,193 +1,297 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
-import { query, QueryCtx, MutationCtx } from "./_generated/server";
-import { mutation } from "./_generated/server";
 import { v } from "convex/values";
-import type { Doc } from "./_generated/dataModel";
-import { withErrorLogging } from "./utils/errors";
+import { internalMutation, mutation, query } from "./_generated/server";
 
-/**
- * Get the current signed in user. Returns null if the user is not signed in.
- * Usage: const signedInUser = await ctx.runQuery(api.authHelpers.currentUser);
- * THIS FUNCTION IS READ-ONLY. DO NOT MODIFY.
- */
+export const current = query({
+  args: {},
+  handler: async (ctx) => {
+    return await getCurrentUser(ctx);
+  },
+});
+
 export const currentUser = query({
   args: {},
-  handler: withErrorLogging("users.currentUser", async (ctx, _args) => {
-    const user = await getCurrentUser(ctx);
-
-    if (user === null) {
-      return null;
-    }
-
-    return user;
-  }),
+  handler: async (ctx) => {
+    return await getCurrentUser(ctx);
+  },
 });
 
-/**
- * Use this function internally to get the current user data. Remember to handle the null user case.
- * @param ctx
- * @returns
- */
-export const getCurrentUser = async (ctx: QueryCtx | MutationCtx) => {
-  const userId = await getAuthUserId(ctx);
-  if (userId === null) {
+export async function getCurrentUser(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
     return null;
   }
-  return await ctx.db.get(userId);
-};
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_tokenIdentifier", (q: any) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+    .unique();
+  return user;
+}
 
-export const updateUserName = mutation({
-  args: { name: v.string() },
-  handler: withErrorLogging("users.updateUserName", async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
+export const updateProfile = mutation({
+  args: {
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       throw new Error("Not authenticated");
     }
-    const name = args.name.trim();
-    if (name.length === 0) {
-      throw new Error("Name cannot be empty");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_tokenIdentifier", (q: any) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
+
+    if (!user) {
+      throw new Error("User not found");
     }
-    await ctx.db.patch(user._id, { name });
-    return true;
-  }),
+
+    await ctx.db.patch(user._id, {
+      name: args.name,
+      image: args.image,
+    });
+
+    return user._id;
+  },
 });
 
-export const updateUserImage = mutation({
-  args: { image: v.string() },
-  handler: withErrorLogging("users.updateUserImage", async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
-      throw new Error("Not authenticated");
+export const updateStatus = mutation({
+  args: {
+    isOnline: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return;
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_tokenIdentifier", (q: any) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
+
+    if (!user) return;
+
+    const updates: any = { isOnline: args.isOnline };
+    if (!args.isOnline) {
+      updates.lastSeenAt = Date.now();
     }
-    await ctx.db.patch(user._id, { image: args.image });
-    return true;
-  }),
+
+    await ctx.db.patch(user._id, updates);
+  },
 });
 
 export const getUserById = query({
   args: { userId: v.id("users") },
-  handler: withErrorLogging("users.getUserById", async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    return user ?? null;
-  }),
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.userId);
+  },
+});
+
+export const searchUsers = query({
+  args: { query: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return [];
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_tokenIdentifier", (q: any) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
+    if (!currentUser) return [];
+
+    const query = args.query.toLowerCase().trim();
+    if (query.length < 2) return [];
+
+    const users = await ctx.db.query("users").collect();
+    
+    return users
+      .filter(user => 
+        user._id !== currentUser._id &&
+        (user.name?.toLowerCase().includes(query) || 
+         user.email?.toLowerCase().includes(query))
+      )
+      .slice(0, 20);
+  },
+});
+
+export const upsertFromClerk = internalMutation({
+  args: {
+    tokenIdentifier: v.string(),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    image: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_tokenIdentifier", (q: any) => q.eq("tokenIdentifier", args.tokenIdentifier))
+      .unique();
+
+    if (user) {
+      await ctx.db.patch(user._id, {
+        name: args.name,
+        email: args.email,
+        image: args.image,
+      });
+      return user._id;
+    } else {
+      return await ctx.db.insert("users", {
+        tokenIdentifier: args.tokenIdentifier,
+        name: args.name,
+        email: args.email,
+        image: args.image,
+        isOnline: false,
+      });
+    }
+  },
+});
+
+export const checkUsernameAvailable = query({
+  args: { username: v.string() },
+  handler: async (ctx, args) => {
+    const username = args.username.trim().toLowerCase();
+    if (!username) {
+      return { available: false, username };
+    }
+
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_username", (q: any) => q.eq("username", username))
+      .first();
+
+    return { available: !existing, username };
+  },
 });
 
 export const getUserCounts = query({
   args: {},
-  handler: withErrorLogging("users.getUserCounts", async (ctx, _args) => {
-    let totalUsers = 0;
-    for await (const _ of ctx.db.query("users")) {
-      totalUsers++;
-    }
-
-    let onlineUsers = 0;
-    for await (const _ of ctx.db
-      .query("users")
-      .withIndex("by_isOnline", (q: any) => q.eq("isOnline", true))) {
-      onlineUsers++;
-    }
-
-    let communitiesCount = 0;
-    for await (const _ of ctx.db
-      .query("conversations")
-      .withIndex("by_isGroup", (q: any) => q.eq("isGroup", true))) {
-      communitiesCount++;
-    }
-
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    const totalUsers = users.length;
+    const onlineUsers = users.filter((u: any) => u.isOnline).length;
+    const communitiesCount = 0;
     return { totalUsers, onlineUsers, communitiesCount };
-  }),
+  },
 });
 
-// Fetch user by username
+// Get a user by username (returns null if none; throws if duplicate usernames exist)
 export const getUserByUsername = query({
   args: { username: v.string() },
-  handler: withErrorLogging("users.getUserByUsername", async (ctx, args) => {
-    const uname = args.username.trim().toLowerCase();
-    if (!uname) return null;
-
-    const user = await ctx.db
+  handler: async (ctx, { username }) => {
+    const doc = await ctx.db
       .query("users")
-      .withIndex("by_username", (q: any) => q.eq("username", uname))
+      .filter((q) => q.eq(q.field("username"), username))
       .unique();
-
-    return user ?? null;
-  }),
+    return doc;
+  },
 });
 
-// Check username availability (case-insensitive)
-export const checkUsernameAvailable = query({
-  args: { username: v.string() },
-  handler: withErrorLogging("users.checkUsernameAvailable", async (ctx, args) => {
-    const uname = args.username.trim().toLowerCase();
-    if (!/^[a-z0-9._-]{3,20}$/.test(uname)) {
-      return { available: false };
-    }
-    const existing = await ctx.db
-      .query("users")
-      .withIndex("by_username", (q: any) => q.eq("username", uname))
-      .unique()
-      .catch(() => null);
+// Update only the display name of the current user
+export const updateUserName = mutation({
+  args: { name: v.string() },
+  handler: async (ctx, { name }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
 
-    return { available: !existing };
-  }),
+    let user =
+      (await ctx.db
+        .query("users")
+        .filter((q) => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
+        .unique()) ||
+      (identity.email
+        ? await ctx.db
+            .query("users")
+            .filter((q) => q.eq(q.field("email"), identity.email))
+            .unique()
+        : null);
+
+    if (!user) throw new Error("User not found");
+    await ctx.db.patch(user._id, { name });
+  },
 });
 
-// Update multiple user profile fields with basic validation and username uniqueness
+// Update user profile details (username/name/bio)
 export const updateUserProfile = mutation({
-  args: {
+  args: v.object({
+    username: v.optional(v.string()),
     name: v.optional(v.string()),
     bio: v.optional(v.string()),
-    coverImage: v.optional(v.string()),
-    username: v.optional(v.string()),
-  },
-  handler: withErrorLogging("users.updateUserProfile", async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
-      throw new Error("Not authenticated");
+  }),
+  handler: async (ctx, { username, name, bio }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    let user =
+      (await ctx.db
+        .query("users")
+        .filter((q) => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
+        .unique()) ||
+      (identity.email
+        ? await ctx.db
+            .query("users")
+            .filter((q) => q.eq(q.field("email"), identity.email))
+            .unique()
+        : null);
+
+    if (!user) throw new Error("User not found");
+
+    const updates: Record<string, unknown> = {};
+
+    if (typeof name === "string" && name.trim()) {
+      updates.name = name.trim();
     }
 
-    const patch: Record<string, any> = {};
-
-    if (typeof args.name === "string") {
-      const name = args.name.trim();
-      if (name.length === 0) throw new Error("Name cannot be empty");
-      patch.name = name;
+    if (typeof bio === "string") {
+      updates.bio = bio;
     }
 
-    if (typeof args.bio === "string") {
-      patch.bio = args.bio.trim();
-    }
-
-    if (typeof args.coverImage === "string") {
-      patch.coverImage = args.coverImage;
-    }
-
-    if (typeof args.username === "string") {
-      const uname = args.username.trim().toLowerCase();
-      if (!/^[a-z0-9._-]{3,20}$/.test(uname)) {
-        throw new Error("Username must be 3-20 chars (a-z, 0-9, ., _, -)");
-      }
+    if (typeof username === "string" && username.trim()) {
+      const newUsername = username.trim().toLowerCase();
+      // Ensure uniqueness
       const existing = await ctx.db
         .query("users")
-        .withIndex("by_username", (q: any) => q.eq("username", uname))
-        .unique()
-        .catch(() => null);
+        .filter((q) => q.eq(q.field("username"), newUsername))
+        .collect();
 
-      if (existing && existing._id !== user._id) {
-        throw new Error("Username already taken");
-      }
-      patch.username = uname;
+      const taken = existing.some((u) => u._id !== user!._id);
+      if (taken) throw new Error("Username already taken");
+
+      updates.username = newUsername;
     }
 
-    if (Object.keys(patch).length === 0) return true;
-
-    await ctx.db.patch(user._id, patch);
-    return true;
-  }),
+    if (Object.keys(updates).length > 0) {
+      await ctx.db.patch(user._id, updates);
+    }
+  },
 });
 
+// Update only the profile image URL
+export const updateUserImage = mutation({
+  args: { image: v.string() },
+  handler: async (ctx, { image }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    let user =
+      (await ctx.db
+        .query("users")
+        .filter((q) => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
+        .unique()) ||
+      (identity.email
+        ? await ctx.db
+            .query("users")
+            .filter((q) => q.eq(q.field("email"), identity.email))
+            .unique()
+        : null);
+
+    if (!user) throw new Error("User not found");
+    await ctx.db.patch(user._id, { image });
+  },
+});
+
+// Update nested settings (notifications, privacy, preferences, security)
 export const updateUserSettings = mutation({
-  args: {
+  args: v.object({
     notifications: v.optional(
       v.object({
         likes: v.optional(v.boolean()),
@@ -201,22 +305,18 @@ export const updateUserSettings = mutation({
     ),
     privacy: v.optional(
       v.object({
-        canMessage: v.optional(v.union(v.literal("everyone"), v.literal("friends"))),
-        postsVisibility: v.optional(v.union(v.literal("public"), v.literal("friends"))),
+        canMessage: v.optional(v.string()),
+        postsVisibility: v.optional(v.string()),
         showActiveStatus: v.optional(v.boolean()),
-        lastSeenVisibility: v.optional(
-          v.union(v.literal("everyone"), v.literal("friends"), v.literal("nobody"))
-        ),
-        profilePhotoVisibility: v.optional(
-          v.union(v.literal("everyone"), v.literal("friends"), v.literal("nobody"))
-        ),
+        lastSeenVisibility: v.optional(v.string()),
+        profilePhotoVisibility: v.optional(v.string()),
         readReceipts: v.optional(v.boolean()),
       })
     ),
     preferences: v.optional(
       v.object({
-        language: v.optional(v.union(v.literal("en"), v.literal("es"), v.literal("hi"))),
-        density: v.optional(v.union(v.literal("comfortable"), v.literal("compact"))),
+        language: v.optional(v.string()),
+        density: v.optional(v.string()),
       })
     ),
     security: v.optional(
@@ -224,108 +324,33 @@ export const updateUserSettings = mutation({
         twoFactorEnabled: v.optional(v.boolean()),
       })
     ),
-  },
-  handler: withErrorLogging("users.updateUserSettings", async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
-      throw new Error("Not authenticated");
-    }
+  }),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
 
-    const existing = (user as any).settings || {
-      notifications: { likes: true, comments: true, friendRequests: true, messages: true, sound: true, vibration: true, previews: true },
-      privacy: { canMessage: "everyone", postsVisibility: "public", showActiveStatus: true, lastSeenVisibility: "everyone", profilePhotoVisibility: "everyone", readReceipts: true },
-      preferences: { language: "en", density: "comfortable" },
-      security: { twoFactorEnabled: false },
-    };
+    let user =
+      (await ctx.db
+        .query("users")
+        .filter((q) => q.eq(q.field("tokenIdentifier"), identity.tokenIdentifier))
+        .unique()) ||
+      (identity.email
+        ? await ctx.db
+            .query("users")
+            .filter((q) => q.eq(q.field("email"), identity.email))
+            .unique()
+        : null);
 
+    if (!user) throw new Error("User not found");
+
+    const current = (user as any).settings || {};
     const merged = {
-      notifications: {
-        ...existing.notifications,
-        ...(args.notifications || {}),
-      },
-      privacy: {
-        ...existing.privacy,
-        ...(args.privacy || {}),
-      },
-      preferences: {
-        ...existing.preferences,
-        ...(args.preferences || {}),
-      },
-      security: {
-        ...existing.security,
-        ...(args.security || {}),
-      },
+      notifications: { ...(current.notifications || {}), ...(args.notifications || {}) },
+      privacy: { ...(current.privacy || {}), ...(args.privacy || {}) },
+      preferences: { ...(current.preferences || {}), ...(args.preferences || {}) },
+      security: { ...(current.security || {}), ...(args.security || {}) },
     };
 
-    await ctx.db.patch(user._id, { settings: merged });
-    return true;
-  }),
-});
-
-export const getUserByRawId = query({
-  args: { rawId: v.string() },
-  handler: withErrorLogging("users.getUserByRawId", async (ctx, args) => {
-    const id = args.rawId.trim();
-    if (!id) return null;
-    try {
-      const maybeUser = await ctx.db.get(id as any);
-      if (maybeUser && (maybeUser as any).email !== undefined) {
-        return maybeUser as Doc<"users">;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  }),
-});
-
-export const updateStatus = mutation({
-  args: { isOnline: v.boolean() },
-  handler: withErrorLogging("users.updateStatus", async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) {
-      throw new Error("Not authenticated");
-    }
-    const patch: Record<string, any> = { isOnline: args.isOnline };
-    if (!args.isOnline) {
-      patch.lastSeen = Date.now();
-    }
-    await ctx.db.patch(user._id, patch);
-    return true;
-  }),
-});
-
-// Return privacy-respecting last seen data for a user
-export const getLastSeen = query({
-  args: { userId: v.id("users") },
-  handler: withErrorLogging("users.getLastSeen", async (ctx, args) => {
-    const viewer = await getCurrentUser(ctx);
-    if (!viewer) {
-      throw new Error("Not authenticated");
-    }
-    const target = await ctx.db.get(args.userId);
-    if (!target) return { visible: false } as const;
-
-    const settings = (target as any).settings || {};
-    const privacy = settings.privacy || {};
-    const showActiveStatus: boolean = privacy.showActiveStatus ?? true;
-    const lastSeenVisibility: "everyone" | "friends" | "nobody" =
-      privacy.lastSeenVisibility ?? "everyone";
-
-    if (!showActiveStatus) {
-      return { visible: false } as const;
-    }
-
-    if (lastSeenVisibility === "nobody") {
-      return { visible: false } as const;
-    }
-
-    if (lastSeenVisibility === "friends") {
-      return { visible: false } as const;
-    }
-
-    const isOnline = !!(target as any).isOnline;
-    const lastSeen = (target as any).lastSeen ?? null;
-    return { visible: true, isOnline, lastSeen } as const;
-  }),
+    await ctx.db.patch(user._id, { settings: merged as any });
+  },
 });

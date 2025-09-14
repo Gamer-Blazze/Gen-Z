@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { Sidebar } from "@/components/Sidebar";
 import { ConversationsList } from "@/components/ConversationsList";
-import { ChatWindow } from "@/components/ChatWindow";
+import ChatWindow from "@/components/ChatWindow";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ArrowLeft, Menu } from "lucide-react";
@@ -164,13 +164,22 @@ export default function Friends() {
 
               {/* Friend Requests */}
               <TabsContent value="requests" className="mt-4">
-                {/* Per-tab search hidden */}
-                <div className="hidden">
+                {/* Per-tab search with clear */}
+                <div className="mb-3 relative w-full sm:w-80">
                   <Input
                     placeholder="Search requests"
                     value={requestSearch}
                     onChange={(e) => setRequestSearch(e.target.value)}
                   />
+                  {requestSearch && (
+                    <button
+                      aria-label="Clear"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setRequestSearch("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -250,13 +259,22 @@ export default function Friends() {
 
               {/* Your Friends */}
               <TabsContent value="friends" className="mt-4">
-                {/* Per-tab search hidden */}
-                <div className="hidden">
+                {/* Per-tab search with clear */}
+                <div className="mb-3 relative w-full sm:w-80">
                   <Input
                     placeholder="Search your friends"
                     value={friendsSearch}
                     onChange={(e) => setFriendsSearch(e.target.value)}
                   />
+                  {friendsSearch && (
+                    <button
+                      aria-label="Clear"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setFriendsSearch("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
 
                 <div className="space-y-3">
@@ -324,13 +342,22 @@ export default function Friends() {
 
               {/* Suggestions */}
               <TabsContent value="suggestions" className="mt-4">
-                {/* Per-tab search hidden */}
-                <div className="hidden">
+                {/* Per-tab search with clear */}
+                <div className="mb-3 relative w-full sm:w-80">
                   <Input
                     placeholder="Search for people"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
+                  {search && (
+                    <button
+                      aria-label="Clear"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      onClick={() => setSearch("")}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
 
                 {!suggestions && !friendRequests && search.trim().length < 2 ? (

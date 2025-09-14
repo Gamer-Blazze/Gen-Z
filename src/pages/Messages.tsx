@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router";
 import { Sidebar } from "@/components/Sidebar";
 import { ConversationsList } from "@/components/ConversationsList";
-import { ChatWindow } from "@/components/ChatWindow";
+import ChatWindow from "@/components/ChatWindow";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
