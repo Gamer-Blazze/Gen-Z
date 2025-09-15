@@ -1,7 +1,12 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+// Add: bring in Convex Auth tables
+import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
+  // Add: include Convex Auth tables (sessions, users, refresh tokens with required indexes)
+  ...authTables,
+
   // Users with commonly used indexes
   users: defineTable({
     tokenIdentifier: v.optional(v.string()),
