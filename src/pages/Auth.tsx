@@ -47,6 +47,45 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
   // Add resend cooldown state (seconds)
   const [resendCooldown, setResendCooldown] = useState(0);
 
+  // Add: Centralized auth error parser for consistent user-facing messages
+  const parseAuthError = (err: unknown): string => {
+    // Offline
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return "You appear to be offline. Check your connection and try again.";
+    }
+    // Error objects
+    if (err instanceof Error) {
+      const msg = err.message || "";
+      const lower = msg.toLowerCase();
+
+      // Common cases: rate limit or too many attempts
+      if (lower.includes("429") || lower.includes("rate")) {
+        return "Too many attempts. Please wait a minute and try again.";
+      }
+      // Invalid code
+      if (lower.includes("invalid") || lower.includes("code") || lower.includes("otp")) {
+        return "The verification code is invalid or expired. Request a new one and try again.";
+      }
+      // Convex warmup / index issues (rare)
+      if (lower.includes("index") || lower.includes("not found")) {
+        return "Service is warming up. Please try again in a few seconds.";
+      }
+
+      // Sometimes backend returns a JSON string in the message
+      try {
+        const parsed = JSON.parse(msg);
+        if (parsed?.response?.data?.error) return String(parsed.response.data.error);
+        if (parsed?.message) return String(parsed.message);
+      } catch {
+        // no-op
+      }
+
+      return "Something went wrong. Please try again.";
+    }
+    // Unknown
+    return "An unexpected error occurred. Please try again.";
+  };
+
   // Countdown effect for resend cooldown
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -70,12 +109,12 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
       const formData = new FormData();
       formData.set("email", email);
       await signIn("email-otp", formData);
-      // Start cooldown after a successful resend
       setResendCooldown(60);
       toast("Verification code sent");
     } catch (e) {
-      console.error("Resend code error:", e);
-      setError("Failed to resend code. Please try again in a moment.");
+      const msg = parseAuthError(e);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }
@@ -104,26 +143,24 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
       formData.set("email", email);
       await signIn("email-otp", formData);
       setStep({ email });
-      // Start cooldown right after initial send
       setResendCooldown(60);
+      toast("We sent you a 6‑digit code.");
       setIsLoading(false);
-    } catch (error) {
-      console.error("Email sign-in error:", error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to send verification code. Please try again."
-      );
+    } catch (e) {
+      const msg = parseAuthError(e);
+      setError(msg);
+      toast.error(msg);
       setIsLoading(false);
     }
   };
 
   const handleOtpSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // Validate OTP before attempting sign-in
     if (!otpIsValid) {
       setOtpTouched(true);
-      setError("Enter the 6-digit code sent to your email.");
+      const msg = "Enter the 6-digit code sent to your email.";
+      setError(msg);
+      toast.error(msg);
       return;
     }
     setIsLoading(true);
@@ -134,12 +171,15 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
 
       const redirect = redirectTarget;
       navigate(redirect, { replace: true });
-    } catch (error) {
-      console.error("OTP verification error:", error);
-
-      setError("The verification code you entered is incorrect.");
+    } catch (e) {
+      // Prefer specific invalid code text; fall back to parsed message otherwise
+      const parsed = parseAuthError(e);
+      const msg = parsed.includes("invalid or expired")
+        ? "The verification code you entered is incorrect or expired."
+        : parsed;
+      setError(msg);
+      toast.error(msg);
       setIsLoading(false);
-
       setOtp("");
       setOtpTouched(false);
     }
@@ -149,15 +189,13 @@ function Auth({ redirectAfterAuth = "/dashboard" }: AuthProps = {}) {
     setIsLoading(true);
     setError(null);
     try {
-      console.log("Attempting anonymous sign in...");
       await signIn("anonymous");
-      console.log("Anonymous sign in successful");
       const redirect = redirectTarget;
       navigate(redirect, { replace: true });
-    } catch (error) {
-      console.error("Guest login error:", error);
-      console.error("Error details:", JSON.stringify(error, null, 2));
-      setError(`Failed to sign in as guest: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch (e) {
+      const msg = parseAuthError(e);
+      setError(msg);
+      toast.error(msg);
       setIsLoading(false);
     }
   };
